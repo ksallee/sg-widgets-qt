@@ -30,6 +30,9 @@ from sg_widgets_qt.widgets.text_editor import TextEditor
 
 `onValueChange` fires on commit only, never on a keystroke. `onErrorChange` reports the parse error.
 
+The two are signals here: `committed` carries the value above, and `error_changed` carries the
+message or None.
+
 ## Slots
 
 `errorMessage` receives the message and renders it. Without it the message is a small line under the

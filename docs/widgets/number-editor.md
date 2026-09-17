@@ -62,6 +62,9 @@ at the bound it would cross. An empty field lands on zero on its first step.
 `onValueChange` fires on commit only. Input that does not parse emits nothing; it sets the invalid
 state and reports the message through `onErrorChange`.
 
+The two are signals here: `committed` carries the value above, and `error_changed` carries the
+message or None.
+
 ## Slots
 
 `errorMessage` receives the message and renders it.
@@ -97,4 +100,8 @@ The React half composes Base UI's NumberField 1.8.0 for the group, the steppers 
 Bits UI has no number field, so the Svelte half is written here against the same parts, classes and
 attributes; its state model — the step and its Shift and Page multipliers, the bounds, the hold that
 repeats, the pixel-per-step scrub — follows Zag's number-input 1.43.3, which is not installed.
-::qt-note
+
+Qt has no number field either, so the same state model is written here over the input group
+primitive, and the arithmetic stays core's. One difference the language forces: a step lands on a
+float where JavaScript has one number, so every type but `float` sends a whole value as a whole
+number.

@@ -17,6 +17,10 @@ from qtpy.QtCore import QEvent, QModelIndex, QRect, QRectF, QSize, Qt
 from qtpy.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPixmap
 from qtpy.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem, QToolTip, QWidget
 
+from sg_widgets_core.render import NAME_HUES as CORE_NAME_HUES
+from sg_widgets_core.render import initials_of as core_initials_of
+from sg_widgets_core.render import name_hue as core_name_hue
+
 from .. import icons
 from ..theme import Theme, theme_of, with_alpha
 from .base import THUMB_SIZE, elide
@@ -67,30 +71,18 @@ INDICATOR_HEIGHT = 20
 CHECKBOX = 16
 
 #: Eight hues far enough apart to tell neighbours apart, skipping the muddy yellows.
-#: Upstream `packages/core/src/render.ts`.
-NAME_HUES: tuple[int, ...] = (15, 45, 95, 150, 195, 240, 285, 330)
-
-_SEPARATORS = " \t\n._-,"
+#: Core's own table, so the delegate and a card tint one name alike.
+NAME_HUES = CORE_NAME_HUES
 
 
 def name_hue(name: str) -> int:
-    """A stable hue for a name, FNV-1a over its code points, as upstream `nameHue` is."""
-    if not name:
-        return NAME_HUES[0]
-    value = 0x811C9DC5
-    for char in name:
-        value ^= ord(char)
-        value = (value * 0x01000193) & 0xFFFFFFFF
-    return NAME_HUES[value % len(NAME_HUES)]
+    """A stable hue for a name, core's `name_hue`."""
+    return core_name_hue(name)
 
 
 def initials_of(name: str, limit: int = 2) -> str:
-    """The first letter of the first word, and of the last where there are two."""
-    words = [w for w in "".join(c if c not in _SEPARATORS else " " for c in name).split(" ") if w]
-    if not words:
-        return ""
-    picked = [words[0]] if len(words) == 1 or limit < 2 else [words[0], words[-1]]
-    return "".join(w[0] for w in picked).upper()[:limit]
+    """The first letter of the first word, and of the last where there are two. Core's own."""
+    return core_initials_of(name, limit)
 
 
 class RowDelegate(QStyledItemDelegate):
@@ -135,6 +127,14 @@ class RowDelegate(QStyledItemDelegate):
 
     def set_thumbnail(self, value: bool) -> None:
         self._thumbnail = bool(value)
+
+    @property
+    def round_thumbnail(self) -> bool:
+        """Whether the leading picture is a circle, which is what a person's avatar is."""
+        return self._round
+
+    def set_round_thumbnail(self, value: bool) -> None:
+        self._round = bool(value)
 
     @property
     def indicator(self) -> str:
@@ -338,7 +338,7 @@ class RowDelegate(QStyledItemDelegate):
         width = min(_runs_width(painter, runs, base, bold) + 2, room)
 
         line = QRect(box.left(), top, width, label_height)
-        cut = _draw_runs(painter, line, runs, base, bold, ink)
+        cut = _draw_runs(painter, line, runs, base, bold, ink, muted)
 
         if code:
             code_box = QRect(box.left() + width + LABEL_GAP, top, code_width, label_height)
@@ -494,43 +494,51 @@ def _text(index: QModelIndex, role: Roles) -> str:
     return "" if value is None else str(value)
 
 
-def _runs(index: QModelIndex) -> list[tuple[str, bool]]:
-    """The label as `(text, matched)` runs, or one unmatched run of the plain label."""
+def _runs(index: QModelIndex) -> list[tuple[str, bool, bool]]:
+    """The label as `(text, matched, muted)` runs, or one plain run of the label.
+
+    A run carrying a third item is drawn in `muted_foreground`, which is what a breadcrumb
+    before the label is. A two-item run is the plain case and reads as unmuted.
+    """
     value = index.data(Roles.RUNS)
     if isinstance(value, Sequence) and not isinstance(value, str):
-        out: list[tuple[str, bool]] = []
+        out: list[tuple[str, bool, bool]] = []
         for run in value:
             if isinstance(run, Sequence) and not isinstance(run, str) and len(run) >= 2:
-                out.append((str(run[0]), bool(run[1])))
+                out.append((str(run[0]), bool(run[1]), bool(run[2]) if len(run) > 2 else False))
         if out:
             return out
-    return [(_text(index, Roles.LABEL) or _display(index), False)]
+    return [(_text(index, Roles.LABEL) or _display(index), False, False)]
 
 
-def _runs_width(painter: QPainter, runs: list[tuple[str, bool]], base: QFont, bold: QFont) -> int:
+def _runs_width(
+    painter: QPainter, runs: list[tuple[str, bool, bool]], base: QFont, bold: QFont
+) -> int:
     """How wide the runs stand, each in the weight it is drawn in, on the painter's device."""
     device = painter.device()
     normal, heavy = QFontMetrics(base, device), QFontMetrics(bold, device)
-    return sum((heavy if matched else normal).horizontalAdvance(text) for text, matched in runs)
+    return sum((heavy if matched else normal).horizontalAdvance(text) for text, matched, _ in runs)
 
 
 def _draw_runs(
     painter: QPainter,
     box: QRect,
-    runs: list[tuple[str, bool]],
+    runs: list[tuple[str, bool, bool]],
     base: QFont,
     bold: QFont,
     ink: QColor,
+    muted: QColor | None = None,
 ) -> bool:
     """Draw the runs left to right, matched ones in DemiBold. True when the label was cut."""
     painter.setPen(ink)
     x = box.left()
     right = box.right() + 1
     cut = False
-    for text, matched in runs:
+    for text, matched, dim in runs:
         if not text or x >= right:
             cut = cut or bool(text)
             continue
+        painter.setPen(muted if dim and muted is not None else ink)
         painter.setFont(bold if matched else base)
         metrics = painter.fontMetrics()
         width = metrics.horizontalAdvance(text)

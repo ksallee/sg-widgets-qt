@@ -31,6 +31,9 @@ width of its value instead of the width it is given.
 a primitive of its own. The number editor uses it, since the primitive it stands on owns the pointer
 over the whole field.
 
+Here an editor subclasses `ValueEditor` instead, so there is no root to hand over: the box names its
+own slot, and `add_control` puts the control and whatever stands beside it above the error line.
+
 ## The draft and the value
 
 The value is what the caller holds; the draft is what the control shows. `format` turns one into the
@@ -65,7 +68,10 @@ there is nothing between the two states for a parse to refuse.
 `useValueSession` in React and `createValueSession` in Svelte. Svelte takes a getter for every
 option that changes — `value`, `error`, `invalid` and `commitOnEnter` — and React takes the value
 itself.
-::qt-note
+
+Here it is `ValueSession`, a `QObject` the editor owns and hands to the box. Every option below is
+a keyword of its constructor and, where it changes, a `set_<name>` after it; there is no getter to
+pass, because a Qt widget holds its own value.
 
 | option | type | meaning |
 |---|---|---|
@@ -92,7 +98,11 @@ itself.
 | `commit` | `(draft?: TDraft) => boolean` | Parses the draft and takes it. Answers whether it parsed. |
 | `reset` | `() => void` | Back to the stored value, with nothing left to report. |
 | `onFocus` / `onBlur` / `onKeyDown` | handlers | The control's own. Svelte spells them `onfocus`, `onblur` and `onkeydown`. |
-::qt-note
+
+The handlers are one call here: `session.bind(field)` routes that field's typing, focus and keys
+into the session, and `session.bind(field, 'date')` binds one half of a two-field draft. What the
+session reports are signals: `committed`, `error_changed`, `message_changed`, `draft_changed`,
+`entered` and `escaped`.
 
 ## FieldError
 
@@ -113,7 +123,9 @@ that is not a day reads as nothing picked (field_types/date).
 The split of a day into its parts and the padding on the way back are core's. Only the shape the
 primitive takes lives here, which is why each framework holds its own file: react-day-picker takes a
 `Date`, Bits UI takes a `CalendarDate`.
-::qt-note
+
+The calendar primitive here picks a `datetime.date`, so `to_calendar_date` answers one and
+`from_calendar_date` reads one back as `YYYY-MM-DD`.
 
 ## Composing an editor
 
@@ -121,41 +133,21 @@ An editor is a format, a parse and a control. It holds the value the caller pass
 those two functions for its own type, draws its control from the session's draft and handlers, and
 stands the result in the box under its own slot name.
 
-```tsx
-const session = useValueSession<string | null, string>({
-  value,
-  format: (stored) => stored ?? '',
-  parse: parseTextInput,
-  onValueChange,
-  onErrorChange,
-  error,
-  invalid,
-});
-
-return (
-  <ValueEditor slotName="text-editor" size={size} message={session.message} errorMessage={errorMessage}>
-    <Input
-      value={session.draft}
-      aria-invalid={session.invalid}
-      onChange={(event) => session.setDraft(event.target.value)}
-      onFocus={session.onFocus}
-      onBlur={session.onBlur}
-      onKeyDown={session.onKeyDown}
-    />
-  </ValueEditor>
-);
-```
-
-```svelte
-<ValueEditor slotName="text-editor" {size} message={session.message} {errorMessage}>
-	<Input
-		bind:value={session.draft}
-		aria-invalid={session.invalid}
-		onfocus={session.onfocus}
-		onblur={session.onblur}
-		onkeydown={session.onkeydown}
-	/>
-</ValueEditor>
+```python
+class TextEditor(ValueEditor):
+    def __init__(self, value=None, size="md", parent=None):
+        super().__init__("text-editor", size=size, parent=parent)
+        self.use_session(
+            ValueSession(
+                value,
+                format=lambda stored: "" if stored is None else stored,
+                parse=parse_text_input,
+                parent=self,
+            )
+        )
+        field = Input(size=size, parent=self)
+        self._session.bind(field)
+        self.add_control(field)
 ```
 
 What the six editors add on top of that is small: the number editor takes the root through `render`,

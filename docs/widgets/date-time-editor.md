@@ -38,8 +38,11 @@ The zone the typed time is read in is named under the button.
 
 `onValueChange` fires on commit and on a pick. Input that does not parse emits nothing.
 
-`onOpenChange` fires when the calendar popover opens or closes. Svelte also binds it with `bind:open`.
-::qt-note
+The two are signals here: `committed` carries the value above, and `error_changed` carries the
+message or None.
+
+`open_changed` carries True when the calendar opens and False when it closes. `set_open` opens and
+closes it, `toggle` is what a press on the trigger does, and `is_open` reads it back.
 
 ## Slots
 

@@ -18,19 +18,24 @@ from sg_widgets_qt.widgets.global_search import GlobalSearch
 
 ::props{name="global-search" kind="props"}
 
-Every other attribute is spread onto the root: `id`, `aria-*`, `data-*`, key handlers and a
-`ref` to the root element.
+Every prop is a keyword of the constructor and a `set_<name>` after it. The events are Qt signals:
+`selected`, `recents_changed` and `open_changed`.
 
 Recents live in the caller. The widget hands back the new list and never writes anywhere, so where
 they are kept between sessions is the app's decision.
 
 A row is the shared picker row: a thumbnail, or an avatar for a person, the name with the matched
 words in bold, a muted sub-label and a right-aligned secondary drawn by its data type. With no
-`subLabelField` and no `subLabel`, the sub-label is the row's project; a row with no project shows
+`sub_label_field` and no `sub_label`, the sub-label is the row's project; a row with no project shows
 the row it links to instead.
 
 Results are grouped by entity type, in the order the types were given, under the type's display name
-from the site schema.
+from the site schema. A heading is a row of the list that the highlight steps over, so the arrows
+walk the results and never land on a heading.
+
+The trigger is the control the palette hangs off: a search glyph, the label, and the shortcut in a
+small pill at the trailing edge. `hotkey` puts that shortcut on the application, so the palette
+opens from anywhere in the window; Qt spells it `Ctrl` and macOS draws it as Command.
 
 ## Events
 
@@ -58,7 +63,7 @@ Search results carry a name, the linked row and a status code, and nothing else:
 `fields` parameter. The thumbnail, the project and whatever the row props name are a second read of
 the page just returned (post_entity_text_search).
 
-`projectId` adds a project condition only to types that have a `project` field. Project has none and
+`project_id` adds a project condition only to types that have a `project` field. Project has none and
 neither does Step, and the condition would be a 400 rather than an empty result
 (entity_types/Project, entity_types/Step).
 

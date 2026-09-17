@@ -19,18 +19,19 @@ from sg_widgets_qt.widgets.hierarchical_search import HierarchicalSearch
 
 ::props{name="hierarchical-search" kind="props"}
 
-Every other attribute is spread onto the root: `id`, `aria-*`, `data-*`, key handlers and a
-`ref` to the root element.
+Every prop is a keyword of the constructor and a `set_<name>` after it. `selected` is the signal a
+pick emits, carrying the row and the path that reaches it.
 
 With no query the list is one level of the tree. With a query it is the rows that match, each shown
 as the breadcrumb that reaches it, the row itself last and in bold.
 
-A row is the shared picker row: a picture, the label, a muted sub-label and a right-aligned secondary
-drawn by its data type. A level of the tree carries no picture, so those rows show their type glyph;
-a searched row shows the thumbnail the second read answered. With no `subLabelField` and no
-`subLabel`, the sub-label is the row's type, or `Group` on a level.
+A row is the shared picker row, drawn by the one row delegate: a picture, the crumbs before the
+label in `muted_foreground`, the label with the matched words in DemiBold, a muted sub-label and a
+right-aligned secondary drawn by its data type. A level of the tree carries no picture, so those
+rows show their type glyph; a searched row shows the thumbnail the second read answered. With no
+`sub_label_field` and no `sub_label`, the sub-label is the row's type, or `Group` on a level.
 
-`entityTypes` limits what a search returns. Browsing reaches every level whatever it says; a row that
+`entity_types` limits what a search returns. Browsing reaches every level whatever it says; a row that
 is not one of these types opens instead of being picked.
 
 ## Events
@@ -39,7 +40,8 @@ is not one of these types opens instead of being picked.
 
 ## Slots
 
-None.
+None. `sub_label` and `secondary` are callables of the row, which is where a caller writes a line of
+its own.
 
 ## Keyboard
 

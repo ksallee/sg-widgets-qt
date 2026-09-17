@@ -155,3 +155,11 @@ Two slots, `glyph` and `indicator` in both frameworks. `glyph` is drawn in the l
 row carries no picture; a row whose type is a person draws an avatar there instead. `indicator` is
 the tick or the checkbox in the indicator column, and the column is drawn only where a widget
 passes it.
+
+Here the row is a model rather than a component, because a Qt list draws its rows through a
+delegate and a model is what the delegate reads. `PickerRowModel` takes the rows and the same row
+keywords, resolves every part of the anatomy into the roles `RowDelegate` paints, loads each
+picture on a worker and redraws the row it lands on. `glyph` and `indicator` are not slots: the
+glyph is `set_glyph_of`, a callable of the row answering a lucide name, and the indicator is the
+delegate's own column, which `indicator` turns into a leading checkbox or a trailing tick.
+`PickerRowWidget` paints one row on its own, for a card or a chip preview.

@@ -28,6 +28,10 @@ from sg_widgets_qt.widgets.color_editor import ColorEditor
 
 The swatch opens the browser's colour picker and follows what is typed, so a hex code shows its colour before it is committed.
 
+There is no browser picker in Qt and the host's colour dialog is not ours to draw, so the swatch
+opens a popover this package paints: a saturation and value square over a hue strip. Both are
+dragged, and the arrows and Page Up and Page Down walk them.
+
 ## Props
 
 ::props{name="color-editor" kind="props"}
@@ -35,6 +39,9 @@ The swatch opens the browser's colour picker and follows what is typed, so a hex
 ## Events
 
 `onValueChange` fires on commit only. Input that does not parse emits nothing.
+
+The two are signals here: `committed` carries the value above, and `error_changed` carries the
+message or None.
 
 ## Slots
 

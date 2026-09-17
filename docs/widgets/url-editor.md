@@ -34,6 +34,9 @@ takes no input.
 
 `onValueChange` fires on commit only. Input that does not parse emits nothing.
 
+The two are signals here: `committed` carries the value above, and `error_changed` carries the
+message or None.
+
 ## Slots
 
 `errorMessage` receives the message and renders it.

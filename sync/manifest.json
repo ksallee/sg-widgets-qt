@@ -1435,6 +1435,260 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
+    },
+    "widgets/checkbox-editor": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/checkbox-editor.tsx": "5ad5b390198798594f2d234885ecb67b5be2dfbbbab35b109c32f5cc9a37a2ee",
+        "packages/svelte/src/lib/registry/components/checkbox-editor.svelte": "e4450efacf6c2964dd44933e7a8debe453fe09973db03536add06bd325399fad",
+        "apps/site/src/demos/checkbox-editor/Demo.tsx": "4716b0214dac83ca34c05cbcd0ef8650d3d9813004a99ff49cfd7c108e9f6367",
+        "apps/site/src/content/docs/widgets/checkbox-editor.mdx": "33ed9f9ed562ce3ae04ab4ce0f653cbd621c3e8f3b4a4607c20f1e456b269ac3",
+        "apps/site/src/props/checkbox-editor.ts": "50657a6094be2a3b36e85aac9e7d55686db329b15d67428daba1b3c44bf140bf"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/checkbox_editor.py",
+        "src/sg_widgets_qt/showcase/demos/checkbox_editor.py",
+        "docs/widgets/checkbox-editor.md",
+        "tests/qt/test_checkbox_editor.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/color-editor": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/color-editor.tsx": "e1abc8ca9a7a8d5a679d63c893e676f710aaadd42ca94775ebc184952e5d953e",
+        "packages/svelte/src/lib/registry/components/color-editor.svelte": "0b858fb840ba453f8fe7751276ce54415a972cba56c9f76bcccbb99f7e75c1d9",
+        "apps/site/src/demos/color-editor/Demo.tsx": "227bfb1abd407964f8d08825681f5fb23a15a212906b0864a99ca92f26ed1bc7",
+        "apps/site/src/content/docs/widgets/color-editor.mdx": "5241b9bc6a8f0aaa3e6c0cb36a3e97e528bd049192d78b3b97754894c69f467a",
+        "apps/site/src/props/color-editor.ts": "18a30ce9c57ae61496d57f8816fdb93793308b78c5b01200103631230e894cf9"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/color_editor.py",
+        "src/sg_widgets_qt/showcase/demos/color_editor.py",
+        "docs/widgets/color-editor.md",
+        "tests/qt/test_color_editor.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/context-selector": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/context-selector.tsx": "c9540bc219c65dcd958725466419f9a9295fcaf8b214ac099431ece686f8f2d7",
+        "packages/svelte/src/lib/registry/components/context-selector.svelte": "d4d53ea5e03433e0dc486d7b6e1f4c9d6f8729bc0914cbfc2d91bbc0ee3a7b78",
+        "apps/site/src/demos/context-selector/Demo.tsx": "dcde367ab715e0fe87dc6200821280240d817c81abfea98ee471a8ebdaba3056",
+        "apps/site/src/content/docs/widgets/context-selector.mdx": "9c37b912df8c3c96207bc64748b83b6b2bbc6380a3f82ecbfffb6f12e2199051",
+        "apps/site/src/props/context-selector.ts": "ad50c3093dc5dcd7b8e74c143bd4a0f8a7fc528772da312f06ca4921c437d52d"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/context_selector.py",
+        "src/sg_widgets_qt/showcase/demos/context_selector.py",
+        "docs/widgets/context-selector.md",
+        "tests/qt/test_context_selector.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/date-editor": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/date-editor.tsx": "b3779958f7cc43d82e0af638051af6f626a513f37ce14571e8a033fd718671c4",
+        "packages/svelte/src/lib/registry/components/date-editor.svelte": "b3b10564751c490a0f2ebb33727205152ee99b40740f1c07c44fe746bc124273",
+        "apps/site/src/demos/date-editor/Demo.tsx": "3ad29a79b91f0f789d9f81c213ab5c4b94f7719dd950ca4c87f09d4f0bfbe86a",
+        "apps/site/src/content/docs/widgets/date-editor.mdx": "b60e85b9f8ccc0d85d999b296aea8cb60e810f60bfbdc619d7f66160fdd55968",
+        "apps/site/src/props/date-editor.ts": "0f901a12da24490221e5166fe7e3e069f236a3c0d2bc170ddac10948353de7a9"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/date_editor.py",
+        "src/sg_widgets_qt/showcase/demos/date_editor.py",
+        "docs/widgets/date-editor.md",
+        "tests/qt/test_date_editor.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/date-time-editor": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/date-time-editor.tsx": "81393a42731b8e459bba8aa47aa175b445f5639ed6aab8e8039b5755c919eeca",
+        "packages/svelte/src/lib/registry/components/date-time-editor.svelte": "60fef7037755a4a861d2b6994f75b10e598c9811fbc7c9bdb362574a93cbbb48",
+        "apps/site/src/demos/date-time-editor/Demo.tsx": "0a3e852bf8e1bc90ca9e3a84fb06d09568d6aa485b05387b74d2b839894b37b7",
+        "apps/site/src/content/docs/widgets/date-time-editor.mdx": "6314e7a6a370b3787722f4dcd3ae5ded92538ddbace661076e63a9701d134ab6",
+        "apps/site/src/props/date-time-editor.ts": "85d0b98f1dc6b268b9ff423d1a91d444b7f172b7463dbe36ecd3a2cca1f16d87"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/date_time_editor.py",
+        "src/sg_widgets_qt/showcase/demos/date_time_editor.py",
+        "docs/widgets/date-time-editor.md",
+        "tests/qt/test_date_time_editor.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/global-search": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/global-search.tsx": "56533ec003ee8dc0ed684813ca86cc5cc4526b9d8d78e9fbb208f0900f1c067b",
+        "packages/svelte/src/lib/registry/components/global-search.svelte": "f569acb66001347eb055a72e9fe121688bf99aa0fad3fe45a36016df35c2a86c",
+        "apps/site/src/demos/global-search/Demo.tsx": "b23039da0c18d9be505316c6db19f43973b12998bc1a12b7d8a0786427143dd9",
+        "apps/site/src/content/docs/widgets/global-search.mdx": "05bf4e2168d8eb60f89d845a4e724abed8628c2e5c30e3d867b8db33f4496f70",
+        "apps/site/src/props/global-search.ts": "c096a6d6cce7d82773044da5654418c02d4fd4920913a52752f78448477171d9"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/global_search.py",
+        "src/sg_widgets_qt/showcase/demos/global_search.py",
+        "docs/widgets/global-search.md",
+        "tests/qt/test_global_search.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/hierarchical-search": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/hierarchical-search.tsx": "f53571dc9755f29f3b6ba4c654f7588eab90e6aeb838b81a125cd8de9b18446f",
+        "packages/svelte/src/lib/registry/components/hierarchical-search.svelte": "c9008d5dde73e325be52b5478b9e3cd8c37a04250dcebe72d1088e855bfe91ff",
+        "apps/site/src/demos/hierarchical-search/Demo.tsx": "ced9e66d8f881755b8fa7acc9cf76d7b853f39bf09f65861c07028c3e8b3de50",
+        "apps/site/src/content/docs/widgets/hierarchical-search.mdx": "ff157b059048ad2970a2cb5d6f04c4a2b52ee02fbade0f29ab228a7ba64e378d",
+        "apps/site/src/props/hierarchical-search.ts": "1e65710e5859d5a83f11086848b937d735034a5976ee555ea5e1ecf16520d902"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/hierarchical_search.py",
+        "src/sg_widgets_qt/showcase/demos/hierarchical_search.py",
+        "docs/widgets/hierarchical-search.md",
+        "tests/qt/test_hierarchical_search.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/number-editor": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/number-editor.tsx": "bce6f524da80f143b783cc2f45fb851b4bf2e33862e1e3f4b9085b14709f2bf2",
+        "packages/svelte/src/lib/registry/components/number-editor.svelte": "4f219aa054abeb515a8c480dfbdaeb1ed6e6c198bb6925b2e4f96a83ff75ac75",
+        "apps/site/src/demos/number-editor/Demo.tsx": "9f0f15eaac8af23751cf26ae04f1c2623bfc202339223f1087c731f6d0f5a65b",
+        "apps/site/src/content/docs/widgets/number-editor.mdx": "493fc3871dfece38b8890985da0a4e15e04310035d7e9bc928cf5da59c13cd13",
+        "apps/site/src/props/number-editor.ts": "cf371fa644ac4102dc7c31fd3958b495494a9759aa456c8ddfe0c8cce7b3805c"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/number_editor.py",
+        "src/sg_widgets_qt/showcase/demos/number_editor.py",
+        "docs/widgets/number-editor.md",
+        "tests/qt/test_number_editor.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/picker-row": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/picker-row.tsx": "91feeb45c0942ced44472204d93cd76fb6bc9712dad6b6ffd366a211e0af8417",
+        "packages/svelte/src/lib/registry/components/picker-row.svelte": "c4fee738ab0739328d6e92458448b33ef269b7c6066d37c25247df8bad6328a5",
+        "apps/site/src/props/picker-row.ts": "97c802c44f5437b48d75147d2998eda5a64be09b1754d1f896990db4683f7472"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/picker_row.py",
+        "docs/widgets/picker-control.md",
+        "tests/qt/test_picker_row.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/search-control": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/search-control.tsx": "270c8e239f6da79c29b6c60c130d57132aab4c26c02944edffc419ff0926392e",
+        "packages/svelte/src/lib/registry/components/search-control.svelte": "aaffe65454d2d80b166b2ac2336d85f18dc0161a11c01c2e796fec8835202142",
+        "apps/site/src/demos/search-control/Demo.tsx": "24526333a898338e5a9717cd46120b4f903cdcf5d585e4f0b1df8a6f58647f29",
+        "apps/site/src/content/docs/widgets/search-control.mdx": "4a22341121377743700486affbd2e209180bf3d542d99fb4d2e0b0ddaac439c9",
+        "apps/site/src/props/search-control.ts": "2c07376fdd1ba41bd442415a672a57a1df75d79e80f657f63bce1e850916ab3f"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/search_control.py",
+        "src/sg_widgets_qt/showcase/demos/search_control.py",
+        "docs/widgets/search-control.md",
+        "tests/qt/test_search_control.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/search-skeleton": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/search-skeleton.tsx": "2d089478ebcb71cc10c6c57302ddd86c42e3ac211154f653c887db15aa094360",
+        "packages/svelte/src/lib/registry/components/search-skeleton.svelte": "e6ccb7ded82c394902952ebd344089e94b8b86ef9da2b735295f4ed0b0ed0c60",
+        "apps/site/src/props/search-skeleton.ts": "71385114bbb454ade03cecd2f870fd391e54d6b45ab72e4d41a24e7f3dcb1abe"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/search_skeleton.py",
+        "docs/widgets/search-control.md",
+        "tests/qt/test_search_skeleton.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/text-editor": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/text-editor.tsx": "849c147a24f9b74ae7af485abc87a964d48aee1ad65bed5878e6147ef3e862dc",
+        "packages/svelte/src/lib/registry/components/text-editor.svelte": "0a710446d1a9cf96586a07fd442f51847045d2bbc5a692ee656d0b619e77c168",
+        "apps/site/src/demos/text-editor/Demo.tsx": "d0889df50cc52f71bce9aebf906fe8c4bd79b013b1b3779346eb5f3afd33ed94",
+        "apps/site/src/content/docs/widgets/text-editor.mdx": "a43dc8dc7a6836e68f8d2969ba48aafeb1f1f9ac24c057a109bab93b7507b659",
+        "apps/site/src/props/text-editor.ts": "4074854976e93d1dba9cbdce334e1522627d884a1f87182c3d7cb4b777bc191f"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/text_editor.py",
+        "src/sg_widgets_qt/showcase/demos/text_editor.py",
+        "docs/widgets/text-editor.md",
+        "tests/qt/test_text_editor.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/url-editor": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/url-editor.tsx": "5aae30768ec28e9e35264f7423e644e56e5e6ca3df2b70966225ae1629728576",
+        "packages/svelte/src/lib/registry/components/url-editor.svelte": "7eb89ee025ab6ccda4d0111738903cfb6e75e83282eee07baca18e7f14a5ce33",
+        "apps/site/src/demos/url-editor/Demo.tsx": "59dce98a55bf037176e0495d5a88941decbed312b8e9e5a1566be5ead976e2ae",
+        "apps/site/src/content/docs/widgets/url-editor.mdx": "87f7976fcf967aefe99f8ecb3a2eb971152aa93ea7c2b55215f50e9353f559e6",
+        "apps/site/src/props/url-editor.ts": "916e85480c7b9219e6f2a218919d09d5da07bb21fd874571bbebc5e71ba0da16"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/url_editor.py",
+        "src/sg_widgets_qt/showcase/demos/url_editor.py",
+        "docs/widgets/url-editor.md",
+        "tests/qt/test_url_editor.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/value-editor": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/value-editor.tsx": "f878a88904f09c4a539ab8a951cf36373397221fbb4433769fb0339868f29356",
+        "packages/svelte/src/lib/registry/components/value-editor.svelte": "7e9127f863ca9837a49222b965e6a35c1620007b309d1efc53f5be22504fb617",
+        "packages/react/src/registry/sg/components/field-error.tsx": "75d0e257c071d39ebf81195ec06a341b47da949fcf457c7fd6cb919c3c1ad787",
+        "packages/svelte/src/lib/registry/components/field-error.svelte": "5c532af519b8e4a3b748fb873fdcba50cc0555a827a1ea7268dc6c2f52f882f0",
+        "packages/react/src/registry/sg/components/editor-calendar.ts": "38d27d01e6f5b8b7e28d647cf0d6fd0f978bd09adfbcf9494245379bfd1bbd13",
+        "packages/svelte/src/lib/registry/components/editor-calendar.ts": "019bf5573942c2f95c2f71ae3194958e0c8af3c7f600957fbac2593a31652553",
+        "apps/site/src/demos/value-editor/Demo.tsx": "ad9f1e3d0fbf8e23930e9f80c3958233838efab5e2ea220ea215b6d1185364fb",
+        "apps/site/src/content/docs/widgets/value-editor.mdx": "e6550fee6a486fec24e369fd32a38f83c983210e201fe23eca33cf8ff0aaff48",
+        "apps/site/src/props/value-editor.ts": "6d7babbe47e676a9f6d0234ac874c192ebdbf5c03c780cc4f409fdd118727062",
+        "apps/site/src/props/field-error.ts": "ac00468a4d4015171ea5058dd1df3f428f60c7a9b81b5d39693ff107d3f1a3d3",
+        "apps/site/src/props/editor-calendar.ts": "b780b613796b25c82ac3cb84db5551c803114983924802aa60416ca8e49ed1fd"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/value_editor.py",
+        "src/sg_widgets_qt/widgets/field_error.py",
+        "src/sg_widgets_qt/widgets/editor_calendar.py",
+        "src/sg_widgets_qt/showcase/demos/value_editor.py",
+        "docs/widgets/value-editor.md",
+        "tests/qt/test_value_editor.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
     }
   }
 }

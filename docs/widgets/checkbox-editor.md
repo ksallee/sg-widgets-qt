@@ -4,7 +4,9 @@ description: A checkbox field as an editable switch.
 ---
 
 Edits a checkbox field with the shadcn switch.
-::qt-note
+
+The switch is the painted primitive of this package, so the control wears the theme's tokens and
+never the host style.
 
 ## Install
 
@@ -33,6 +35,9 @@ There is no third state, and no way to clear the field.
 
 `onValueChange` fires as soon as the switch moves. There is nothing to commit. `onErrorChange` fires
 with `null` on that same change, so a message the caller set clears when the field is answered.
+
+The two are signals here: `committed` carries the value above, and `error_changed` carries the
+message or None.
 
 ## Slots
 
