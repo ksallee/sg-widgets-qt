@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import pytest
-from qtpy import QtCore
+from qtpy import QtCore, QtGui
 from qtpy.QtTest import QTest
 
 from sg_widgets_qt.primitives.base import CONTROL_HEIGHT
@@ -84,3 +84,12 @@ def test_readonly_drops_the_affordances_and_disabled_is_inert(root):
 def test_the_row_stands_on_every_rung_of_the_ladder(root, size):
     editor = place(root, CheckboxEditor(value=True, size=size))
     assert editor._row.minimumHeight() == CONTROL_HEIGHT[size]
+
+
+def test_the_word_beside_the_switch_is_plain_text_sm(root):
+    # `<span className="truncate text-sm select-none">` upstream: the word is the value, not a
+    # name, so it does not take the medium weight a label does.
+    editor = place(root, CheckboxEditor(value=True))
+    font = editor._label._font()
+    assert font.pixelSize() == 14
+    assert font.weight() == QtGui.QFont.Weight.Normal

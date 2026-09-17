@@ -91,11 +91,19 @@
   "keyboard": [
     {
       "key": "`Enter`",
-      "does": "Commits."
+      "does": "Commits. On the swatch, opens the picker."
+    },
+    {
+      "key": "`Space`",
+      "does": "Opens the picker, from the swatch."
     },
     {
       "key": "`Escape`",
-      "does": "Restores the stored value."
+      "does": "In the input, restores the stored value. In the picker, closes it and leaves the value alone."
+    },
+    {
+      "key": "arrows",
+      "does": "Move the saturation and the value inside the picker; `Page Up` and `Page Down` move the hue. `Shift` takes ten steps."
     },
     {
       "key": "`Tab`",

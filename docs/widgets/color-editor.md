@@ -30,7 +30,9 @@ The swatch opens the browser's colour picker and follows what is typed, so a hex
 
 There is no browser picker in Qt and the host's colour dialog is not ours to draw, so the swatch
 opens a popover this package paints: a saturation and value square over a hue strip. Both are
-dragged, and the arrows and Page Up and Page Down walk them.
+dragged, and the arrows and Page Up and Page Down walk them. The surface opens on a press on the
+swatch and on Enter or Space, and closes on Escape and on a press outside it; Escape there closes
+the surface and leaves the value alone, which is the one key the browser picker has no equal for.
 
 ## Props
 

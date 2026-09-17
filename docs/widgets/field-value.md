@@ -8,7 +8,8 @@ one exists.
 
 ## Install
 
-Installing this pulls EntityChip, StatusBadge and Thumbnail with it.
+The module brings EntityChip, StatusBadge and Thumbnail with it, which are what a linked row, a
+status and an image draw as.
 
 ```python
 from sg_widgets_qt.widgets.field_value import FieldValue
@@ -20,7 +21,13 @@ from sg_widgets_qt.widgets.field_value import FieldValue
 
 ::props{name="field-value" kind="props"}
 
-Each data type renders as follows.
+Each data type renders as follows. A number is right-aligned with tabular figures, an id and a
+uuid take the monospace family, and a colour draws its swatch beside its value. A url opens
+through the desktop, an uploaded file carrying the mark of a link that leaves the application and
+a local one its own path in the tooltip.
+
+Dates and numbers are formatted for the locales `en-US`, `en-GB`, `fr-FR`, `de-DE` and `ja-JP`.
+Any other locale formats as `en-US`.
 
 The entity props are passed straight to EntityChip: a variant, the site each row is addressed on, and
 the field paths its hover card shows.
@@ -31,8 +38,22 @@ compact one draws them a step smaller.
 An unset value renders a muted marker rather than a dash, because a dash is a character a field can
 hold. Zero, false and the string zero are values and render as themselves.
 
-The root fills its container, carries the data type as an attribute, and puts the full value in a
-tooltip for every single-line rendering.
+Here the value is one painted `QWidget` whose object name is `field-value`, so `value`,
+`data_type`, `kind` and `plan` are properties rather than data attributes. It fills the width it is
+given and never more, every single-line rendering is elided at the end with the full value as its
+tooltip, and free text keeps its newlines and wraps.
+
+A value is also a painter, for a collection that draws a cell rather than holding one widget a row:
+
+```python
+paint_field_value(painter, rect, value, column, options)
+field_value_size_hint(value, column, options)
+```
+
+The column is a resolved collection column or a bare data type, and the options carry the theme,
+the status table, the site url, the density and the site preferences. Both faces settle what to
+draw through one call, so a cell and a widget never disagree about a value. A cell keeps every
+value on one line, and draws as many whole chips as it fits before the count of the rest.
 
 ## Events
 
@@ -46,7 +67,7 @@ None.
 
 ::props{name="field-value" kind="keyboard"}
 
-Nothing else in the widget takes focus.
+Nothing else in the widget takes focus. A value that opens nowhere is never in the tab order.
 
 ## API behaviour
 

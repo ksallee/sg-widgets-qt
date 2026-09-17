@@ -344,3 +344,30 @@ def test_an_expanded_button_keeps_its_hover_background(root):
     button.set_expanded(True)
     QtWidgets.QApplication.processEvents()
     assert image(button) != plain
+
+
+def test_an_inert_field_wears_the_input_wash_and_fades_its_placeholder(root):
+    # `disabled:bg-input/50 disabled:opacity-50` of `input.tsx`: an inert field is not a plain
+    # box, and the ink Qt draws itself takes the inert step on the colour, since no painter
+    # opacity reaches it.
+    theme = theme_for("default")
+    live = place(root, Input(placeholder="https://example.com/plate.mov"))
+    inert = place(root, Input(placeholder="https://example.com/plate.mov"))
+    inert.setEnabled(False)
+    QtWidgets.QApplication.processEvents()
+
+    role = QtGui.QPalette.ColorRole
+    assert live.palette().color(role.PlaceholderText) == theme.color("muted_foreground")
+    assert inert.palette().color(role.PlaceholderText).alpha() == 128
+
+    middle = (live.width() // 2, live.height() // 2)
+    assert inert.grab().toImage().pixelColor(*middle) != live.grab().toImage().pixelColor(*middle)
+
+
+def test_the_switch_thumb_is_the_glyph_step(root):
+    # `size-4` of the thumb in `switch.tsx`, inside the 32 by 18 track.
+    from sg_widgets_qt.primitives.checkbox import SWITCH_HEIGHT, SWITCH_THUMB, SWITCH_WIDTH
+
+    assert (SWITCH_WIDTH, SWITCH_HEIGHT, SWITCH_THUMB) == (32, 18, 16)
+    switch = place(root, Switch(True))
+    assert not switch.grab().isNull()

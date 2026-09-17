@@ -5,17 +5,17 @@ description: One Flow Production Tracking row as a card, or as a thumbnail-first
 
 Renders one row as a card: its thumbnail, name, type, status and a grid of the field paths you name.
 Give the card a row you hold, or a reference and it reads the row itself. The tile variant reads the
-same row picture first, and is what EntityGrid lays out.
+same row picture first, and lands with EntityGrid.
 
 ## Install
 
-Installing this pulls StatusBadge and Thumbnail with it.
+The module brings StatusBadge and Thumbnail with it, which are what a status and a picture draw as.
 
 ```python
 from sg_widgets_qt.widgets.entity_card import EntityCard
 ```
 
-::demo{name="entity-card" title="EntityCard: three sizes from a row, one card reading a picked reference, and the tile variant"}
+::demo{name="entity-card" title="EntityCard: three sizes from a row, one card reading a picked reference, and the three states"}
 
 ## Props
 
@@ -24,15 +24,17 @@ from sg_widgets_qt.widgets.entity_card import EntityCard
 A card reads through a context. Given a client instead, it builds one and shares it with every
 other widget on that client.
 
-These shape the tile and are ignored by the card:
-
-Nothing is on the metadata line by default, and the row's id is never on it. The tile takes its
-selected state rather than holding one, and it spreads whatever attributes and handlers it is given
-onto its root, so a collection can make it an option of a listbox and drive it.
+These shape the tile and are ignored by the card: `label_field`, `sub_label_field`, `sub_label`,
+`secondary_field`, `secondary`, `show_code`, `selectable`, `selected` and `actions`. The tile takes
+its selected state rather than holding one, and reports a change on `selected_changed`, so a
+collection can make it an option of a list and drive it. Nothing is on the metadata line by
+default, and the row's id is never on it. The tile itself is drawn by EntityGrid, which owns the
+picture that fills a cell's width; until then `variant` draws the card whichever value it holds.
 
 Given a reference, the card reads the row itself: one search asking for the type's identity chain,
 its thumbnail, its status field and your paths at once. The read goes through the context's cache,
-so a second card on the same row costs nothing.
+so a second card on the same row costs nothing. It runs on a worker and never on the GUI thread,
+and a card handed a second reference drops the answer to the first.
 
 Every path is labelled through the schema. A hop names the type it travels through only when its
 field accepts several, so `sg_task.Task.sg_status_list` reads
@@ -57,14 +59,21 @@ in the grid. A path that ends at a linked row's status is a different row's stat
 The field is the type's conventional one, `sg_status_list` or `sg_status` on a Project, whatever
 other status fields the site has added to the type.
 
-A card with no row yet shows a skeleton shaped like the card; a read that fails shows the message
-inline.
+A card with no row yet shows a skeleton shaped like the card: the picture, two lines of the header
+and a pair of blocks per path. A read that fails shows what it said on one line, or `error_label`
+in its place.
 
-The root fills its container and carries the size as a data attribute.
+Here the card is a `QWidget` whose object name is `entity-card`, so `size`, `model`, `name`, `url`,
+`loading` and `error` are properties rather than data attributes. It fills the width it is given
+and never more. A field's label sits on the baseline of the value beside it rather than on the top
+of a row that stretched. A press on the name opens the row's page and emits `clicked`.
 
 ## Events
 
 ::props{name="entity-card" kind="events"}
+
+The card also emits `clicked` when its name is activated, and `loaded` carrying whether the read it
+settled gave it a row.
 
 ## Slots
 
@@ -74,8 +83,9 @@ The root fills its container and carries the size as a data attribute.
 
 ::props{name="entity-card" kind="keyboard"}
 
-Nothing else in the card takes focus. A tile is focusable only once whoever lays it out gives it a
-tab index; EntityGrid does, and owns the arrow keys.
+Nothing else in the card takes focus. A value holding several links walks them with the arrows and
+opens the one it is on. A tile is focusable only once whoever lays it out gives it a tab index;
+EntityGrid does, and owns the arrow keys.
 
 ## Anatomy
 

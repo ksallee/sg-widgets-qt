@@ -25,11 +25,12 @@ With no `href` and a site to work from, the chip addresses the row's own page,
 `QDesktopServices`. A url you pass yourself belongs to your own app, so hand it to `on_click`
 instead and do the routing there. The `text` variant never links.
 
-A `preview` list gives the chip a hover card. What the card holds is `set_preview_builder`, called
-as `builder(entity, preview, context)`: EntityCard fills it once that widget lands, and until then
-the card names the row and the paths that were asked for. The card is built on the hover card
-primitive, which opens 200ms after the pointer lands and stays while the pointer is on either it or
-the chip.
+A `preview` list gives the chip a hover card, holding an EntityCard on the row the chip points at
+with those paths in its grid. The card reads through the context's cache, so a second chip on the
+same row costs nothing. What the card holds is `set_preview_builder`, called as
+`builder(entity, preview, context)`, and passing None puts the EntityCard back. The card is built
+on the hover card primitive, which opens 200ms after the pointer lands and stays while the pointer
+is on either it or the chip.
 
 A chip with no name shows the type and id instead, in the mono treatment with tabular figures that
 ids get elsewhere.

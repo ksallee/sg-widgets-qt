@@ -6,9 +6,9 @@ description: One field of an entity type, chosen through a searchable list that 
 Picks one field of an entity type and emits its dotted path, descending through linked types on the
 way.
 
-It sits on the Popover over a Command list rather than the shared picker control: its list is a
-stack of levels a row descends into, not one flat list of values, and its press, its keyboard
-and its dismissal already match the pickers.
+It is built on the shared picker control, so the press rule, the caret, the dismissal guard and
+the states are the ones every picker in this package wears. What it adds is the breadcrumb over
+the search row, the field glyph per data type, and the friendly path the closed control reads.
 
 Single and multi: this picker takes one path, and [ColumnPicker](column-picker.md) is its
 ordered multi, an array of paths ordered by drag.
@@ -25,8 +25,8 @@ from sg_widgets_qt.widgets.field_picker import FieldPicker
 
 ::props{name="field-picker" kind="props"}
 
-Every other attribute is spread onto the root: `id`, `aria-*`, `data-*`, key handlers and a
-`ref` to the root element.
+Every prop is a keyword argument, a property of the same name and a `set_<name>` method, so a
+value handed in at construction can be changed afterwards.
 
 The value is a dotted path. A root field is its own code; every hop names the field followed and the
 type it landed on, which is the syntax a projection and a filter both take.
@@ -37,15 +37,15 @@ entity.Shot.code
 project.Project.sg_start_date
 ```
 
-`dataTypes` and `validTypes` bind what may be chosen, not what may be walked through. A picker
+`data_types` and `valid_types` bind what may be chosen, not what may be walked through. A picker
 restricted to dates still lists the link fields, so a date behind a link stays reachable. Everything
-else — `exclude`, `hidePaths`, `filterableOnly` and `filter` — hides the row outright and is measured
+else, `exclude`, `hide_paths`, `filterable_only` and `filter`, hides the row outright and is measured
 against the full dotted path, so excluding a root field leaves a field of the same name behind a hop
 alone.
 
 A link that declares one target type descends at once. One declaring several replaces the list with
 one row per type and asks which. A type already on the path is not offered again, and the path stops
-at `maxDepth`.
+at `max_depth`.
 
 The closed control shows the friendly path, the display names joined with a chevron, never the raw
 one.
@@ -65,10 +65,10 @@ None.
 The search box clears on every hop, on every selection and on every close, and the control is never
 remounted, so focus stays where you are typing.
 
-The control is the Popover and the Command list rather than the picker base: a field list walks a
-path through links, so its popup carries a breadcrumb and its rows descend, which the base's flat
-list does not. It keeps the picker contract of design rule 7 all the same, and
-`tools/drives/picker-contract.js` is the proof.
+A field list walks a path through links, so the popup carries a breadcrumb above the search row
+and a row that descends carries a chevron. `Left`, `Right` and `Enter` on a link belong to the
+levels rather than to the flat list, which is why a descend never closes the popup. The picker
+contract of design rule 7 holds all the same, and `tests/qt/test_picker_contract.py` is the proof.
 
 ## API behaviour
 
@@ -83,7 +83,7 @@ the field's `valid_types` (field_types/entity).
 hop back to a type already visited costs nothing (002_schema).
 
 Five data types take no filter operator at all — `url`, `calculated`, `password`, `serializable` and
-`summary` — and the API answers `data type cannot be used in a filter` for each. `filterableOnly`
+`summary` — and the API answers `data type cannot be used in a filter` for each. `filterable_only`
 drops them (017_filter_operators).
 
 ## Reference

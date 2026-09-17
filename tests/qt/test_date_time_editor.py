@@ -108,3 +108,13 @@ def test_readonly_never_opens_and_disabled_is_inert(root):
 def test_the_trigger_stands_on_every_rung_of_the_ladder(root, size):
     editor = place(root, DateTimeEditor(value=STORED, time_zone=ZONE, size=size))
     assert editor.trigger.sizeHint().height() == CONTROL_HEIGHT[size]
+
+
+def test_the_popover_takes_the_caret(root, qtbot):
+    # `initialFocus` upstream: the typed day is what the caret lands on, which means the surface
+    # it stands on is a window that accepts focus.
+    editor = place(root, DateTimeEditor(value=STORED, time_zone=ZONE))
+    editor.set_open(True)
+    qtbot.waitUntil(lambda: editor.date_input.hasFocus(), timeout=2000)
+    assert editor.date_input.hasFocus()
+    editor.set_open(False)

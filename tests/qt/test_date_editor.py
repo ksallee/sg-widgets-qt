@@ -106,3 +106,28 @@ def test_the_open_state_is_reported(root):
 def test_the_trigger_stands_on_every_rung_of_the_ladder(root, size):
     editor = place(root, DateEditor(value="2026-09-02", size=size))
     assert editor.trigger.sizeHint().height() == CONTROL_HEIGHT[size]
+
+
+@pytest.mark.parametrize("size", list(CONTROL_HEIGHT))
+def test_the_trigger_paints_the_whole_rung_of_the_ladder(root, size):
+    # The trigger is the `outline` button of `button.tsx`: its border rides the widget's own rim,
+    # so the box a reader sees is the ladder height, not four pixels under it.
+    editor = place(root, DateEditor(value="2026-09-02", size=size))
+    trigger = editor.trigger
+    assert trigger.sizeHint().height() == CONTROL_HEIGHT[size]
+    trigger.resize(240, CONTROL_HEIGHT[size])
+    image = trigger.grab().toImage()
+    middle = trigger.width() // 2
+    page = image.pixelColor(middle, CONTROL_HEIGHT[size] // 2)
+    top = image.pixelColor(middle, 0)
+    assert top != page, "the border stands on the widget's first row"
+
+
+def test_the_popover_takes_the_caret(root, qtbot):
+    # `initialFocus={dayInput}` upstream: the typed day is what the caret lands on, which means
+    # the surface it stands on is a window that accepts focus.
+    editor = place(root, DateEditor(value="2026-09-02"))
+    editor.set_open(True)
+    qtbot.waitUntil(lambda: editor.day_input.hasFocus(), timeout=2000)
+    assert editor.day_input.hasFocus()
+    editor.set_open(False)

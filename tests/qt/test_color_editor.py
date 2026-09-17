@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import pytest
-from qtpy import QtCore, QtGui
+from qtpy import QtCore, QtGui, QtWidgets
 from qtpy.QtTest import QTest
 
 from sg_widgets_qt.primitives.base import CONTROL_HEIGHT
@@ -133,3 +133,25 @@ def test_the_swatch_is_the_square_the_upstream_ladder_names(root, size):
     assert editor.swatch.sizeHint().height() == SWATCH_SIZE[size]
     assert editor.swatch.sizeHint().width() == SWATCH_SIZE[size]
     assert SWATCH_SIZE[size] > CONTROL_HEIGHT[size]
+
+
+def test_escape_inside_the_picker_closes_it(root, qtbot):
+    editor = place(root, ColorEditor(value="0,126,174"))
+    editor.set_open(True)
+    assert editor.is_open is True
+    QTest.keyClick(editor.picker, QtCore.Qt.Key.Key_Escape)
+    qtbot.waitUntil(lambda: editor.is_open is False, timeout=2000)
+    assert editor.is_open is False
+    assert editor.value == "0,126,174", "closing the picker is not a pick"
+
+
+def test_the_swatch_wears_no_hover_wash(root):
+    # `color-editor.tsx` puts no hover class on the swatch: the colour it shows is the value, and
+    # a wash over it would be a wash over the value.
+    editor = place(root, ColorEditor(value="253,94,99"))
+    swatch = editor.swatch
+    before = swatch.grab().toImage().pixelColor(swatch.width() // 2, swatch.height() // 2)
+    swatch.set_hovered(True)
+    QtWidgets.QApplication.processEvents()
+    after = swatch.grab().toImage().pixelColor(swatch.width() // 2, swatch.height() // 2)
+    assert after == before

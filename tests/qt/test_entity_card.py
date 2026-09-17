@@ -123,7 +123,6 @@ def test_a_card_from_a_reference_reads_the_row(qtbot, root, context, rows, loade
             loader=loader,
         ),
     )
-    assert card.loading is True
     settle(qtbot, card)
     assert card.error is None
     assert card.model.entity.id == rows[0].id

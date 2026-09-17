@@ -1516,6 +1516,24 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
     },
+    "widgets/entity-card": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/entity-card.tsx": "fda4b5677b9ea59d5571773d1f2062a37e5b371c08bcc96a690c10df26834ecf",
+        "packages/svelte/src/lib/registry/components/entity-card.svelte": "ffeebd18114da705acb633fa2a3f26329b76121dc41e74659baefeb6a0ba0e3a",
+        "apps/site/src/demos/entity-card/Demo.tsx": "48c86863b108602a2d227727e0a7d29cada4edf6cf083a434c9c3503fa6b9e3e",
+        "apps/site/src/content/docs/widgets/entity-card.mdx": "c8e790180979e9137adc31726ec1af196a39fb3bfbd47670b9fce8922425bd30",
+        "apps/site/src/props/entity-card.ts": "6b144dcaf1cedda1f1746e72c0bbdf63dafd7a185d1a266b037be00ebf262199"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/entity_card.py",
+        "src/sg_widgets_qt/showcase/demos/entity_card.py",
+        "docs/widgets/entity-card.md",
+        "tests/qt/test_entity_card.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
     "widgets/entity-chip": {
       "status": "complete",
       "upstream": {
@@ -1617,6 +1635,24 @@
         "src/sg_widgets_qt/showcase/demos/entity_type_picker.py",
         "docs/widgets/entity-type-picker.md",
         "tests/qt/test_entity_type_picker.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/field-value": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/field-value.tsx": "31a489274439ca1c78cec39c287bc167ae2742739031a21ae11ac0e5b087a023",
+        "packages/svelte/src/lib/registry/components/field-value.svelte": "84e4b79695a28257341449b372440eb9756bc384cde5dc6388cc3e1604a8490b",
+        "apps/site/src/demos/field-value/Demo.tsx": "86e24814a1025f5ef89bfd35628704b2a47634e0f2e579a98f76f0429d7ee5b1",
+        "apps/site/src/content/docs/widgets/field-value.mdx": "ebeae19851728c584e51e71469bc963a6742a52be3721793e576e65a8278a044",
+        "apps/site/src/props/field-value.ts": "f8e7c3b06d41ce89a3f780f4008fb26497a6c06f32aada4f104b5ac827d9b86b"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/field_value.py",
+        "src/sg_widgets_qt/showcase/demos/field_value.py",
+        "docs/widgets/field-value.md",
+        "tests/qt/test_field_value.py"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""

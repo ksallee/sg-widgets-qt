@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import pytest
-from qtpy import QtCore
+from qtpy import QtCore, QtWidgets
 
 from sg_widgets_core.schema import FieldSchema
 from sg_widgets_qt.primitives.base import CONTROL_HEIGHT
@@ -104,3 +104,27 @@ def test_a_value_from_outside_lands_in_the_control(root):
     editor = place(root, TextEditor(value="First."))
     editor.set_value("Second.")
     assert editor.control.text() == "Second."
+
+
+def test_a_textarea_built_before_it_joined_the_tree_still_reads_the_theme(qtbot):
+    # An editor is built with no parent and put on a page afterwards, so the theme it read at
+    # construction is the host's. Joining a themed tree is the other moment a theme reaches it:
+    # without that, a dark page drew the textarea's ink in the light page's near-black.
+    from sg_widgets_qt.theme import apply_theme, theme_for
+
+    dark = theme_for("default", dark=True)
+    root = QtWidgets.QWidget()
+    apply_theme(root, dark)
+    qtbot.addWidget(root)
+    root.resize(520, 260)
+    root.show()
+
+    editor = TextEditor(value="Plate delivered.", multiline=True)
+    editor.setParent(root)
+    editor.resize(480, 120)
+    editor.show()
+    QtWidgets.QApplication.processEvents()
+
+    image = editor.control.grab().toImage()
+    inks = {image.pixelColor(x, y).name() for y in range(image.height()) for x in range(image.width())}
+    assert dark.foreground.lower() in {ink.lower() for ink in inks}, "the ink is the dark theme's"
