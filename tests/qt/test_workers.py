@@ -239,3 +239,23 @@ def test_a_ticket_holds_only_its_latest(qtbot):
     ticket.cancel()
     assert ticket.is_current(second) is False
     assert ticket.current == second + 1
+
+
+def test_a_job_deleted_under_its_runner_drops_its_answer(qtbot):
+    """A window closing mid-read deletes the job; the pool thread then emits nothing on it."""
+    import time
+
+    from qtpy import QtWidgets
+
+    from sg_widgets_qt.workers import JobPool
+
+    owner = QtWidgets.QWidget()
+    pool = JobPool(parent=owner)
+    landed = []
+    pool.submit(lambda: time.sleep(0.2) or 1, on_result=landed.append)
+    qtbot.wait(20)
+    owner.deleteLater()
+    qtbot.wait(20)
+    del owner
+    qtbot.wait(400)
+    assert landed == []

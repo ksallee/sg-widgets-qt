@@ -79,8 +79,6 @@ class Ticket:
 class _JobState:
     """What the runner may read after the job is deleted: whether it is gone."""
 
-    __slots__ = ("gone",)
-
     def __init__(self) -> None:
         self.gone = False
 
