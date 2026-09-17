@@ -276,31 +276,34 @@ class Select(ThemedWidget):
         painter.setOpacity(self.disabled_opacity())
 
         radius = float(theme.radius_px("lg"))
+        # The chrome fills the whole box, as a button's and an input's do, and the focus ring
+        # is drawn inward over it: the trigger stands at the control height of its step, `h-8`
+        # at md, level with the controls beside it.
         box = QRect(0, 0, self.width(), self.height())
-        inner = box.adjusted(2, 2, -2, -2)
         border = theme.color("destructive") if self._invalid else theme.color("input")
         fill = with_alpha(theme.color("muted"), 0.3 * self._hover.value)
 
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(fill)
-        painter.drawRoundedRect(QtCore.QRectF(inner), radius, radius)
+        painter.drawRoundedRect(QtCore.QRectF(box), radius, radius)
         pen = QtGui.QPen(border, 1.0)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.setPen(pen)
         painter.drawRoundedRect(
-            QtCore.QRectF(inner).adjusted(0.5, 0.5, -0.5, -0.5), radius - 0.5, radius - 0.5
+            QtCore.QRectF(box).adjusted(0.5, 0.5, -0.5, -0.5), radius - 0.5, radius - 0.5
         )
         if self._invalid:
+            # `aria-invalid:ring-3 ring-destructive/20`, drawn inside the border as the input does.
             painter.setPen(QtGui.QPen(with_alpha(theme.color("destructive"), 0.2), 2.0))
-            painter.drawRoundedRect(QtCore.QRectF(box).adjusted(1, 1, -1, -1), radius + 1, radius + 1)
+            painter.drawRoundedRect(QtCore.QRectF(box).adjusted(2, 2, -2, -2), radius - 2, radius - 2)
         if self.keyboard_focus and not self._invalid:
-            self.paint_focus_ring(painter, box, radius + 2)
+            self.paint_focus_ring(painter, box, radius)
 
         pad = CONTROL_PAD[self.size_step]
         glyph = CONTROL_GLYPH[self.size_step]
-        right = inner.right() + 1 - SELECT_TRAILING_PAD
+        right = box.right() + 1 - SELECT_TRAILING_PAD
         if not self._readonly:
-            spot = QRect(right - glyph, inner.center().y() - glyph // 2 + 1, glyph, glyph)
+            spot = QRect(right - glyph, box.center().y() - glyph // 2 + 1, glyph, glyph)
             paint_icon(painter, spot, "chevrons-up-down", theme.color("muted_foreground"))
             right -= glyph + SELECT_GAP
 
@@ -309,7 +312,7 @@ class Select(ThemedWidget):
         painter.setPen(
             theme.color("foreground") if chosen else theme.color("muted_foreground")
         )
-        text_rect = QRect(inner.left() + pad, inner.top(), max(0, right - inner.left() - pad), inner.height())
+        text_rect = QRect(box.left() + pad, box.top(), max(0, right - box.left() - pad), box.height())
         painter.drawText(
             text_rect,
             int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
