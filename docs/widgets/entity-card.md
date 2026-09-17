@@ -60,13 +60,19 @@ The field is the type's conventional one, `sg_status_list` or `sg_status` on a P
 other status fields the site has added to the type.
 
 A card with no row yet shows a skeleton shaped like the card: the picture, two lines of the header
-and a pair of blocks per path. A read that fails shows what it said on one line, or `error_label`
+— three quarters of its width for the name and half for the line under it — and a pair of blocks
+per path. A read that fails shows what it said on one line, or `error_label`
 in its place.
 
 Here the card is a `QWidget` whose object name is `entity-card`, so `size`, `model`, `name`, `url`,
 `loading` and `error` are properties rather than data attributes. It fills the width it is given
 and never more. A field's label sits on the baseline of the value beside it rather than on the top
 of a row that stretched. A press on the name opens the row's page and emits `clicked`.
+
+A value that points somewhere — a linked row, a url — reads as text until the pointer is on it,
+which is when it underlines, so a stack of values does not read as a stack of rules. The name
+underlines the same way. A url that leaves the application also carries the external mark the field
+value draws, which the web widget does not.
 
 ## Events
 

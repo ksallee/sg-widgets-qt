@@ -300,6 +300,12 @@ class FieldDisplay(ThemedWidget):
             empty_label=self._empty_label,
         )
         shown.setObjectName("field-editor-value")
+        # A value takes the room it needs and no more, so a number reads from the control's own
+        # leading edge rather than from its far side: `FieldValue` right-aligns a number for the
+        # table column it was built for, and a field editor is not one.
+        shown.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Maximum, QtWidgets.QSizePolicy.Policy.Preferred
+        )
         # A url value opens itself on a press; on an editable half the press belongs to the
         # editor instead, so the value is taken out of the mouse and the tab order.
         if self._editable:
@@ -309,6 +315,7 @@ class FieldDisplay(ThemedWidget):
             shown.set_site_url(site)
         self._value_widget = shown
         self._add(shown)
+        self._row.addStretch(1)
         self.updateGeometry()
         self.update()
 

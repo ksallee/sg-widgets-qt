@@ -277,3 +277,40 @@ def test_the_hover_wash_is_muted_over_the_surface(qtbot):
     assert abs(got.red() - wanted.red()) <= 1
     assert abs(got.green() - wanted.green()) <= 1
     assert abs(got.blue() - wanted.blue()) <= 1
+
+
+def test_a_text_input_rings_on_any_focus(qtbot):
+    # The exception to rule 5: a browser gives `:focus-visible` to an input however the focus
+    # arrived, so the control rings on a mouse press as well as on Tab.
+    control = build_static(qtbot)
+    assert not control._ring_shown()
+    control.caret().setFocus(Qt.FocusReason.MouseFocusReason)
+    spin(qtbot, 10)
+    assert control.input_focused()
+    assert control._ring_shown(), "a mouse press into the caret rings the control"
+    control.caret().clearFocus()
+    spin(qtbot, 10)
+    assert not control._ring_shown()
+
+
+def test_a_summary_trigger_rings_while_its_search_box_holds_the_caret(qtbot):
+    control = build_static(qtbot, inline=False, multiple=True, chip_row=True, summary="ellipsis")
+    control.set_open(True)
+    spin(qtbot, 250)
+    assert control.caret() is control._search_caret
+    assert control.input_focused() and control._ring_shown()
+    control.set_open(False)
+    spin(qtbot, 20)
+    assert not control.input_focused()
+
+
+def test_a_fixed_set_keeps_the_keyboard_only_ring(qtbot):
+    # No text input, so rule 5's own rule stands: a mouse press rings nothing.
+    control = build_static(qtbot, inline=False, searchable=False, text_value=True, anchored=True)
+    control.setFocus(Qt.FocusReason.MouseFocusReason)
+    spin(qtbot, 10)
+    assert not control._ring_shown()
+    control.clearFocus()
+    control.setFocus(Qt.FocusReason.TabFocusReason)
+    spin(qtbot, 10)
+    assert control._ring_shown()

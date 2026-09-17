@@ -112,7 +112,9 @@ Motion explains a change; it never decorates.
 
 - Focus: a 2px ring in `ring` at a 2px offset in `background`, painted around the control's
   rounded rect, only for keyboard focus (`Qt.TabFocusReason`, `BacktabFocusReason`, a shortcut).
-  Never the host's focus rectangle.
+  Never the host's focus rectangle. One exception: a control whose value is typed rings whenever
+  its text input holds the focus, by any reason, as a browser's `:focus-visible` does for an
+  input; every other control keeps the keyboard-only rule.
 - `ring` reads at least 3:1 against the surface it sits on in every palette; `tests/qt/test_palettes.py`
   measures it.
 - Disabled: the widget at 50% opacity and inert. A tile that is mostly a picture also greys it.

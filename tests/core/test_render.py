@@ -344,6 +344,20 @@ class TestFieldText:
             == "Sep 2, 2026"
         )
 
+    def test_a_date_time_with_no_zone_named_is_rendered_in_utc(self) -> None:
+        """No zone named means the stored instant, which `zone_of` keeps in UTC.
+
+        The case the test above leaves open. Upstream's `Intl.DateTimeFormat` takes the runtime's
+        zone instead, so the same value reads an hour or several apart on a machine that is not on
+        UTC, and the props tables of FieldValue and EntityCard still promise "the runtime's". The
+        choice belongs to `zone_of` and reaches every widget and every editor at once, so it is
+        pinned here rather than worked around in a widget.
+        """
+        assert (
+            field_text("2026-09-02T15:58:21Z", "date_time", FieldTextOptions(locale="en-US"))
+            == "Sep 2, 2026, 3:58 PM"
+        )
+
     def test_renders_a_checkbox_as_a_word_never_as_empty(self) -> None:
         assert field_text(False, "checkbox") == "No"
         assert field_text(True, "checkbox") == "Yes"

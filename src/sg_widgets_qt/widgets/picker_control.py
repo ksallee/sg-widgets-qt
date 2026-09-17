@@ -184,6 +184,9 @@ def _key_name(event: QtGui.QKeyEvent) -> str:
 class _Caret(QtWidgets.QLineEdit):
     """The control's own input, with no box of its own: it borrows the control's."""
 
+    #: The caret took or lost the focus, so the box it borrows can redraw its ring.
+    focus_changed = Signal(bool)
+
     def __init__(
         self,
         on_key: Callable[[QtGui.QKeyEvent], bool],
@@ -240,10 +243,12 @@ class _Caret(QtWidgets.QLineEdit):
             Qt.FocusReason.BacktabFocusReason,
             Qt.FocusReason.ShortcutFocusReason,
         )
+        self.focus_changed.emit(True)
 
     def focusOutEvent(self, event: QtGui.QFocusEvent) -> None:  # noqa: N802
         super().focusOutEvent(event)
         self._keyboard_focus = False
+        self.focus_changed.emit(False)
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:  # noqa: N802
         if self._on_key(event):
@@ -624,6 +629,7 @@ class PickerControl(ThemedWidget):
         self._caret = _Caret(self._on_key, self)
         self._caret.setObjectName(f"{slot}-input")
         self._caret.textEdited.connect(self._on_typed)
+        self._caret.focus_changed.connect(lambda _held: self.update())
         self._caret.installEventFilter(self)
 
         self._pill = _OverflowPill(self)
@@ -665,6 +671,7 @@ class PickerControl(ThemedWidget):
         self._search_caret = _Caret(self._on_key, None)
         self._search_caret.setObjectName(f"{self._slot}-search-input")
         self._search_caret.textEdited.connect(self._on_typed)
+        self._search_caret.focus_changed.connect(lambda _held: self.update())
         self._search_caret.installEventFilter(self)
         self._search_row = _SearchRow(self._search_caret, self._popup)
         self._search_row.setObjectName(f"{self._slot}-search")
@@ -1629,8 +1636,30 @@ class PickerControl(ThemedWidget):
     def on_hover_changed(self, value: bool) -> None:
         self._hover.set(1.0 if value else 0.0)
 
+    def input_focused(self) -> bool:
+        """True while this picker's own text input holds the caret, by any reason."""
+        if self._inline:
+            caret = self._caret
+        elif self._searchable and self._open:
+            caret = self._search_caret
+        else:
+            # A fixed set has no input, and a closed popup keeps its last focus widget, so a
+            # search box that is not on show is not holding anything.
+            return False
+        if not caret.isEnabled():
+            return False
+        window = caret.window()
+        return window is not None and window.focusWidget() is caret
+
     def _ring_shown(self) -> bool:
-        return self._caret.keyboard_focus if self._inline else self.keyboard_focus
+        """The exception to rule 5: a text input rings on any focus.
+
+        A browser gives `:focus-visible` to a text input however the focus arrived, mouse
+        included, so upstream's control rings whenever its caret holds the focus — and for a
+        summary trigger that caret is the popup's search box. Every other control here, none of
+        which is a text input, keeps rule 5's keyboard-only ring.
+        """
+        return self.input_focused() or self.keyboard_focus
 
     def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
         theme = self.theme

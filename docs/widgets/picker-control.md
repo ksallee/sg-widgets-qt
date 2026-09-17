@@ -130,6 +130,12 @@ file calls it.
 A readonly control keeps full contrast and loses the clear control and the chevron. A disabled one
 takes no press and no key.
 
+The focus ring follows the caret rather than rule 5's keyboard-only rule: a browser hands
+`:focus-visible` to a text input however the focus arrived, so the control rings whenever its own
+input holds it, a mouse press included, and a summary trigger rings while the popup's search box
+holds it. The trailing clear and open controls are buttons, not inputs, and keep the keyboard-only
+ring.
+
 The clear control follows `clearable`, and a widget bound to a named field takes that answer from
 the field: a field the site flags mandatory is never clearable, since clearing it writes a value the
 site refuses. `clearableForField` in core is the one reading of that rule.

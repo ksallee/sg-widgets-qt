@@ -420,6 +420,15 @@ class _Body(TableSurface):
         self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
+    def setHorizontalHeader(self, header: QtWidgets.QHeaderView) -> None:  # noqa: N802
+        """Keep the surface's own pointer on the header that is installed.
+
+        Installing a second header deletes the first, and the surface reaches for its own on
+        every density change; without this it would reach for the one Qt has already freed.
+        """
+        super().setHorizontalHeader(header)
+        self._header = header
+
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         point = event.position().toPoint() if hasattr(event, "position") else event.pos()
         index = self.indexAt(point)
