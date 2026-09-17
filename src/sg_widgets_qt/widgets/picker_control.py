@@ -51,6 +51,7 @@ from ..theme import mix, with_alpha
 from .state_line import StateLine
 
 __all__ = [
+    "BORDER",
     "CHIP_GAP",
     "OVERFLOW_RESERVE",
     "PICKER_BOX",
@@ -92,6 +93,9 @@ PICKER_CHIP: dict[str, str] = {"sm": "xs", "md": "sm", "lg": "md"}
 #: The glyphs inside a control.
 PICKER_GLYPH: dict[str, int] = {"sm": 16, "md": 16, "lg": 20}
 
+#: The control's own border, which the vertical inset is measured from the inside of.
+BORDER = 1
+
 #: The chip row's gap, carried by every measured width.
 CHIP_GAP = 6
 
@@ -128,6 +132,22 @@ DISABLED_INK = 0.5
 LOAD_MORE = "__load-more"
 
 _LOAD_MORE_LABEL = "Load more"
+
+
+def over(base: QtGui.QColor, top: QtGui.QColor) -> QtGui.QColor:
+    """`top` composited over an opaque `base`, which is what a CSS background does.
+
+    A token may be a translucent overlay of its own — `muted` is `#00000008` in several
+    palettes — so `hover:bg-muted/30` is that alpha taken down to 30% of itself and laid over
+    the surface, never a blend towards the token's raw colour, which would read as a grey.
+    """
+    share = top.alphaF()
+    return QtGui.QColor(
+        round(base.red() + (top.red() - base.red()) * share),
+        round(base.green() + (top.green() - base.green()) * share),
+        round(base.blue() + (top.blue() - base.blue()) * share),
+        base.alpha(),
+    )
 
 
 def _retire(popover: Popover) -> None:
@@ -585,6 +605,9 @@ class PickerControl(ThemedWidget):
 
         self.set_size_step(size if size in PICKER_SIZE_VALUES else "md")
         self.setObjectName(f"{slot}-control")
+        # `disabled` handed in is the same state `set_disabled` puts the control in, so the
+        # inert step of rule 5 is worn from the first paint rather than only after a setter.
+        self.setEnabled(not self._disabled)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred
         )
@@ -1462,9 +1485,13 @@ class PickerControl(ThemedWidget):
 
         left, right, pad_y = self._insets()
         room = max(0, self.width() - left - right)
-        line = self._line_height()
-        x, y = left, pad_y
+        line = max(1, self._line_height())
+        ladder = CONTROL_HEIGHT[self.size_step]
+        # The inset is what the chip and the control's own border leave under the ladder,
+        # halved, so the border counts: 20 and 2 under 28 at sm, 24 and 2 under 32 at md.
+        x, y = left, BORDER + pad_y
         rows = 1
+        placed: list[tuple[QtWidgets.QWidget, QtCore.QRect]] = []
         for index, chip in enumerate(self._chips):
             shown_chip = index < self._shown_chips
             chip.setVisible(shown_chip)
@@ -1475,20 +1502,33 @@ class PickerControl(ThemedWidget):
                 x = left
                 y += line + CHIP_GAP
                 rows += 1
-            chip.setGeometry(x, y, min(width, max(0, room)), line)
+            placed.append((chip, QtCore.QRect(x, y, min(width, max(0, room)), line)))
             x += width + CHIP_GAP
         if show_pill:
             width = self._pill.sizeHint().width()
-            self._pill.setGeometry(x, y, width, line)
+            placed.append((self._pill, QtCore.QRect(x, y, width, line)))
             x += width + CHIP_GAP
+
+        natural = 2 * (BORDER + pad_y) + rows * line + (rows - 1) * CHIP_GAP
+        height = max(ladder, natural)
+        # `items-center`: the value sits in the middle of the box it is in, whether that is the
+        # ladder or a box a caller made taller, so a chip, a value that reads as plain text and
+        # the caret's own text share one centre line.
+        box = max(self.height(), height)
+        shift = max(0, (box - natural) // 2)
+        for widget, rect in placed:
+            widget.setGeometry(rect.translated(0, shift))
 
         if self._inline:
             floor = TOKEN_CARET_MIN_WIDTH if self._token_input else CARET_MIN_WIDTH
             width = max(floor, self.width() - right - x)
-            self._caret.setGeometry(x, y, width, line if line > 0 else CONTROL_HEIGHT[self.size_step])
+            if placed:
+                self._caret.setGeometry(x, y + shift, width, line)
+            else:
+                # An empty control gives its inset back and reads as a plain input, so the
+                # caret fills the box and centres its text on the box's own centre line.
+                self._caret.setGeometry(x, BORDER, width, max(1, box - 2 * BORDER))
 
-        ladder = CONTROL_HEIGHT[self.size_step]
-        height = max(ladder, 2 * pad_y + rows * line + (rows - 1) * CHIP_GAP)
         if height != self.minimumHeight():
             self.setMinimumHeight(height)
             self.updateGeometry()
@@ -1498,12 +1538,17 @@ class PickerControl(ThemedWidget):
         self._clear.setVisible(show_clear)
         self._trigger.setVisible(show_trigger)
         edge = self.width() - 8
+        # `PICKER_TRAILING`: each takes the ladder, so the pair centres on a control that holds
+        # one line and stays with the first row when the value wraps below it.
+        lane = (box - ladder) // 2 if rows == 1 else 0
         for control, shown in ((self._trigger, show_trigger), (self._clear, show_clear)):
             if not shown:
                 continue
             hint = control.sizeHint()
             edge -= hint.width()
-            control.setGeometry(edge, (ladder - hint.height()) // 2, hint.width(), hint.height())
+            control.setGeometry(
+                edge, lane + (ladder - hint.height()) // 2, hint.width(), hint.height()
+            )
             edge -= 4
         self._place_ring()
         self.update()
@@ -1551,7 +1596,10 @@ class PickerControl(ThemedWidget):
         painter.setOpacity(self.disabled_opacity())
         box = self.rect()
         radius = float(theme.radius_px("lg"))
-        surface = mix(theme.background, theme.muted, 0.3 * self._hover.value)
+        # `bg-background hover:bg-muted/30`: the wash is laid over the surface, not blended in.
+        surface = over(
+            theme.color("background"), with_alpha(theme.muted, 0.3 * self._hover.value)
+        )
         border = theme.color("destructive") if self._invalid else theme.color("input")
         fill_round_rect(painter, box, radius, surface, border)
 
@@ -1576,8 +1624,9 @@ class PickerControl(ThemedWidget):
             text = self._placeholder
         if text:
             painter.setPen(theme.color(token))
+            # One line, so the text centres on the box rather than on the ladder inside it.
             painter.drawText(
-                QtCore.QRect(left, 0, room, CONTROL_HEIGHT[self.size_step]),
+                QtCore.QRect(left, 0, room, self.height()),
                 int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft),
                 elide(metrics, text, room),
             )

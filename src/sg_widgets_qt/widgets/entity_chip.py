@@ -30,7 +30,7 @@ from ..primitives.hover_card import HoverCard, HoverCardContent
 from ..theme import with_alpha
 from .entity_glyphs import entity_glyph
 
-__all__ = ["ENTITY_CHIP_VARIANT_VALUES", "EntityChip"]
+__all__ = ["ENTITY_CHIP_VARIANT_VALUES", "EntityChip", "default_preview_builder"]
 
 #: Boxed chip, inline link, or the bare name.
 ENTITY_CHIP_VARIANT_VALUES: tuple[str, ...] = ("chip", "link", "text")
@@ -222,8 +222,7 @@ class EntityChip(Chip):
         """What the hover card holds.
 
         Called as `builder(entity, preview, context)` and returns the widget the card shows.
-        Upstream the card holds an EntityCard; until that widget lands here the card shows the
-        row's name and the paths that were asked for.
+        None restores the default, an EntityCard on the row the chip points at.
         """
         self._preview_builder = builder
         self._rebuild_card()
@@ -300,10 +299,8 @@ class EntityChip(Chip):
         self._card = HoverCard(self, self._preview_content(), open_delay=200, close_delay=100)
 
     def _preview_content(self) -> QtWidgets.QWidget:
-        if self._preview_builder is not None:
-            return self._preview_builder(self._entity, list(self._preview), self._context)
-        where = f"{self._entity.type} #{self._entity.id}" if self._entity is not None else ""
-        return HoverCardContent(self.label, "\n".join([where, *self._preview]))
+        builder = self._preview_builder if self._preview_builder is not None else default_preview_builder
+        return builder(self._entity, list(self._preview), self._context)
 
     # --- layout ---
 
@@ -443,6 +440,26 @@ class EntityChip(Chip):
             return
         glyph = entity_glyph(self._entity.type if self._entity is not None else None)
         paint_icon(painter, rect, glyph, with_alpha(ink, 0.7))
+
+
+def default_preview_builder(
+    entity: EntityRef | None,
+    preview: list[str],
+    context: SgContext | None,
+) -> QtWidgets.QWidget:
+    """The hover card's contents: an EntityCard on the row the chip points at.
+
+    The card reads the row itself through the context's cache, so a second chip on the same row
+    costs nothing. With no context to read through, the card is the row's name and the paths that
+    were asked for.
+    """
+    if entity is None or context is None:
+        where = f"{entity.type} #{entity.id}" if entity is not None else ""
+        name = str(entity.name) if entity is not None and entity.name else where
+        return HoverCardContent(name, "\n".join([where, *preview]))
+    from .entity_card import EntityCard
+
+    return EntityCard(context=context, entity=entity, fields=list(preview), size="sm")
 
 
 def _context_of(client: object) -> SgContext | None:

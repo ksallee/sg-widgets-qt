@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 from qtpy.QtCore import QPoint, Qt
+from qtpy.QtGui import QColor
 from qtpy.QtTest import QTest
 
 from sg_widgets_qt.primitives.base import CONTROL_HEIGHT, ICON_HIT_BOX
 from sg_widgets_qt.primitives.popover import MIN_WIDTH as POPUP_MIN_WIDTH
+from sg_widgets_qt.theme import theme_of, with_alpha
 from sg_widgets_qt.widgets.picker_control import (
+    BORDER,
     CHIP_GAP,
     OVERFLOW_RESERVE,
     PICKER_BOX,
@@ -15,6 +18,7 @@ from sg_widgets_qt.widgets.picker_control import (
     POPUP_WIDTH,
     SEARCH_ROW_HEIGHT,
     SKELETON_ROWS,
+    over,
 )
 
 from .test_picker_contract import DEPARTMENTS, _settle, build_static, spin
@@ -202,3 +206,74 @@ def test_closing_clears_the_query(qtbot):
     control.set_open(False)
     assert control.query == ""
     assert control.caret().text() == ""
+
+
+def test_the_ink_sits_on_the_controls_own_centre_line(qtbot):
+    # Rule 3: the inset is what the chip and the control's own border leave under the ladder,
+    # halved, so the border counts and a chip, a text value and the caret share one centre line.
+    for size in ("sm", "md", "lg"):
+        control = build_static(qtbot, size=size)
+        control.setFixedHeight(CONTROL_HEIGHT[size])
+        control._relayout()
+        empty = control.caret().geometry()
+        middle = empty.y() + empty.height() / 2.0
+        assert abs(middle - control.height() / 2.0) <= 1.0, f"{size}: the empty caret rides high"
+        # An empty control gives its inset back and reads as a plain input: the caret fills it.
+        assert empty.height() == control.height() - 2 * BORDER
+
+        _settle(control, ["layout"], dict(DEPARTMENTS))
+        spin(qtbot, 10)
+        chip = control.chips()[0].geometry()
+        # 20 and 2 under 28 at sm, 24 and 2 under 32 at md, 32 and 2 under 36 at lg.
+        assert chip.y() == BORDER + PICKER_BOX[size][2]
+        assert chip.y() + chip.height() + BORDER + PICKER_BOX[size][2] == CONTROL_HEIGHT[size]
+        assert abs(chip.y() + chip.height() / 2.0 - control.height() / 2.0) <= 1.0
+        caret = control.caret().geometry()
+        assert caret.y() == chip.y() and caret.height() == chip.height()
+        # A box a caller made taller centres the whole row in it, as `items-center` does.
+        control.setFixedHeight(CONTROL_HEIGHT[size] + 8)
+        control._relayout()
+        chip = control.chips()[0].geometry()
+        assert abs(chip.y() + chip.height() / 2.0 - control.height() / 2.0) <= 1.0
+
+
+def test_a_value_that_reads_as_plain_text_centres_too(qtbot):
+    # The text line is shorter than the chip ladder, so it sits in the middle of the box
+    # rather than on the inset the chip row takes.
+    from sg_widgets_qt.showcase import chrome
+
+    control = build_static(qtbot, text_value=True, inline=False)
+    control.set_chip_factory(
+        lambda index: chrome.TextLine(dict(DEPARTMENTS)[control.keys[index]], size=14)
+    )
+    _settle(control, ["layout"], dict(DEPARTMENTS))
+    spin(qtbot, 10)
+    line = control.chips()[0].geometry()
+    assert line.height() < CONTROL_HEIGHT["md"]
+    assert abs(line.y() + line.height() / 2.0 - control.height() / 2.0) <= 1.0
+
+
+def test_a_control_built_disabled_is_inert_from_the_first_paint(qtbot):
+    control = build_static(qtbot, disabled=True)
+    assert not control.isEnabled()
+    assert control.disabled_opacity() == 0.5
+    assert not control.interactive
+
+
+def test_the_hover_wash_is_muted_over_the_surface(qtbot):
+    # `bg-background hover:bg-muted/30`. `muted` is a translucent overlay in several palettes,
+    # so the wash is laid over the surface, never blended towards the token's raw colour.
+    control = build_static(qtbot)
+    theme = theme_of(control)
+    wanted = over(theme.color("background"), with_alpha(theme.muted, 0.3))
+    assert over(theme.color("background"), with_alpha(theme.muted, 0.0)) == theme.color(
+        "background"
+    )
+    control.set_hovered(True)
+    spin(qtbot, 250)
+    image = control.grab().toImage()
+    ratio = image.width() / max(1, control.width())
+    got = QColor(image.pixel(int(control.width() * 0.6 * ratio), int(control.height() * 0.5 * ratio)))
+    assert abs(got.red() - wanted.red()) <= 1
+    assert abs(got.green() - wanted.green()) <= 1
+    assert abs(got.blue() - wanted.blue()) <= 1

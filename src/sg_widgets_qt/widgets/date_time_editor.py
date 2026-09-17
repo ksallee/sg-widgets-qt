@@ -32,7 +32,7 @@ from sg_widgets_core.schema import FieldSchema
 from ..primitives.calendar import Calendar
 from ..primitives.input import Input
 from ..primitives.popover import Popover
-from .date_editor import DateTrigger, date_popover_panel
+from .date_editor import DateTrigger, date_popover_panel, focus_on_open
 from .editor_calendar import from_calendar_date, to_calendar_date
 from .value_editor import EditorNote, ValueEditor, ValueSession, fade_disabled
 
@@ -149,7 +149,7 @@ class DateTimeEditor(ValueEditor):
         self._session.bind(self._time, "time")
         panel.layout().addWidget(self._time)
 
-        self._popover = Popover(self._trigger, panel, side="bottom", align="start")
+        self._popover = Popover(self._trigger, panel, side="bottom", align="start", takes_focus=True)
         self._popover.opened.connect(self._on_opened)
         self._popover.closed.connect(lambda: self.open_changed.emit(False))
 
@@ -189,7 +189,7 @@ class DateTimeEditor(ValueEditor):
     def _on_opened(self) -> None:
         self._popover.raise_()
         self._popover.activateWindow()
-        self._day.setFocus(Qt.FocusReason.OtherFocusReason)
+        focus_on_open(self._day)
         self.open_changed.emit(True)
 
     def _on_enter(self, committed: bool) -> None:

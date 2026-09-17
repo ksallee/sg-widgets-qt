@@ -423,6 +423,9 @@ class ContextSelector(QWidget):
         self._secondary = secondary
         self._show_code = bool(show_code)
         self._fields = list(fields)
+        self._empty_label = empty_label
+        self._loading_label = loading_label
+        self._error_label = error_label
         self._size = size
         self._open = False
         self._tasks: SearchControl | None = None
@@ -488,7 +491,9 @@ class ContextSelector(QWidget):
             error_slot="context-tasks-error",
             loading_slot="context-tasks-loading",
             empty_slot="context-tasks-empty",
-            empty_label=NO_ROWS_LABEL,
+            empty_label=self._empty_label,
+            loading_label=self._loading_label,
+            error_label=self._error_label,
             skeleton_lines=2,
             skeleton_lead=QSize(THUMB_SIZE[self._size], THUMB_SIZE[self._size]),
             size=self._size,
@@ -496,6 +501,8 @@ class ContextSelector(QWidget):
             row_mapper=self._task_rows,
         )
         self._tasks.activated.connect(self._on_task)
+        # Escape on an empty query is the shell's key, and this shell is the popover.
+        self._tasks.dismissed.connect(self._on_dismissed)
         tasks.addWidget(self._tasks)
         column.addWidget(tasks_section)
 
@@ -515,9 +522,12 @@ class ContextSelector(QWidget):
             sub_label_field=self._sub_label_field,
             show_code=self._show_code,
             fields=self._fields,
+            loading_label=self._loading_label,
+            error_label=self._error_label,
             placeholder="Search for a task or a shot…",
         )
         self._tree.selected.connect(self._on_tree_pick)
+        self._tree.search_control().dismissed.connect(self._on_dismissed)
         browse.addWidget(self._tree)
         column.addWidget(browse_section)
 
@@ -681,6 +691,7 @@ class ContextSelector(QWidget):
         return self._tasks.empty_label
 
     def set_empty_label(self, value: str) -> None:
+        self._empty_label = value
         self._tasks.set_empty_label(value)
 
     @property
@@ -689,6 +700,7 @@ class ContextSelector(QWidget):
         return self._tasks.loading_label
 
     def set_loading_label(self, value: str | None) -> None:
+        self._loading_label = value
         self._tasks.set_loading_label(value)
         self._tree.set_loading_label(value)
 
@@ -698,6 +710,7 @@ class ContextSelector(QWidget):
         return self._tasks.error_label
 
     def set_error_label(self, value: str | None) -> None:
+        self._error_label = value
         self._tasks.set_error_label(value)
         self._tree.set_error_label(value)
 
@@ -878,6 +891,18 @@ class ContextSelector(QWidget):
             self.set_open(False)
             return True
         return False
+
+    def _on_dismissed(self) -> None:
+        """Escape reached the shell from one of the lists: the popover is that shell."""
+        self.set_open(False)
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
+        """Escape from the trigger closes the popover, and `_on_closed` gives the caret back."""
+        if self._open and event.key() == Qt.Key.Key_Escape:
+            self.set_open(False)
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     @property
     def label(self) -> str:

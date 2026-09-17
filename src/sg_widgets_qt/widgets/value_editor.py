@@ -74,24 +74,32 @@ def _text_of(widget: QtWidgets.QWidget) -> str:
 _FADE_MARK = "/* inert ink */"
 
 
-def disabled_ink(theme: object) -> str:
-    """Rule 5's 50% foreground, as a stylesheet colour."""
-    color = with_alpha(theme.foreground, 0.5)
+def _ink(color: QtGui.QColor) -> str:
+    """A colour as a stylesheet `rgba(...)`."""
     return f"rgba({color.red()}, {color.green()}, {color.blue()}, {color.alpha()})"
 
 
-def fade_disabled(widget: QtWidgets.QWidget | None) -> None:
-    """Grey the ink Qt draws itself while a control is inert.
+def disabled_ink(theme: object) -> str:
+    """Rule 5's 50% foreground, as a stylesheet colour."""
+    return _ink(with_alpha(theme.foreground, 0.5))
 
-    A painted leaf fades with the painter's opacity, but the text inside a `QLineEdit` is Qt's own,
-    and the root's generated stylesheet sets its colour, which beats any palette. The rule goes on
-    the control itself, where it is the more specific one.
+
+def fade_disabled(widget: QtWidgets.QWidget | None) -> None:
+    """Set the ink Qt draws itself, at full strength and at rule 5's inert step.
+
+    A painted leaf fades with the painter's opacity, but the text inside a `QLineEdit` or a
+    `QPlainTextEdit` is Qt's own, and a stylesheet anywhere over the control is what sets it, ahead
+    of any palette. A stylesheet that named only the inert state would leave Qt to resolve the
+    other one from the default palette, which is a light page's black, so both are spelled here.
     """
     if widget is None:
         return
+    theme = theme_of(widget)
     rule = (
-        f"{_FADE_MARK} QLineEdit:disabled, QPlainTextEdit:disabled "
-        f"{{ color: {disabled_ink(theme_of(widget))}; }}"
+        f"{_FADE_MARK} QLineEdit, QPlainTextEdit "
+        f"{{ color: {_ink(theme.color('foreground'))}; }} "
+        f"QLineEdit:disabled, QPlainTextEdit:disabled "
+        f"{{ color: {disabled_ink(theme)}; }}"
     )
     base = widget.styleSheet().split(_FADE_MARK)[0]
     widget.setStyleSheet(base + rule)
@@ -464,6 +472,7 @@ class ValueEditor(QtWidgets.QWidget):
         self._field: FieldSchema | None = None
         self._placeholder = ""
         self._session: ValueSession | None = None
+        self._theme_read: object | None = None
         self.setObjectName(slot_name)
 
         self._column = QtWidgets.QVBoxLayout(self)
@@ -472,7 +481,7 @@ class ValueEditor(QtWidgets.QWidget):
         self._error = FieldError(message, error_message, self)
         self._column.addWidget(self._error)
         self._apply_width()
-        watch_theme(self, lambda _theme: self._apply_state())
+        watch_theme(self, self._on_theme)
 
     # --- the parts -----------------------------------------------------------------------
 
@@ -638,6 +647,11 @@ class ValueEditor(QtWidgets.QWidget):
 
     # --- hooks a subclass fills ------------------------------------------------------------
 
+    def _on_theme(self, theme: object) -> None:
+        """A theme landed on this box. The controls in it wear it again."""
+        self._theme_read = theme
+        self._apply_state()
+
     def _apply_size(self, size: str) -> None:
         """A size step landed. Hand it to the controls in the box."""
 
@@ -678,5 +692,21 @@ class ValueEditor(QtWidgets.QWidget):
         elif kind == QtCore.QEvent.Type.ParentChange:
             # An editor built before it joined a themed tree read the host's theme; joining one is
             # the other moment a theme reaches it, so the box and its controls read it again.
-            retheme(self)
-            self._apply_state()
+            self._read_theme()
+
+    def showEvent(self, event: QtGui.QShowEvent) -> None:  # noqa: N802
+        super().showEvent(event)
+        self._read_theme()
+
+    def _read_theme(self) -> None:
+        """Read the nearest theme again, on the box and on every control inside it.
+
+        The inert ink is written from the theme, so a control that joined a themed tree after it
+        was built has to be told again, or it keeps the ink of the host's greys.
+        """
+        theme = theme_of(self)
+        if self._theme_read is not None and self._theme_read == theme:
+            return
+        self._theme_read = theme
+        retheme(self)
+        self._apply_state()

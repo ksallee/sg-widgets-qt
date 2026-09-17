@@ -1,9 +1,11 @@
 """The row of rule 9 as a model: the roles it answers, the picture it loads, the status it draws."""
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+
 import pytest
 from qtpy.QtCore import QSize, Qt
-from qtpy.QtGui import QColor, QPainter, QPixmap
+from qtpy.QtGui import QColor, QFont, QPainter, QPixmap
 from qtpy.QtWidgets import QStyleOptionViewItem, QWidget
 
 from sg_widgets_core.picker import PickerRow
@@ -11,9 +13,11 @@ from sg_widgets_core.render import initials_of, name_hue
 from sg_widgets_qt.images import ImageLoader
 from sg_widgets_qt.primitives.roles import Roles
 from sg_widgets_qt.primitives.row_delegate import initials_of as delegate_initials
+from sg_widgets_qt.primitives.row_delegate import label_weight
 from sg_widgets_qt.primitives.row_delegate import name_hue as delegate_hue
 from sg_widgets_qt.theme import apply_theme, theme_for
 from sg_widgets_qt.widgets.picker_row import PickerRowModel, PickerRowWidget, status_painter
+from sg_widgets_qt.widgets.search_control import SearchControl
 
 SHOT = PickerRow(
     type="Shot",
@@ -177,3 +181,84 @@ def test_the_widget_paints_one_row_on_its_own(host, qtbot):
 def test_the_delegate_takes_its_hue_and_its_initials_from_core():
     assert delegate_hue("Ada Lovelace") == name_hue("Ada Lovelace")
     assert delegate_initials("Anna van der Meer") == initials_of("Anna van der Meer")
+
+
+@dataclass
+class Heading:
+    """A group heading among the rows, which names no entity type."""
+
+    name: str
+    type: str = ""
+    id: int = 0
+    values: dict = field(default_factory=dict)
+
+
+class StubSchema:
+    """The one schema read the secondary's plan makes."""
+
+    def __init__(self) -> None:
+        self.asked: list[tuple[str, str]] = []
+
+    def field(self, entity_type: str, path: str):  # noqa: D102, ANN201
+        self.asked.append((entity_type, path))
+        return None
+
+
+class StubContext:
+    """A context with a schema and no status table."""
+
+    def __init__(self) -> None:
+        self.schema = StubSchema()
+        self.statuses = None
+
+
+def test_the_secondary_schema_is_read_off_the_first_row_that_names_a_type(host, qtbot):
+    """A grouped list leads with a heading, which must not hold the plan back."""
+    context = StubContext()
+    model = PickerRowModel(
+        [Heading("Shot"), SHOT], host, context=context, secondary_field="sg_status_list"
+    )
+    qtbot.waitUntil(lambda: bool(context.schema.asked), timeout=3000)
+    assert context.schema.asked == [("Shot", "sg_status_list")]
+    assert model.rowCount() == 2
+
+
+def test_a_label_behind_crumbs_is_drawn_one_weight_step_up():
+    plain = [("sh010_0010", False, False)]
+    crumbed = [("Shots", False, True), (" › ", False, True), ("FX", False, False)]
+    assert label_weight(plain) == QFont.Weight.Normal
+    assert label_weight(crumbed) == QFont.Weight.Medium
+
+
+def test_a_glyph_the_caller_named_is_drawn_with_no_picture_box(host, qtbot):
+    """A tree level or an assigned task names its glyph, so there is no picture to stand in for."""
+    model = PickerRowModel([SHOT], host, thumbnail=False)
+    assert model.bare_glyph is False
+    model.set_glyph_of(lambda _row: "folder")
+    assert model.bare_glyph is True
+
+    control = SearchControl(host, model=model)
+    qtbot.addWidget(control)
+    assert control.list_surface().row_delegate().bare_glyph is True
+
+
+def test_a_page_landing_under_the_rows_is_an_insert_not_a_reset(qtbot):
+    # A reset drops a view's scroll position and its keyboard cursor, so the list would jump
+    # to the top under a reader. Only a set of rows that is not an extension is a reset.
+    model = PickerRowModel([SHOT], loader=ImageLoader(timeout=0))
+    events: list = []
+    model.modelReset.connect(lambda: events.append("reset"))
+    model.rowsInserted.connect(lambda _p, first, last: events.append(("inserted", first, last)))
+
+    model.set_rows([SHOT, ADA])
+    assert events == [("inserted", 1, 1)]
+    assert model.rowCount() == 2
+
+    events.clear()
+    model.set_rows([SHOT, ADA])
+    assert events == []
+
+    events.clear()
+    model.set_rows([ADA])
+    assert events == ["reset"]
+    assert model.rowCount() == 1

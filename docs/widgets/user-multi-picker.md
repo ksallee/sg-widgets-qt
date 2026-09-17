@@ -24,7 +24,8 @@ the selection, as on every other multi picker.
 
 The query is matched against the display-name chain and the email, and against `login` while the
 query holds no whitespace. Both fields are requested so the row can show them. A person's sub-label
-is their email; a script account's is `API user`. `subLabelField="login"` puts the login there
+is their email; a script account's is `API user`. A person's picture is an avatar, so
+`round_thumbnail` starts True here and the rows draw circles. `subLabelField="login"` puts the login there
 instead.
 
 Every row carries a checkbox and the list stays open across selections. Selected rows are appended
@@ -67,4 +68,14 @@ The row, chip and checkbox anatomy follows shadcn's Base UI Combobox, read throu
 The primitive underneath is Base UI Combobox 1.8.0 in React and Bits UI Combobox 2.19.1 in Svelte.
 shadcn-svelte ships no combobox item, so each widget composes the headless primitive of its
 framework and both draw the same rows, the same classes and the same states.
-::qt-note
+
+Here there is no headless primitive to compose. The widget is the entity picker with the person
+preset on it: the box and its popup are `widgets/picker_control.py`, the popup is
+`primitives/popover.py` and never takes focus, the list is `primitives/list_view.py`, and every row
+is drawn by `primitives/row_delegate.py` through `PickerRowModel`, so PySide6 and PyQt5 draw the
+same pixels and answer a key the same way. The read runs on `sg_widgets_qt.workers`.
+
+`tk-framework-qtwidgets/python/shotgun_fields/entity_widget.py` edits an entity field through a
+completer over a background task manager, and reads the field's schema before it offers anything;
+this picker splits the same work between core and `sg_widgets_qt.workers` and leaves the site as
+the only authority on what matches. It was read, and nothing was copied.

@@ -1,0 +1,1195 @@
+"""One field of an entity type, chosen through a list that descends into linked types.
+
+Ported from `packages/react/src/registry/sg/components/field-picker.tsx` and its Svelte twin.
+The value is the dotted path: a root field is its own code, and every hop names the field
+followed and the type it landed on. Only a single `entity` field is descended into, a link
+declaring several target types asks which one first, and `data_types` and `valid_types` bind
+what may be chosen rather than what may be walked through.
+
+The control is `picker_control`, so the press rule, the dismissal guard, the caret and the
+states are the shared ones. What this module adds is the breadcrumb over the search row, the
+field glyph per data type, and the friendly path the closed control reads. `FieldLevels` holds
+where the list stands, so the column picker's own list walks the same path.
+
+    picker = FieldPicker(context=context, entity_type="Version", deep_links=True)
+    picker.value_changed.connect(chosen)
+"""
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
+from typing import Any
+
+from qtpy import QtCore, QtGui, QtWidgets
+from qtpy.QtCore import QModelIndex, Qt, Signal
+
+from sg_widgets_core.field_icons import icon_name_for
+from sg_widgets_core.pickers import (
+    DEFAULT_MAX_DEPTH,
+    ExtraField,
+    FieldHop,
+    FieldOption,
+    FieldOptionsInput,
+    current_type,
+    derive_field_options,
+    search_field_options,
+)
+from sg_widgets_core.schema import FieldSchema
+from sg_widgets_core.search import match_runs
+from sg_widgets_core.state import NO_MATCH_LABEL
+
+from .. import icons
+from ..primitives.base import CONTROL_HEIGHT, ThemedWidget, elide, painter_for
+from ..primitives.button import Button
+from ..primitives.roles import Roles
+from ..primitives.row_delegate import RowDelegate
+from ..primitives.skeleton import Skeleton
+from ..theme import theme_of
+from ..workers import Ticket, default_pool
+from .picker_control import PICKER_SIZE_VALUES, PickerControl
+
+__all__ = [
+    "CRUMB_SEPARATOR",
+    "DESCEND_ZONE",
+    "Breadcrumb",
+    "FieldLevels",
+    "FieldOptionModel",
+    "FieldPicker",
+    "PathLabel",
+    "chevron_painter",
+    "extra_fields_of",
+    "schema_of",
+]
+
+#: Between the display names of a resolved path, in the row and in the control.
+CRUMB_SEPARATOR = " › "
+
+#: The trailing strip of a row that descends where a press descends rather than chooses.
+DESCEND_ZONE = 28
+
+#: The breadcrumb bar: `py-1.5` over the 1px rule under it, inset `px-2`, `gap-1.5`.
+CRUMB_BAR_HEIGHT = 29
+CRUMB_PAD = 8
+CRUMB_GAP = 6
+
+#: The metadata step of rule 6, which the crumbs and a sub-label are on.
+CRUMB_TEXT = 12
+
+#: The body step, which a control's own value is on.
+VALUE_TEXT = 14
+
+#: The mark a target type carries in its leading slot.
+LINK_GLYPH = "link"
+
+#: The skeleton a control shows while a path is being resolved.
+LABEL_SKELETON_WIDTH = 128
+LABEL_SKELETON_HEIGHT = 16
+
+
+def extra_fields_of(value: Any) -> list[ExtraField]:
+    """The synthetic entries a caller offered, from dataclasses or from plain maps."""
+    out: list[ExtraField] = []
+    for entry in value or []:
+        if isinstance(entry, ExtraField):
+            out.append(entry)
+        elif isinstance(entry, dict):
+            shown = entry.get("display_name", entry.get("displayName"))
+            out.append(
+                ExtraField(name=str(entry.get("name", "")), display_name=shown if shown else None)
+            )
+    return out
+
+
+def schema_of(context: Any) -> Any:
+    """The schema service a context reads through, or the object itself where it is one."""
+    found = getattr(context, "schema", None)
+    return found if found is not None else context
+
+
+def chevron_painter() -> Callable[..., None]:
+    """The mark a row that descends carries at its trailing edge."""
+
+    def paint(painter: QtGui.QPainter, rect: QtCore.QRect, option: Any) -> None:
+        widget = getattr(option, "widget", None)
+        theme = theme_of(widget) if widget is not None else None
+        ink = theme.color("muted_foreground") if theme is not None else QtGui.QColor(128, 128, 128)
+        side = 16
+        box = QtCore.QRect(rect.right() + 1 - side, rect.center().y() - side // 2, side, side)
+        painter.setOpacity(0.7)
+        icons.paint_icon(painter, box, "chevron-right", ink)
+
+    return paint
+
+
+class FieldLevels(QtCore.QObject):
+    """Where a field list stands: the hops taken, the link being resolved, the fields read.
+
+    One read per type, off the GUI thread. `/schema/<Type>/fields` is 48KB and about 330ms
+    (probe 002), and the schema service caches it, so a hop back to a type already visited
+    costs nothing. `changed` fires whenever the rows a list should draw have moved.
+    """
+
+    #: The level, the fields or a failure moved.
+    changed = Signal()
+
+    def __init__(
+        self,
+        parent: QtCore.QObject | None = None,
+        context: Any = None,
+        entity_type: str = "",
+        deep_links: bool = False,
+        max_depth: int = DEFAULT_MAX_DEPTH,
+        data_types: str | Sequence[str] | None = None,
+        valid_types: Sequence[str] | None = None,
+        exclude: Sequence[str] | None = None,
+        hide_paths: Sequence[str] | None = None,
+        filterable_only: bool = False,
+        extra_fields: Sequence[Any] | None = None,
+        filter: Callable[[FieldSchema, str], bool] | None = None,  # noqa: A002
+    ) -> None:
+        super().__init__(parent)
+        self.context = context
+        self.entity_type = entity_type
+        self.deep_links = bool(deep_links)
+        self.max_depth = int(max_depth)
+        self.data_types = data_types
+        self.valid_types = list(valid_types) if valid_types is not None else None
+        self.exclude = list(exclude) if exclude is not None else None
+        self.hide_paths = list(hide_paths) if hide_paths is not None else None
+        self.filterable_only = bool(filterable_only)
+        self.extra_fields = extra_fields_of(extra_fields)
+        self.filter = filter
+
+        self._hops: list[FieldHop] = []
+        self._choosing: FieldOption | None = None
+        self._fields: dict[str, FieldSchema] | None = None
+        self._loaded_type = ""
+        self._failure: str | None = None
+        self._ticket = Ticket()
+
+    # --- where it stands ------------------------------------------------------------------
+
+    @property
+    def hops(self) -> list[FieldHop]:
+        """The hops taken so far. Empty at the root."""
+        return list(self._hops)
+
+    @property
+    def choosing(self) -> FieldOption | None:
+        """The link whose target type is being chosen, where one declares several."""
+        return self._choosing
+
+    @property
+    def type(self) -> str:
+        """The type the fields are read from after these hops."""
+        return current_type(self.entity_type, self._hops)
+
+    @property
+    def loading(self) -> bool:
+        """True while the fields of the current type are in flight."""
+        return self._fields is None and self._failure is None
+
+    @property
+    def failure(self) -> str | None:
+        """What the failed read said."""
+        return self._failure
+
+    @property
+    def deep(self) -> bool:
+        """True once the list is off the root, which is when the breadcrumb shows."""
+        return len(self._hops) > 0 or self._choosing is not None
+
+    def crumbs(self) -> list[str]:
+        """The hop names drawn muted before a row's label."""
+        return [hop.display_name for hop in self._hops]
+
+    # --- the rows -------------------------------------------------------------------------
+
+    def options(self) -> list[FieldOption]:
+        """Every option of the type the list stands on, before the search."""
+        if self._fields is None or self._loaded_type != self.type:
+            return []
+        types = self.data_types
+        return derive_field_options(
+            self._fields,
+            FieldOptionsInput(
+                root_type=self.entity_type,
+                hops=list(self._hops),
+                deep_links=self.deep_links,
+                max_depth=self.max_depth,
+                data_types=list(types) if isinstance(types, (list, tuple)) else types,
+                valid_types=self.valid_types,
+                exclude=self.exclude,
+                hide_paths=self.hide_paths,
+                filterable_only=self.filterable_only,
+                extra_fields=self.extra_fields,
+                filter=self.filter,
+            ),
+        )
+
+    def rows(self, query: str = "") -> list[FieldOption]:
+        """The field rows the search leaves. Empty while a link's targets are on show."""
+        if self._choosing is not None:
+            return []
+        return search_field_options(self.options(), query)
+
+    def targets(self, query: str = "") -> list[str]:
+        """The target types on show, while a link declaring several is being resolved."""
+        if self._choosing is None:
+            return []
+        needle = query.strip().lower()
+        return [target for target in self._choosing.targets if needle in target.lower()]
+
+    # --- moving between levels -------------------------------------------------------------
+
+    def read(self) -> None:
+        """Read the fields of the type the list stands on, off the GUI thread."""
+        schema = schema_of(self.context)
+        wanted = self.type
+        self._failure = None
+        self._fields = None
+        if schema is None or not wanted:
+            self.changed.emit()
+            return
+        self._loaded_type = wanted
+        number = self._ticket.next()
+        default_pool().submit(
+            schema.fields,
+            wanted,
+            on_result=lambda fields, t=wanted: self._landed(t, fields),
+            on_error=self._failed,
+            ticket=(self._ticket, number),
+        )
+        self.changed.emit()
+
+    def _landed(self, wanted: str, fields: Any) -> None:
+        if wanted != self.type:
+            return
+        self._fields = dict(fields or {})
+        self._loaded_type = wanted
+        self.changed.emit()
+
+    def _failed(self, error: object) -> None:
+        self._failure = str(error)
+        self.changed.emit()
+
+    def descend(self, field: FieldOption, through: str) -> None:
+        """Take a hop onto one of a link's target types."""
+        self._hops = [
+            *self._hops,
+            FieldHop(name=field.name, display_name=field.display_name, through=through),
+        ]
+        self._choosing = None
+        self.read()
+
+    def descend_into(self, row: FieldOption) -> None:
+        """Descend a link, asking which type first where it declares several."""
+        if not row.traversable:
+            return
+        if len(row.targets) == 1:
+            self.descend(row, row.targets[0])
+            return
+        self._choosing = row
+        self.changed.emit()
+
+    def back(self) -> None:
+        """One level back, or out of the choice of target type."""
+        if self._choosing is not None:
+            self._choosing = None
+            self.changed.emit()
+            return
+        if not self._hops:
+            return
+        self._hops = self._hops[:-1]
+        self.read()
+
+    def reset(self) -> None:
+        """Back to the root type."""
+        if not self._hops and self._choosing is None:
+            self.read()
+            return
+        self._hops = []
+        self._choosing = None
+        self.read()
+
+
+class FieldOptionModel(QtCore.QAbstractListModel):
+    """The rows a field list draws: the fields of one type, or the targets of one link.
+
+    A row answers the roles `RowDelegate` paints: the display name with the matched runs and
+    the hops before it, the programmatic name beside it, the data type under it, the field
+    glyph in the leading slot, and a chevron on a row that descends.
+    """
+
+    def __init__(
+        self,
+        parent: QtCore.QObject | None = None,
+        show_code: bool = False,
+        checkable: bool = False,
+    ) -> None:
+        super().__init__(parent)
+        self._rows: list[FieldOption] = []
+        self._targets: list[str] = []
+        self._crumbs: list[str] = []
+        self._query = ""
+        self._chosen: list[str] = []
+        self._show_code = bool(show_code)
+        self._checkable = bool(checkable)
+
+    # --- what it holds --------------------------------------------------------------------
+
+    @property
+    def rows(self) -> list[FieldOption]:
+        """The field rows on show. Empty while a link's targets are being chosen."""
+        return list(self._rows)
+
+    @property
+    def targets(self) -> list[str]:
+        """The target types on show."""
+        return list(self._targets)
+
+    def keys(self) -> list[str]:
+        """Every row's value in the order they are drawn, which is what the arrows walk."""
+        return list(self._targets) if self._targets else [row.path for row in self._rows]
+
+    def option_at(self, row: int) -> FieldOption | None:
+        if self._targets:
+            return None
+        return self._rows[row] if 0 <= row < len(self._rows) else None
+
+    def target_at(self, row: int) -> str | None:
+        return self._targets[row] if 0 <= row < len(self._targets) else None
+
+    def set_rows(self, rows: Sequence[FieldOption], targets: Sequence[str] = ()) -> None:
+        """Replace what the list draws. One of the two is always empty."""
+        self.beginResetModel()
+        self._rows = list(rows)
+        self._targets = list(targets)
+        self.endResetModel()
+
+    def set_crumbs(self, crumbs: Sequence[str]) -> None:
+        """The hops drawn muted before every row's label."""
+        self._crumbs = [str(crumb) for crumb in crumbs]
+        self._redraw()
+
+    def set_query(self, value: str) -> None:
+        self._query = str(value)
+        self._redraw()
+
+    def set_chosen(self, paths: Sequence[str]) -> None:
+        """The paths that carry the tick or the tick box."""
+        self._chosen = [str(path) for path in paths]
+        self._redraw()
+
+    @property
+    def show_code(self) -> bool:
+        """Whether a row shows its programmatic name beside the display name."""
+        return self._show_code
+
+    def set_show_code(self, value: bool) -> None:
+        self._show_code = bool(value)
+        self._redraw()
+
+    def _redraw(self) -> None:
+        if self.rowCount() > 0:
+            self.dataChanged.emit(self.index(0, 0), self.index(self.rowCount() - 1, 0))
+
+    # --- the model ------------------------------------------------------------------------
+
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: B008, N802
+        if parent.isValid():
+            return 0
+        return len(self._targets) if self._targets else len(self._rows)
+
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:  # noqa: C901
+        if not index.isValid():
+            return None
+        if self._targets:
+            return self._target_data(self._targets[index.row()], role)
+        option = self.option_at(index.row())
+        if option is None:
+            return None
+        if role in (Qt.ItemDataRole.DisplayRole, Roles.LABEL):
+            return option.display_name
+        if role == Roles.RUNS:
+            return self._runs(option.display_name)
+        if role == Roles.CODE:
+            return option.name if self._show_code and option.name != option.display_name else ""
+        if role == Roles.SUB_LABEL:
+            return "computed" if option.computed else option.data_type
+        if role == Roles.GLYPH:
+            return icon_name_for(option.data_type)
+        if role == Roles.CHECKED:
+            if self._checkable:
+                return option.path in self._chosen
+            return True if option.path in self._chosen else None
+        if role == Roles.DISABLED:
+            return self._checkable and not option.selectable
+        if role == Roles.PAINTER:
+            return chevron_painter() if option.traversable else None
+        if role == Roles.ENTITY:
+            return option
+        if role == Qt.ItemDataRole.ToolTipRole:
+            return option.path
+        return None
+
+    def _target_data(self, target: str, role: int) -> Any:
+        if role in (Qt.ItemDataRole.DisplayRole, Roles.LABEL):
+            return target
+        if role == Roles.RUNS:
+            return self._runs(target)
+        if role == Roles.SUB_LABEL:
+            return "entity type"
+        if role == Roles.GLYPH:
+            return LINK_GLYPH
+        if role == Roles.CHECKED:
+            return False if self._checkable else None
+        if role == Roles.PAINTER:
+            return chevron_painter()
+        if role == Roles.ENTITY:
+            return target
+        return None
+
+    def _runs(self, label: str) -> list[tuple[str, bool, bool]]:
+        """The label as runs: the hops muted before it, the matched words in DemiBold."""
+        runs: list[tuple[str, bool, bool]] = []
+        for crumb in self._crumbs:
+            runs.append((crumb, False, True))
+            runs.append((CRUMB_SEPARATOR, False, True))
+        runs.extend((run.text, run.match, False) for run in match_runs(label, self._query))
+        return runs
+
+    def flags(self, index: QModelIndex) -> Qt.ItemFlags:
+        if not index.isValid():
+            return Qt.ItemFlag.NoItemFlags
+        return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
+
+
+class PathLabel(ThemedWidget):
+    """The friendly path a closed control reads: the hops muted, the field itself in ink."""
+
+    def __init__(
+        self,
+        parts: Sequence[str] = (),
+        size: str = "md",
+        slot_name: str = "field-picker-label",
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent, size_step=size if size in CONTROL_HEIGHT else "md")
+        self._parts = [str(part) for part in parts]
+        self.setObjectName(slot_name)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Maximum, QtWidgets.QSizePolicy.Policy.Fixed
+        )
+        self.setMinimumWidth(0)
+
+    @property
+    def parts(self) -> list[str]:
+        """The display names of the path, root first."""
+        return list(self._parts)
+
+    def set_parts(self, parts: Sequence[str]) -> None:
+        self._parts = [str(part) for part in parts]
+        self.updateGeometry()
+        self.update()
+
+    def text(self) -> str:
+        """The whole path as one line."""
+        return CRUMB_SEPARATOR.join(self._parts)
+
+    def sizeHint(self) -> QtCore.QSize:  # noqa: N802
+        metrics = QtGui.QFontMetrics(self.theme.font(VALUE_TEXT))
+        return QtCore.QSize(
+            metrics.horizontalAdvance(self.text()) + 2, CONTROL_HEIGHT[self.size_step]
+        )
+
+    def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
+        if not self._parts:
+            return
+        theme = self.theme
+        painter = painter_for(self)
+        font = theme.font(VALUE_TEXT)
+        painter.setFont(font)
+        metrics = QtGui.QFontMetrics(font)
+        whole = self.text()
+        text = elide(metrics, whole, self.width())
+        trail = CRUMB_SEPARATOR.join(self._parts[:-1])
+        box = self.rect()
+        flags = int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        # The trail is drawn muted only where the whole path survived the elision, so a cut
+        # path never shows a crumb that no longer leads anywhere.
+        if trail and text == whole:
+            head = trail + CRUMB_SEPARATOR
+            painter.setPen(theme.color("muted_foreground"))
+            painter.drawText(box, flags, head)
+            painter.setPen(theme.color("foreground"))
+            painter.drawText(box.adjusted(metrics.horizontalAdvance(head), 0, 0, 0), flags, self._parts[-1])
+        else:
+            painter.setPen(theme.color("foreground"))
+            painter.drawText(box, flags, text)
+        painter.end()
+
+
+class Breadcrumb(ThemedWidget):
+    """The bar over a field list: back one level, where the path stands, and reset."""
+
+    back_requested = Signal()
+    reset_requested = Signal()
+
+    def __init__(self, slot: str = "field-picker", parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._root = ""
+        self._hops: list[str] = []
+        self._choosing = ""
+        self.setObjectName(f"{slot}-breadcrumb")
+        self.setFixedHeight(CRUMB_BAR_HEIGHT)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed
+        )
+        self._back = Button(icon="chevron-left", variant="ghost", size="icon-xs", parent=self)
+        self._back.setObjectName(f"{slot}-back")
+        self._back.setToolTip("Back (Left arrow)")
+        self._back.setAccessibleName("Go back one level")
+        self._back.clicked.connect(self.back_requested.emit)
+        self._reset = Button(icon="rotate-ccw", variant="ghost", size="icon-xs", parent=self)
+        self._reset.setObjectName(f"{slot}-reset")
+        self._reset.setToolTip("Reset")
+        self._reset.setAccessibleName("Back to the root type")
+        self._reset.clicked.connect(self.reset_requested.emit)
+
+    def set_path(self, root: str, hops: Sequence[str], choosing: str = "") -> None:
+        """The root type, the hops taken, and the link whose target is being chosen."""
+        self._root = str(root)
+        self._hops = [str(hop) for hop in hops]
+        self._choosing = str(choosing)
+        trail = [self._root, *self._hops]
+        if self._choosing:
+            trail.append(self._choosing)
+        self.setAccessibleName("Field path")
+        self.setAccessibleDescription(CRUMB_SEPARATOR.join(trail))
+        self.update()
+
+    def text(self) -> str:
+        """The path the bar reads."""
+        return self.accessibleDescription()
+
+    @property
+    def back_button(self) -> Button:
+        """The control that goes one level back."""
+        return self._back
+
+    @property
+    def reset_button(self) -> Button:
+        """The control that goes back to the root type."""
+        return self._reset
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        side = self._back.sizeHint()
+        top = (CRUMB_BAR_HEIGHT - 1 - side.height()) // 2
+        self._back.setGeometry(CRUMB_PAD, top, side.width(), side.height())
+        self._reset.setGeometry(
+            self.width() - CRUMB_PAD - side.width(), top, side.width(), side.height()
+        )
+
+    def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
+        theme = self.theme
+        painter = painter_for(self)
+        font = theme.font(CRUMB_TEXT)
+        painter.setFont(font)
+        metrics = QtGui.QFontMetrics(font)
+        side = self._back.sizeHint().width()
+        left = CRUMB_PAD + side + CRUMB_GAP
+        right = self.width() - CRUMB_PAD - side - CRUMB_GAP
+        box = QtCore.QRect(left, 0, max(0, right - left), CRUMB_BAR_HEIGHT - 1)
+        flags = int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        text = CRUMB_SEPARATOR.join([self._root, *self._hops])
+        painter.setPen(theme.color("muted_foreground"))
+        if self._choosing:
+            head = text + CRUMB_SEPARATOR
+            width = min(metrics.horizontalAdvance(head), box.width())
+            painter.drawText(box, flags, elide(metrics, head, box.width()))
+            italic = theme.font(CRUMB_TEXT)
+            italic.setItalic(True)
+            painter.setFont(italic)
+            rest = box.adjusted(width, 0, 0, 0)
+            painter.drawText(rest, flags, elide(metrics, self._choosing, rest.width()))
+        else:
+            painter.drawText(box, flags, elide(metrics, text, box.width()))
+        painter.fillRect(
+            QtCore.QRect(0, CRUMB_BAR_HEIGHT - 1, self.width(), 1), theme.color("border")
+        )
+        painter.end()
+
+
+class FieldPicker(QtWidgets.QWidget):
+    """One field of one entity type, as a searchable list that descends through links.
+
+    The value is the dotted path. A link declaring one target type descends at once, one
+    declaring several replaces the list with its types and asks which. A type already on the
+    path is never offered again, and the path stops at `max_depth`.
+    """
+
+    #: The chosen path, or the empty string once it is cleared.
+    value_changed = Signal(str)
+    #: The popup opened or closed.
+    open_changed = Signal(bool)
+
+    def __init__(
+        self,
+        context: Any = None,
+        entity_type: str = "",
+        value: str = "",
+        deep_links: bool = False,
+        show_code: bool = False,
+        max_depth: int = DEFAULT_MAX_DEPTH,
+        data_types: str | Sequence[str] | None = None,
+        valid_types: Sequence[str] | None = None,
+        exclude: Sequence[str] | None = None,
+        hide_paths: Sequence[str] | None = None,
+        filterable_only: bool = False,
+        extra_fields: Sequence[Any] | None = None,
+        filter: Callable[[FieldSchema, str], bool] | None = None,  # noqa: A002
+        close_on_select: bool = True,
+        placeholder: str = "Select a field",
+        search_placeholder: str = "Search fields…",
+        empty_label: str = NO_MATCH_LABEL,
+        loading_label: str | None = None,
+        error_label: str | None = None,
+        clearable: bool = True,
+        readonly: bool = False,
+        disabled: bool = False,
+        invalid: bool = False,
+        size: str = "md",
+        open: bool = False,  # noqa: A002
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setObjectName("field-picker")
+        self._value = str(value or "")
+        self._close_on_select = bool(close_on_select)
+        self._size = size if size in PICKER_SIZE_VALUES else "md"
+        self._label_parts: list[str] | None = None
+        self._label_ticket = Ticket()
+
+        self._levels = FieldLevels(
+            self,
+            context=context,
+            entity_type=entity_type,
+            deep_links=deep_links,
+            max_depth=max_depth,
+            data_types=data_types,
+            valid_types=valid_types,
+            exclude=exclude,
+            hide_paths=hide_paths,
+            filterable_only=filterable_only,
+            extra_fields=extra_fields,
+            filter=filter,
+        )
+        self._levels.changed.connect(self._refresh)
+
+        self._model = FieldOptionModel(self, show_code=show_code)
+        delegate = RowDelegate(None, size=self._size, thumbnail=True, indicator="tick")
+        self._control = PickerControl(
+            slot="field-picker",
+            picker="field",
+            multiple=False,
+            inline=False,
+            token_input=False,
+            searchable=True,
+            text_value=True,
+            size=self._size,
+            disabled=disabled,
+            readonly=readonly,
+            invalid=invalid,
+            clearable=clearable,
+            placeholder=placeholder,
+            search_placeholder=search_placeholder,
+            empty_label=empty_label,
+            loading_label=loading_label,
+            error_label=error_label,
+            row_model=self._model,
+            row_delegate=delegate,
+            parent=self,
+        )
+        delegate.setParent(self._control.list_surface())
+        self._control.set_chip_factory(self._chip_for)
+        self._control.selected.connect(self._on_selected)
+        self._control.open_changed.connect(self._on_open_changed)
+        self._control.query_changed.connect(lambda _query: self._refresh())
+        self._control.remove_requested.connect(lambda _index: self.set_value(""))
+        self._control.cleared.connect(lambda: self.set_value(""))
+
+        self._breadcrumb = Breadcrumb("field-picker", self._control.popup())
+        self._breadcrumb.back_requested.connect(self._levels.back)
+        self._breadcrumb.reset_requested.connect(self._levels.reset)
+        self._breadcrumb.hide()
+        layout = self._control.popup().layout()
+        if layout is not None:
+            layout.insertWidget(0, self._breadcrumb)
+
+        column = QtWidgets.QVBoxLayout(self)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(0)
+        column.addWidget(self._control)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred
+        )
+        self.setMinimumWidth(0)
+
+        # Left, Right and Enter belong to the levels rather than to the flat list, and these
+        # filters run before the control's own handlers, so a descend never closes the popup.
+        self._control.caret().installEventFilter(self)
+        caret = self._search_caret()
+        if caret is not None:
+            caret.installEventFilter(self)
+        self._control.list_surface().viewport().installEventFilter(self)
+
+        self._levels.read()
+        self._resolve_label()
+        self._refresh()
+        if open:
+            self._control.set_open(True)
+
+    # --- the parts ------------------------------------------------------------------------
+
+    @property
+    def control(self) -> PickerControl:
+        """The control box and popup shell this picker is built on."""
+        return self._control
+
+    @property
+    def levels(self) -> FieldLevels:
+        """Where the list stands: the hops, the link being resolved, the fields read."""
+        return self._levels
+
+    @property
+    def rows_model(self) -> FieldOptionModel:
+        """The rows the list draws."""
+        return self._model
+
+    @property
+    def breadcrumb(self) -> Breadcrumb:
+        """The bar over the search row. Hidden at the root."""
+        return self._breadcrumb
+
+    @property
+    def hops(self) -> list[FieldHop]:
+        """The hops taken so far."""
+        return self._levels.hops
+
+    @property
+    def options(self) -> list[FieldOption]:
+        """Every option of the type the picker stands on, before the search."""
+        return self._levels.options()
+
+    @property
+    def label(self) -> str:
+        """The friendly path the closed control reads, or the raw one until it resolves."""
+        if self._label_parts is None:
+            return self._value
+        return CRUMB_SEPARATOR.join(self._label_parts)
+
+    @property
+    def label_parts(self) -> list[str]:
+        """The display name of every segment of the chosen path, root first."""
+        return list(self._label_parts or [])
+
+    # --- props ----------------------------------------------------------------------------
+
+    @property
+    def context(self) -> Any:
+        """The widget context. The schema is read through it, once per page."""
+        return self._levels.context
+
+    def set_context(self, value: Any) -> None:
+        self._levels.context = value
+        self._levels.reset()
+        self._resolve_label()
+
+    @property
+    def entity_type(self) -> str:
+        """The type the path starts on."""
+        return self._levels.entity_type
+
+    def set_entity_type(self, value: str) -> None:
+        self._levels.entity_type = str(value)
+        self._levels.reset()
+        self._resolve_label()
+
+    @property
+    def value(self) -> str:
+        """The dotted path, `field` or `field.Type.field…`. Empty when nothing is chosen."""
+        return self._value
+
+    def set_value(self, value: str) -> None:
+        """Choose a path, or nothing. The control reads the friendly path, never the raw one."""
+        text = str(value or "")
+        if text == self._value:
+            return
+        self._value = text
+        self._label_parts = None
+        self._resolve_label()
+        self._refresh()
+        self.value_changed.emit(text)
+
+    @property
+    def deep_links(self) -> bool:
+        """Allow descending through entity fields."""
+        return self._levels.deep_links
+
+    def set_deep_links(self, value: bool) -> None:
+        self._levels.deep_links = bool(value)
+        self._refresh()
+
+    @property
+    def show_code(self) -> bool:
+        """Show the programmatic name beside the display name."""
+        return self._model.show_code
+
+    def set_show_code(self, value: bool) -> None:
+        self._model.set_show_code(value)
+
+    @property
+    def max_depth(self) -> int:
+        """How many hops a path may take."""
+        return self._levels.max_depth
+
+    def set_max_depth(self, value: int) -> None:
+        self._levels.max_depth = int(value)
+        self._refresh()
+
+    @property
+    def data_types(self) -> str | list[str] | None:
+        """Data types a field must have to be selected. Traversal ignores this."""
+        return self._levels.data_types
+
+    def set_data_types(self, value: str | Sequence[str] | None) -> None:
+        self._levels.data_types = value
+        self._refresh()
+
+    @property
+    def valid_types(self) -> list[str] | None:
+        """A field is selectable only if it links one of these. Traversal ignores this."""
+        return self._levels.valid_types
+
+    def set_valid_types(self, value: Sequence[str] | None) -> None:
+        self._levels.valid_types = list(value) if value is not None else None
+        self._refresh()
+
+    @property
+    def exclude(self) -> list[str] | None:
+        """Full dotted paths to drop."""
+        return self._levels.exclude
+
+    def set_exclude(self, value: Sequence[str] | None) -> None:
+        self._levels.exclude = list(value) if value is not None else None
+        self._refresh()
+
+    @property
+    def hide_paths(self) -> list[str] | None:
+        """Dotted prefixes to drop, along with everything beneath them."""
+        return self._levels.hide_paths
+
+    def set_hide_paths(self, value: Sequence[str] | None) -> None:
+        self._levels.hide_paths = list(value) if value is not None else None
+        self._refresh()
+
+    @property
+    def filterable_only(self) -> bool:
+        """Drop the data types the API refuses in a filter."""
+        return self._levels.filterable_only
+
+    def set_filterable_only(self, value: bool) -> None:
+        self._levels.filterable_only = bool(value)
+        self._refresh()
+
+    @property
+    def extra_fields(self) -> list[ExtraField]:
+        """Synthetic entries offered at the root only."""
+        return list(self._levels.extra_fields)
+
+    def set_extra_fields(self, value: Sequence[Any] | None) -> None:
+        self._levels.extra_fields = extra_fields_of(value)
+        self._resolve_label()
+        self._refresh()
+
+    @property
+    def filter(self) -> Callable[[FieldSchema, str], bool] | None:
+        """The caller's own visibility test over the schema and the candidate's full path."""
+        return self._levels.filter
+
+    def set_filter(self, value: Callable[[FieldSchema, str], bool] | None) -> None:
+        self._levels.filter = value
+        self._refresh()
+
+    @property
+    def close_on_select(self) -> bool:
+        """Close the popup on a selection. Off keeps it open for the next pick."""
+        return self._close_on_select
+
+    def set_close_on_select(self, value: bool) -> None:
+        self._close_on_select = bool(value)
+
+    @property
+    def placeholder(self) -> str:
+        return self._control.placeholder
+
+    def set_placeholder(self, value: str) -> None:
+        self._control.set_placeholder(value)
+
+    @property
+    def search_placeholder(self) -> str:
+        return self._control.search_placeholder
+
+    def set_search_placeholder(self, value: str) -> None:
+        self._control.set_search_placeholder(value)
+
+    @property
+    def empty_label(self) -> str:
+        return self._control.empty_label
+
+    def set_empty_label(self, value: str) -> None:
+        self._control.set_empty_label(value)
+
+    @property
+    def loading_label(self) -> str | None:
+        return self._control.loading_label
+
+    def set_loading_label(self, value: str | None) -> None:
+        self._control.set_loading_label(value)
+
+    @property
+    def error_label(self) -> str | None:
+        return self._control.error_label
+
+    def set_error_label(self, value: str | None) -> None:
+        self._control.set_error_label(value)
+
+    @property
+    def clearable(self) -> bool:
+        return self._control.clearable
+
+    def set_clearable(self, value: bool) -> None:
+        self._control.set_clearable(value)
+
+    @property
+    def readonly(self) -> bool:
+        return self._control.readonly
+
+    def set_readonly(self, value: bool) -> None:
+        self._control.set_readonly(value)
+
+    @property
+    def disabled(self) -> bool:
+        return self._control.disabled
+
+    def set_disabled(self, value: bool) -> None:
+        self._control.set_disabled(value)
+
+    @property
+    def invalid(self) -> bool:
+        return self._control.invalid
+
+    def set_invalid(self, value: bool) -> None:
+        self._control.set_invalid(value)
+
+    @property
+    def size(self) -> str:
+        return self._size
+
+    def set_size(self, value: str) -> None:
+        self._size = value if value in PICKER_SIZE_VALUES else "md"
+        self._control.set_size(self._size)
+        self._control.rebuild_chips()
+
+    @property
+    def open(self) -> bool:
+        """Whether the popup is showing."""
+        return self._control.is_open
+
+    def set_open(self, value: bool) -> None:
+        self._control.set_open(value)
+
+    # --- the label ------------------------------------------------------------------------
+
+    def _resolve_label(self) -> None:
+        """The friendly path, resolved through the schema of every type the path travels."""
+        if not self._value:
+            self._label_parts = []
+            return
+        computed = next(
+            (one for one in self._levels.extra_fields if one.name == self._value), None
+        )
+        if computed is not None:
+            self._label_parts = [computed.display_name or computed.name]
+            self._control.rebuild_chips()
+            return
+        schema = schema_of(self._levels.context)
+        if schema is None or not self._levels.entity_type:
+            return
+        path = self._value
+        number = self._label_ticket.next()
+        default_pool().submit(
+            schema.resolve_path,
+            self._levels.entity_type,
+            path,
+            on_result=lambda segments, p=path: self._label_landed(p, segments),
+            # A path the schema no longer holds still has to be readable, so it stays as it is.
+            on_error=lambda _error, p=path: self._label_landed(p, None),
+            ticket=(self._label_ticket, number),
+        )
+
+    def _label_landed(self, path: str, segments: Any) -> None:
+        if path != self._value:
+            return
+        if segments is None:
+            self._label_parts = [path]
+        else:
+            self._label_parts = [segment.display_name for segment in segments]
+        self._refresh()
+        self._control.rebuild_chips()
+
+    # --- what the control shows ---------------------------------------------------------------
+
+    def _refresh(self) -> None:
+        query = self._control.query
+        self._model.set_crumbs(self._levels.crumbs())
+        self._model.set_query(query)
+        self._model.set_chosen([self._value] if self._value else [])
+        self._model.set_rows(self._levels.rows(query), self._levels.targets(query))
+        self._control.set_items(self._model.keys())
+        self._control.set_loading(self._levels.loading and self._levels.choosing is None)
+        self._control.set_error(self._levels.failure)
+        self._control.set_empty(len(self._model.keys()) == 0)
+        if self._value:
+            self._control.set_keys([self._value])
+            self._control.set_labels([self.label])
+        else:
+            self._control.set_keys([])
+            self._control.set_labels([])
+        self._breadcrumb.set_path(
+            self._levels.entity_type,
+            self._levels.crumbs(),
+            self._levels.choosing.display_name if self._levels.choosing is not None else "",
+        )
+        self._breadcrumb.setVisible(self._levels.deep)
+
+    def _chip_for(self, index: int) -> QtWidgets.QWidget | None:
+        if index != 0 or not self._value:
+            return None
+        if self._label_parts is None:
+            return Skeleton(
+                width=LABEL_SKELETON_WIDTH, height=LABEL_SKELETON_HEIGHT, parent=self._control
+            )
+        return PathLabel(self._label_parts, size=self._size, parent=self._control)
+
+    # --- choosing -----------------------------------------------------------------------------
+
+    def _activate(self, row: FieldOption) -> None:
+        if row.traversable and not row.selectable:
+            self._descend_into(row)
+            return
+        self.set_value(row.path)
+        self._control.set_query("")
+        if self._close_on_select:
+            self._control.set_open(False)
+
+    def _descend(self, field: FieldOption, through: str) -> None:
+        # The search box clears on every hop; nothing is remounted, so the caret stays put.
+        self._control.set_query("")
+        self._levels.descend(field, through)
+
+    def _descend_into(self, row: FieldOption) -> None:
+        self._control.set_query("")
+        self._levels.descend_into(row)
+
+    def _on_open_changed(self, is_open: bool) -> None:
+        if not is_open:
+            self._refresh()
+        self.open_changed.emit(is_open)
+
+    def _on_selected(self, keys: list) -> None:
+        if not keys:
+            self.set_value("")
+            return
+        key = str(keys[0])
+        choosing = self._levels.choosing
+        if choosing is not None:
+            self._descend(choosing, key)
+            return
+        row = next((one for one in self._model.rows if one.path == key), None)
+        if row is not None:
+            self._activate(row)
+
+    # --- the keys and the presses the levels own ----------------------------------------------
+
+    def _search_caret(self) -> QtWidgets.QWidget | None:
+        return self._control.search_row().findChild(QtWidgets.QLineEdit)
+
+    def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:  # noqa: N802
+        kind = event.type()
+        if kind == QtCore.QEvent.Type.KeyPress and self._control.is_open:
+            if self._on_level_key(event):
+                return True
+        elif kind == QtCore.QEvent.Type.MouseButtonRelease and self._control.is_open:
+            if obj is self._control.list_surface().viewport() and self._on_row_press(event):
+                return True
+        return super().eventFilter(obj, event)
+
+    def _on_level_key(self, event: QtGui.QKeyEvent) -> bool:
+        """Right descends, Left goes back, and Enter on a link that cannot be chosen descends."""
+        key = event.key()
+        row = self._control.list_surface().highlighted()
+        choosing = self._levels.choosing
+        if key == Qt.Key.Key_Right:
+            if choosing is not None:
+                target = self._model.target_at(row)
+                if target is not None:
+                    self._descend(choosing, target)
+                return True
+            option = self._model.option_at(row)
+            if option is not None and option.traversable:
+                self._descend_into(option)
+                return True
+            return False
+        if key == Qt.Key.Key_Left and self._levels.deep:
+            self._control.set_query("")
+            self._levels.back()
+            return True
+        if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            if choosing is not None:
+                target = self._model.target_at(row)
+                if target is not None:
+                    self._descend(choosing, target)
+                    return True
+                return False
+            option = self._model.option_at(row)
+            if option is not None and option.traversable and not option.selectable:
+                self._descend_into(option)
+                return True
+        return False
+
+    def _on_row_press(self, event: QtGui.QMouseEvent) -> bool:
+        """A press on a link that cannot be chosen, or on a link's chevron, descends."""
+        if event.button() != Qt.MouseButton.LeftButton:
+            return False
+        surface = self._control.list_surface()
+        point = event.pos() if hasattr(event, "pos") else event.position().toPoint()
+        index = surface.indexAt(point)
+        if not index.isValid():
+            return False
+        choosing = self._levels.choosing
+        if choosing is not None:
+            target = self._model.target_at(index.row())
+            if target is not None:
+                self._descend(choosing, target)
+                return True
+            return False
+        option = self._model.option_at(index.row())
+        if option is None or not option.traversable:
+            return False
+        rect = surface.visualRect(index)
+        if point.x() >= rect.right() + 1 - DESCEND_ZONE or not option.selectable:
+            self._descend_into(option)
+            return True
+        return False

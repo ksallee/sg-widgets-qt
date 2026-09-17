@@ -117,7 +117,8 @@ class InputGroupIcon(ThemedWidget):
 class IconButton(ThemedWidget):
     """A ghost button holding one glyph: the clear, the open, a stepper, a month step.
 
-    It wears the hover wash of `accent` and the keyboard focus ring, and never the host style.
+    It is the `ghost` variant of `button.tsx`: `muted` behind `foreground` on hover, half that
+    wash on a dark page, the keyboard focus ring, and never the host style.
     """
 
     clicked = Signal()
@@ -158,14 +159,18 @@ class IconButton(ThemedWidget):
         painter.setOpacity(self.disabled_opacity())
         radius = float(theme.radius_px("sm"))
         if self._wash.value > 0:
-            fill_round_rect(painter, self.rect(), radius, with_alpha(theme.accent, self._wash.value))
+            # `hover:bg-muted`, and `dark:hover:bg-muted/50` of the ghost variant.
+            hover = with_alpha(theme.muted, 0.5) if theme.dark else theme.color("muted")
+            fill_round_rect(
+                painter, self.rect(), radius, with_alpha(hover, self._wash.value)
+            )
         box = QRect(
             (self.width() - self._glyph) // 2,
             (self.height() - self._glyph) // 2,
             self._glyph,
             self._glyph,
         )
-        ink = theme.color("accent_foreground" if self._wash.value > 0.5 else "foreground")
+        ink = theme.color("foreground")
         icons.paint_icon(painter, box, self._name, with_alpha(ink, 0.85 + 0.15 * self._wash.value))
         if self.keyboard_focus:
             self.paint_focus_ring(painter, self.rect(), radius)

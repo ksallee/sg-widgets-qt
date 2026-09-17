@@ -204,5 +204,43 @@ def test_a_path_becomes_the_three_parts_it_implies():
     assert context_from_path(PROJECT, path).entity is None
 
 
+def test_escape_from_one_of_the_lists_closes_the_popover(host, qtbot, context):
+    """Escape on an empty query is the shell's key, and this shell is the popover."""
+    selector = make(host, qtbot, context)
+    selector.set_open(True)
+    assert selector.open
+    tree = selector.tree()
+    tree.set_query("sh")
+    assert tree.search_control().handle_key(_key(Qt.Key.Key_Escape))
+    assert tree.query == ""
+    assert selector.open
+    tree.search_control().handle_key(_key(Qt.Key.Key_Escape))
+    qtbot.waitUntil(lambda: not selector.open, timeout=SETTLE_MS)
+
+
+def test_escape_on_the_trigger_closes_the_popover(host, qtbot, context):
+    selector = make(host, qtbot, context)
+    selector.set_open(True)
+    selector.keyPressEvent(_key(Qt.Key.Key_Escape))
+    assert not selector.open
+
+
+def test_the_three_labels_reach_both_lists(host, qtbot, context):
+    selector = make(
+        host,
+        qtbot,
+        context,
+        empty_label="No task here",
+        loading_label="Reading tasks…",
+        error_label="That read failed",
+    )
+    assert selector.empty_label == "No task here"
+    assert selector.loading_label == "Reading tasks…"
+    assert selector.error_label == "That read failed"
+    assert selector.tasks_control().empty_label == "No task here"
+    assert selector.tree().loading_label == "Reading tasks…"
+    assert selector.tree().error_label == "That read failed"
+
+
 def _key(key: Qt.Key) -> QKeyEvent:
     return QKeyEvent(QKeyEvent.Type.KeyPress, int(key), Qt.KeyboardModifier.NoModifier)

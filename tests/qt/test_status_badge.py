@@ -10,7 +10,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 from sg_widgets_core.schema import FieldSchema
 from sg_widgets_core.status import HtmlIcon, ImageMapIcon, StatusRecord
 from sg_widgets_qt.images import ImageLoader
-from sg_widgets_qt.primitives.base import CHIP_HEIGHT
+from sg_widgets_qt.primitives.base import CHIP_CROSS, CHIP_HEIGHT, CHIP_PAD
 from sg_widgets_qt.theme import apply_theme, theme_for
 from sg_widgets_qt.widgets.status_badge import (
     STATUS_BADGE_VARIANT_VALUES,
@@ -183,6 +183,17 @@ def test_the_icon_and_glyph_variants_have_no_room_for_a_cross(root, loader):
     assert icon.removable is True
     assert icon.sizeHint().width() < both.sizeHint().width()
     assert bare.sizeHint().width() == bare.sizeHint().height()
+
+
+def test_the_cross_sits_the_ladder_s_inset_from_the_trailing_edge(root, loader):
+    """Rule 3: the edge beside a cross is `CHIP_PAD.trail`, at every step of the ladder."""
+    for step, pad in CHIP_PAD.items():
+        badge = place(
+            root, StatusBadge(code="ip", status=IN_PROGRESS, size=step, removable=True, loader=loader)
+        )
+        cross = badge._cross_box()
+        assert badge.width() - cross.right() - 1 == pad.trail
+        assert cross.height() == CHIP_CROSS[step] + 4  # the glyph plus the control's own 2px
 
 
 def test_every_setter_repaints(root, loader):

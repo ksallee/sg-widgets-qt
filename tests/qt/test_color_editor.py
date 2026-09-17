@@ -6,7 +6,12 @@ from qtpy import QtCore, QtGui
 from qtpy.QtTest import QTest
 
 from sg_widgets_qt.primitives.base import CONTROL_HEIGHT
-from sg_widgets_qt.widgets.color_editor import SENTINEL_NOTE, ColorEditor, ColorPicker
+from sg_widgets_qt.widgets.color_editor import (
+    SENTINEL_NOTE,
+    SWATCH_SIZE,
+    ColorEditor,
+    ColorPicker,
+)
 
 from .editors import escape, place, press_enter, themed_root, type_into
 
@@ -121,7 +126,10 @@ def test_readonly_never_opens_the_picker_and_disabled_is_inert(root):
 
 
 @pytest.mark.parametrize("size", list(CONTROL_HEIGHT))
-def test_the_swatch_is_the_square_of_the_control_beside_it(root, size):
+def test_the_swatch_is_the_square_the_upstream_ladder_names(root, size):
+    # `SWATCH` of `color-editor.tsx` is `size-8`, `size-9`, `size-10`: one step over the control
+    # ladder the input beside it stands on.
     editor = place(root, ColorEditor(value="253,94,99", size=size))
-    assert editor.swatch.sizeHint().height() == CONTROL_HEIGHT[size]
-    assert editor.swatch.sizeHint().width() == CONTROL_HEIGHT[size]
+    assert editor.swatch.sizeHint().height() == SWATCH_SIZE[size]
+    assert editor.swatch.sizeHint().width() == SWATCH_SIZE[size]
+    assert SWATCH_SIZE[size] > CONTROL_HEIGHT[size]

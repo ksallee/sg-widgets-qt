@@ -191,7 +191,11 @@ class StatusGlyphSource(QtCore.QObject):
         box = QtCore.QRect(QtCore.QPoint(0, 0), source.size().scaled(
             rect.size(), QtCore.Qt.AspectRatioMode.KeepAspectRatio
         ))
-        if source.width() <= rect.width() and source.height() <= rect.height():
+        # A cell carries its own size and is drawn at it, never scaled up, since the sprite was
+        # authored at that size. An uploaded `image` is sized by the caller's box instead, which
+        # is what `<img class="size-4">` does upstream: the site's own icon is any size at all,
+        # and a 1px one still has to read as the badge's glyph.
+        if self.kind in ("cell", "sprite") and source.width() <= rect.width() and source.height() <= rect.height():
             box = QtCore.QRect(QtCore.QPoint(0, 0), source.size())
         box.moveCenter(rect.center())
         painter.save()

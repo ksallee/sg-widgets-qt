@@ -31,6 +31,11 @@ rotated back on a dark page: the mark reads against the page in both schemes and
 green. A site's own icon is sent ready for both and is left as it is, and so is a glyph sitting on the
 status colour.
 
+A cell of the sprite is drawn at the size the sprite gives it and is never scaled up. A site's own
+uploaded icon has no size of its own to keep, so it is drawn at the glyph box of the step the badge
+stands at, 12, 14, 16 or 20: a site may upload a picture of any size at all, and it still has to read
+as the badge's leading mark.
+
 The root carries the status code, the variant and whether it was resolved, as data attributes. An
 image-map icon carries its key on the glyph, as a data attribute. A removable badge draws its cross inside the pill
 after the label, in the badge's own foreground, and carries a data slot of its own.

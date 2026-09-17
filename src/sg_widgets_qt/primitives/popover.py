@@ -72,18 +72,22 @@ CONTENT_PADDING = 10
 _SCALE_FROM = 0.95
 
 
-def popup_flags() -> Qt.WindowFlags:
-    """The flags a popup window wears: a tool window that never takes focus and has no frame.
+def popup_flags(takes_focus: bool = False) -> Qt.WindowFlags:
+    """The flags a popup window wears: a frameless tool window.
+
+    It never takes focus, which is what a picker needs: the anchor keeps the caret and types into
+    its own input with the list open. A popover that holds fields of its own, as the two date
+    editors do, asks for `takes_focus`, because the caret has to land inside it.
 
     `NoDropShadowWindowHint` keeps the platform from drawing a square shadow behind the
     translucent window, so the rounded one this package paints is the only one.
     """
-    return (
+    flags = (
         Qt.WindowType.Tool
         | Qt.WindowType.FramelessWindowHint
-        | Qt.WindowType.WindowDoesNotAcceptFocus
         | Qt.WindowType.NoDropShadowWindowHint
     )
+    return flags if takes_focus else flags | Qt.WindowType.WindowDoesNotAcceptFocus
 
 
 def anchor_rect(widget: QtWidgets.QWidget) -> QRect:
@@ -228,6 +232,7 @@ class Popover(ThemedWidget):
         side_offset: int = SIDE_OFFSET,
         match_anchor_width: bool = False,
         width: int | None = None,
+        takes_focus: bool = False,
     ) -> None:
         super().__init__(anchor.window())
         self._anchor = anchor
@@ -237,6 +242,7 @@ class Popover(ThemedWidget):
         self._side_offset = int(side_offset)
         self._match_anchor_width = bool(match_anchor_width)
         self._width = width
+        self._takes_focus = bool(takes_focus)
         self._placed_side = self._side
         self._open = False
         self._progress = 0.0
@@ -249,10 +255,12 @@ class Popover(ThemedWidget):
         self._watched: list[QtWidgets.QWidget] = []
         self._pass_through: list[QtWidgets.QWidget] = []
 
-        self.setWindowFlags(popup_flags())
-        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+        self.setWindowFlags(popup_flags(self._takes_focus))
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, not self._takes_focus)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        # The surface itself never holds the caret: it is the window that accepts focus, so the
+        # field inside it is what the caret lands on.
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self._layout = QtWidgets.QVBoxLayout(self)

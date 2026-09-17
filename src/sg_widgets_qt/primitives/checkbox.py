@@ -40,8 +40,8 @@ LABEL_SIZE = 14
 #: The track and the thumb of `switch.tsx`, and the room the ring needs around the track.
 SWITCH_WIDTH = 32
 SWITCH_HEIGHT = 18
-SWITCH_THUMB = 14
-SWITCH_INSET = 2
+SWITCH_THUMB = 16
+SWITCH_INSET = 1
 RING_ROOM = FOCUS_RING_WIDTH + FOCUS_RING_OFFSET
 
 #: `h-8 min-w-8 px-2.5` of `toggle.tsx`, on the control ladder.

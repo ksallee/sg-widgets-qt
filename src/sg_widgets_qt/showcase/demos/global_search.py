@@ -41,8 +41,8 @@ class GlobalSearchDemo(QtWidgets.QWidget):
         super().__init__(parent)
         self.setObjectName("global-search-demo")
         self._context = context
-        #: True once the first read has answered or failed. The stage polls it.
-        self.demo_ready = False
+        #: Nothing is read until a word is typed, so the page stands ready as it is built.
+        self.demo_ready = True
         self._recents = list(RECENTS)
         self._sized: list[GlobalSearch] = []
 

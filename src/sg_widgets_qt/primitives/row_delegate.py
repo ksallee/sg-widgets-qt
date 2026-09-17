@@ -39,6 +39,7 @@ __all__ = [
     "ROW_TEXT",
     "RowDelegate",
     "initials_of",
+    "label_weight",
     "name_hue",
 ]
 
@@ -108,6 +109,7 @@ class RowDelegate(QStyledItemDelegate):
         self._round = round_thumbnail
         self._indicator = indicator
         self._density = density
+        self._bare_glyph = False
         self._elided: set[int] = set()
 
     # --- the keywords --------------------------------------------------------------------
@@ -135,6 +137,19 @@ class RowDelegate(QStyledItemDelegate):
 
     def set_round_thumbnail(self, value: bool) -> None:
         self._round = bool(value)
+
+    @property
+    def bare_glyph(self) -> bool:
+        """Whether a glyph the caller supplied is drawn on its own, with no picture box."""
+        return self._bare_glyph
+
+    def set_bare_glyph(self, value: bool) -> None:
+        """A row the caller gave a glyph has no picture to stand in for, so it draws none.
+
+        Upstream draws the picture box only where a picture was expected and has not landed;
+        a level of a tree or an assigned task names its glyph and shows that alone.
+        """
+        self._bare_glyph = bool(value)
 
     @property
     def indicator(self) -> str:
@@ -175,7 +190,8 @@ class RowDelegate(QStyledItemDelegate):
             metrics = QFontMetrics(theme.font(CODE_TEXT, QFont.Weight.Medium))
             return QSize(width, metrics.height() + 2 * ROW_PAD_Y)
         if kind == "load_more":
-            metrics = QFontMetrics(theme.font(CODE_TEXT))
+            # Upstream's row is `text-sm`, the body step, not the metadata one.
+            metrics = QFontMetrics(theme.font(ROW_TEXT[self._size]))
             return QSize(width, metrics.height() + 2 * ROW_PAD_Y)
 
         sub = _text(index, Roles.SUB_LABEL)
@@ -221,7 +237,7 @@ class RowDelegate(QStyledItemDelegate):
         self._paint_background(painter, option, theme, rect)
 
         if kind == "load_more":
-            painter.setFont(theme.font(CODE_TEXT))
+            painter.setFont(theme.font(ROW_TEXT[self._size]))
             painter.setPen(theme.color("muted_foreground"))
             painter.drawText(
                 rect,
@@ -240,13 +256,15 @@ class RowDelegate(QStyledItemDelegate):
     def _paint_background(
         self, painter: QPainter, option: QStyleOptionViewItem, theme: Theme, rect: QRect
     ) -> None:
-        """The highlight. One colour for the keyboard cursor and the selection, per rule 5."""
-        state = option.state
-        selected = bool(state & QStyle.StateFlag.State_Selected)
-        hovered = bool(state & QStyle.StateFlag.State_MouseOver)
-        if not selected and not hovered:
+        """The highlight. One colour for the keyboard cursor and the selection, per rule 5.
+
+        Upstream's row carries `data-highlighted:bg-accent` and nothing else: the pointer
+        moves the keyboard cursor onto the row it is over, so hover and the cursor are the
+        same state and wear the same fill rather than a second, weaker one.
+        """
+        if not option.state & QStyle.StateFlag.State_Selected:
             return
-        fill = theme.color("accent") if selected else with_alpha(theme.accent, 0.5)
+        fill = theme.color("accent")
         radius = theme.radius_px("sm")
         painter.save()
         painter.setPen(Qt.PenStyle.NoPen)
@@ -328,6 +346,8 @@ class RowDelegate(QStyledItemDelegate):
         top = box.top() + max(0, (box.height() - label_height - sub_height) // 2)
 
         runs = _runs(index)
+        crumb = base
+        base = theme.font(ROW_TEXT[self._size], label_weight(runs))
         code = _text(index, Roles.CODE)
         code_width = 0
         if code:
@@ -335,10 +355,10 @@ class RowDelegate(QStyledItemDelegate):
             code_width = painter.fontMetrics().horizontalAdvance(code) + 2
         room = max(0, box.width() - (code_width + LABEL_GAP if code else 0))
         # The code sits beside the label, not at the far edge, so the two read as one line.
-        width = min(_runs_width(painter, runs, base, bold) + 2, room)
+        width = min(_runs_width(painter, runs, base, bold, crumb) + 2, room)
 
         line = QRect(box.left(), top, width, label_height)
-        cut = _draw_runs(painter, line, runs, base, bold, ink, muted)
+        cut = _draw_runs(painter, line, runs, base, bold, ink, muted, crumb)
 
         if code:
             code_box = QRect(box.left() + width + LABEL_GAP, top, code_width, label_height)
@@ -404,9 +424,10 @@ class RowDelegate(QStyledItemDelegate):
 
         glyph = _text(index, Roles.GLYPH)
         painter.save()
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(with_alpha(theme.muted, 1.0))
-        painter.drawRoundedRect(slot, radius, radius)
+        if not (self._bare_glyph and glyph and not glyph.startswith("#")):
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(with_alpha(theme.muted, 1.0))
+            painter.drawRoundedRect(slot, radius, radius)
         if glyph.startswith("#"):
             side = LEAD_GLYPH[self._size] // 2
             dot = QRect(slot.center().x() - side, slot.center().y() - side, side * 2, side * 2)
@@ -494,6 +515,17 @@ def _text(index: QModelIndex, role: Roles) -> str:
     return "" if value is None else str(value)
 
 
+def label_weight(runs: Sequence[tuple[str, bool, bool]]) -> QFont.Weight:
+    """The weight the label's own runs are drawn at.
+
+    A label behind crumbs takes one step, so the leaf reads as the row and the trail as where
+    it sits; upstream puts `font-medium` on the name for the same reason, rule 6's one step.
+    A matched run is heavier again, wherever it falls.
+    """
+    crumbed = any(len(run) > 2 and run[2] for run in runs)
+    return QFont.Weight.Medium if crumbed else QFont.Weight.Normal
+
+
 def _runs(index: QModelIndex) -> list[tuple[str, bool, bool]]:
     """The label as `(text, matched, muted)` runs, or one plain run of the label.
 
@@ -512,12 +544,20 @@ def _runs(index: QModelIndex) -> list[tuple[str, bool, bool]]:
 
 
 def _runs_width(
-    painter: QPainter, runs: list[tuple[str, bool, bool]], base: QFont, bold: QFont
+    painter: QPainter,
+    runs: list[tuple[str, bool, bool]],
+    base: QFont,
+    bold: QFont,
+    dim_font: QFont | None = None,
 ) -> int:
     """How wide the runs stand, each in the weight it is drawn in, on the painter's device."""
     device = painter.device()
     normal, heavy = QFontMetrics(base, device), QFontMetrics(bold, device)
-    return sum((heavy if matched else normal).horizontalAdvance(text) for text, matched, _ in runs)
+    quiet = QFontMetrics(dim_font, device) if dim_font is not None else normal
+    return sum(
+        (heavy if matched else (quiet if dim else normal)).horizontalAdvance(text)
+        for text, matched, dim in runs
+    )
 
 
 def _draw_runs(
@@ -528,6 +568,7 @@ def _draw_runs(
     bold: QFont,
     ink: QColor,
     muted: QColor | None = None,
+    dim_font: QFont | None = None,
 ) -> bool:
     """Draw the runs left to right, matched ones in DemiBold. True when the label was cut."""
     painter.setPen(ink)
@@ -539,7 +580,10 @@ def _draw_runs(
             cut = cut or bool(text)
             continue
         painter.setPen(muted if dim and muted is not None else ink)
-        painter.setFont(bold if matched else base)
+        if matched:
+            painter.setFont(bold)
+        else:
+            painter.setFont(dim_font if dim and dim_font is not None else base)
         metrics = painter.fontMetrics()
         width = metrics.horizontalAdvance(text)
         run_box = QRect(x, box.top(), min(width, right - x), box.height())

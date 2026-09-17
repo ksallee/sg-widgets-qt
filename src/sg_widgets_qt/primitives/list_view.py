@@ -212,6 +212,8 @@ class ListSurface(QListView):
         self._max_height = int(max_height)
         self._loop = bool(loop)
         self._proxy = _LoadMoreProxy(self)
+        #: Where the cursor goes when the page the load-more row asked for lands.
+        self._awaited_row: int | None = None
 
         self.setFrameShape(QListView.Shape.NoFrame)
         self.setViewportMargins(LIST_PAD, LIST_PAD, LIST_PAD + GUTTER, LIST_PAD)
@@ -230,6 +232,11 @@ class ListSurface(QListView):
 
         self._delegate = delegate if delegate is not None else RowDelegate(self, size=size, density=density)
         self.setItemDelegate(self._delegate)
+        # The list is as tall as its rows up to `max_height`, so a page landing under the
+        # rows already there has to reach the layout that holds it and the overlay bar's range.
+        for signal in (self._proxy.rowsInserted, self._proxy.rowsRemoved):
+            signal.connect(self._on_rows_changed)
+        self._proxy.modelReset.connect(self._on_model_reset)
         install_overlay_scrollbars(self)
         watch_theme(self, lambda _theme: self._apply_theme())
         self._apply_theme()
@@ -254,8 +261,16 @@ class ListSurface(QListView):
         return self._delegate
 
     def set_load_more(self, visible: bool, label: str = "Load more") -> None:
-        """Show or hide the last row that asks for the next page."""
+        """Show or hide the last row that asks for the next page.
+
+        The row taking the cursor is the row a reader is standing on, and the last page of a
+        list takes the load-more row away under it, so the cursor moves to the last real row
+        rather than being dropped and found again at the top.
+        """
+        held = self._proxy.load_more_visible and self._proxy.is_load_more(self.highlighted())
         self._proxy.set_load_more(visible, label)
+        if held and not visible:
+            self.highlight_last()
         self.updateGeometry()
 
     def is_load_more(self, row: int) -> bool:
@@ -265,6 +280,22 @@ class ListSurface(QListView):
     def row_count(self) -> int:
         """Rows on show, the load-more row counted."""
         return self._proxy.rowCount()
+
+    def load_more_visible(self) -> bool:
+        """True while the last row is the one that asks for the next page."""
+        return self._proxy.load_more_visible
+
+    def _on_rows_changed(self, *_: object) -> None:
+        awaited = self._awaited_row
+        if awaited is not None and not self._proxy.is_load_more(awaited):
+            self._awaited_row = None
+            self.set_highlight(awaited)
+        self.updateGeometry()
+
+    def _on_model_reset(self) -> None:
+        """A new query answers rows of its own: nothing of the last page is waited for."""
+        self._awaited_row = None
+        self.updateGeometry()
 
     # --- the highlight -------------------------------------------------------------------
 
@@ -286,8 +317,14 @@ class ListSurface(QListView):
         return True
 
     def highlight_first(self) -> bool:
-        """The first row that takes the cursor."""
-        return self._step_from(-1, 1)
+        """The first row that takes the cursor, with the list back at its top.
+
+        A group heading sits above that row, so scrolling the cursor into view alone would
+        push the heading out and the list would open on rows with nothing naming them.
+        """
+        moved = self._step_from(-1, 1)
+        self.scrollToTop()
+        return moved
 
     def highlight_last(self) -> bool:
         """The last row that takes the cursor."""
@@ -356,6 +393,9 @@ class ListSurface(QListView):
         if not self._selectable(row):
             return False
         if self._proxy.is_load_more(row):
+            # The page lands under the load-more row, so the cursor takes the seat the row
+            # was in: the first of the new page, where Down carries on from.
+            self._awaited_row = row
             self.load_more_requested.emit()
             return True
         self.activated.emit(row)

@@ -141,6 +141,17 @@ def test_inactive_dims_without_hiding(root, loader):
     assert counts(image(dim))
 
 
+def test_inactive_takes_the_hue_out_of_the_tint(root, loader):
+    """A dimmed person is desaturated as well as dimmed, the tint behind the initials included."""
+    lit = place(root, UserAvatar(name="Bo Chen", color="auto", loader=loader))
+    dim = place(root, UserAvatar(name="Bo Chen", color="auto", inactive=True, loader=loader))
+    assert dim.tinted is True
+    for shot, greys in ((image(lit), False), (image(dim), True)):
+        colours = [QtGui.QColor(name) for name in counts(shot)]
+        painted = [c for c in colours if c.saturation() > 40]
+        assert bool(painted) is not greys
+
+
 def test_the_loaded_signal_fires_when_a_picture_lands(root, qtbot, loader):
     avatar = place(root, UserAvatar(name="Ada Lovelace", loader=loader))
     with qtbot.waitSignal(avatar.loaded, timeout=1000) as caught:

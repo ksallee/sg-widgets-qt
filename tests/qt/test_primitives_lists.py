@@ -6,7 +6,7 @@ import datetime
 import pytest
 from qtpy.QtCore import QAbstractListModel, QAbstractTableModel, QEvent, QModelIndex, QSize, Qt
 from qtpy.QtGui import QColor, QKeyEvent, QPainter, QPixmap
-from qtpy.QtWidgets import QStyleOptionViewItem
+from qtpy.QtWidgets import QStyle, QStyleOptionViewItem
 
 from sg_widgets_qt.primitives.calendar import Calendar
 from sg_widgets_qt.primitives.command import Command
@@ -126,6 +126,19 @@ def test_the_highlight_skips_a_heading_and_a_separator(themed):
     assert view.highlighted() == 3
 
 
+def test_the_first_highlight_leaves_the_list_at_its_top(themed):
+    """A group heading sits over the first row, and must not be scrolled out under it."""
+    view = themed(ListSurface())
+    view.setModel(
+        RowModel(["People", *[f"Row {i}" for i in range(20)]], kinds={0: "heading"})
+    )
+    view.resize(320, 120)
+    view.verticalScrollBar().setValue(view.verticalScrollBar().maximum())
+    assert view.highlight_first() is True
+    assert view.highlighted() == 1
+    assert view.verticalScrollBar().value() == 0
+
+
 def test_the_load_more_row_activates(themed):
     view = themed(ListSurface())
     view.setModel(RowModel(["Ada", "Anna"]))
@@ -204,7 +217,7 @@ def test_a_short_list_keeps_no_scrollbar(themed, qtbot):
 ROW_BOX = QSize(320, 48)
 
 
-def paint_row(delegate, model, row, size=None, widget=None):
+def paint_row(delegate, model, row, size=None, widget=None, state=None):
     """Draw one row into a pixmap and give back the image."""
     picture = QPixmap(size if size is not None else ROW_BOX)
     picture.fill(QColor("#ffffff"))
@@ -212,6 +225,8 @@ def paint_row(delegate, model, row, size=None, widget=None):
     option.rect = picture.rect()
     if widget is not None:
         option.widget = widget
+    if state is not None:
+        option.state |= state
     painter = QPainter(picture)
     delegate.paint(painter, option, model.index(row, 0))
     painter.end()
@@ -262,6 +277,77 @@ def test_a_row_with_a_sub_label_takes_the_tighter_inset(themed):
     option.widget = view
     hint = delegate.sizeHint(option, view.model().index(0, 0))
     assert hint.height() >= 40
+
+
+class GrowingModel(RowModel):
+    """Rows a page can be appended to, which is what a load-more answer does."""
+
+    def append(self, labels):
+        first = len(self.labels)
+        self.beginInsertRows(QModelIndex(), first, first + len(labels) - 1)
+        self.labels.extend(labels)
+        self.endInsertRows()
+
+
+def test_a_page_landing_leaves_the_list_where_the_reader_left_it(themed):
+    # The page lands under the rows already read, so the view keeps its scroll position and
+    # its keyboard cursor rather than being reset back to the top.
+    view = themed(ListSurface())
+    model = GrowingModel([f"Row {i}" for i in range(20)])
+    view.setModel(model)
+    view.resize(320, 120)
+    view.set_load_more(True)
+    view.highlight_first()
+    for _ in range(19):
+        view.highlight_next()
+    held = view.verticalScrollBar().value()
+    assert held > 0
+
+    model.append([f"Row {i}" for i in range(20, 30)])
+    assert view.verticalScrollBar().value() == held
+    assert view.highlighted() == 19
+
+
+def test_the_cursor_takes_the_seat_the_load_more_row_was_in(themed):
+    view = themed(ListSurface())
+    model = GrowingModel([f"Row {i}" for i in range(5)])
+    view.setModel(model)
+    view.resize(320, 288)
+    view.set_load_more(True)
+    view.highlight_last()
+    seat = view.highlighted()
+    assert view.is_load_more(seat)
+
+    view.activate(seat)
+    model.append([f"Row {i}" for i in range(5, 10)])
+    assert view.highlighted() == seat
+    assert not view.is_load_more(seat)
+
+
+def test_the_cursor_holds_when_the_last_page_takes_the_load_more_row_away(themed):
+    view = themed(ListSurface())
+    view.setModel(RowModel([f"Row {i}" for i in range(5)]))
+    view.resize(320, 288)
+    view.set_load_more(True)
+    view.highlight_last()
+    assert view.is_load_more(view.highlighted())
+
+    view.set_load_more(False)
+    assert view.load_more_visible() is False
+    assert view.highlighted() == 4
+
+
+def test_a_hovered_row_wears_the_highlight_and_nothing_else(themed):
+    # Upstream's row carries `data-highlighted:bg-accent` alone: the pointer moves the cursor
+    # onto the row it is over, so hover is the cursor rather than a second, weaker fill.
+    view = themed(ListSurface())
+    view.setModel(RowModel(["Ada"]))
+    delegate = RowDelegate(view, thumbnail=False)
+    plain = paint_row(delegate, view.model(), 0, widget=view)
+    hovered = paint_row(
+        delegate, view.model(), 0, widget=view, state=QStyle.StateFlag.State_MouseOver
+    )
+    assert ink(hovered) == ink(plain)
 
 
 # --- the command -------------------------------------------------------------------------

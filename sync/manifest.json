@@ -1585,6 +1585,42 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
     },
+    "widgets/entity-type-multi-picker": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/entity-type-multi-picker.tsx": "983b1a5f5ec2eb3c877635c2019fae7abd219d3b779dff05cf0c795530506d87",
+        "packages/svelte/src/lib/registry/components/entity-type-multi-picker.svelte": "9d1ae838aa3ab667722553ad1d5323bec95e2a329e87205f49c5d4e984e3f727",
+        "apps/site/src/demos/entity-type-multi-picker/Demo.tsx": "485b60b679246e3f4834fb59083cc2dc2f51559cc79630634e122673c3298c9d",
+        "apps/site/src/content/docs/widgets/entity-type-multi-picker.mdx": "200794cff873c832f08a5c2734ad8a733a727627968cd264f99558262932acea",
+        "apps/site/src/props/entity-type-multi-picker.ts": "6748230e87050663288a20904e138a793acef87bfd2929b84c3e3c12de137cec"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/entity_type_multi_picker.py",
+        "src/sg_widgets_qt/showcase/demos/entity_type_multi_picker.py",
+        "docs/widgets/entity-type-multi-picker.md",
+        "tests/qt/test_entity_type_multi_picker.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/entity-type-picker": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/entity-type-picker.tsx": "92a6bdfa3264a1d553de7a81858485d4242abebcd1fe9f0166a17a73f1354554",
+        "packages/svelte/src/lib/registry/components/entity-type-picker.svelte": "0b904476a946d1f7640c043653700917698f9ab475af06c753a7373f2413b867",
+        "apps/site/src/demos/entity-type-picker/Demo.tsx": "0b22d88b0bc62a55105542d378248d40e6fa7040eebf7e840001baff19c620a6",
+        "apps/site/src/content/docs/widgets/entity-type-picker.mdx": "4ae44aa701f761585196a2133f4131f5225df4b86904b85d7921b8f9444a8d16",
+        "apps/site/src/props/entity-type-picker.ts": "e707e3d9facc479a80c55b72edb80028b2ccaa6092ce5b908e9909b99f849c79"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/entity_type_picker.py",
+        "src/sg_widgets_qt/showcase/demos/entity_type_picker.py",
+        "docs/widgets/entity-type-picker.md",
+        "tests/qt/test_entity_type_picker.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
     "widgets/global-search": {
       "status": "complete",
       "upstream": {
@@ -1617,6 +1653,70 @@
         "src/sg_widgets_qt/showcase/demos/hierarchical_search.py",
         "docs/widgets/hierarchical-search.md",
         "tests/qt/test_hierarchical_search.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/list-multi-picker": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/list-multi-picker.tsx": "36553a7ba33954691c97134421a19b9c979aa869aaff674aa6cb49caf97e8481",
+        "packages/svelte/src/lib/registry/components/list-multi-picker.svelte": "2827c6c178fbea9a44771dc9578d045af4fd1fcff39c9b642cbbfb1a81d669c3",
+        "apps/site/src/demos/list-multi-picker/Demo.tsx": "625705976b1be3d92b9d0d535eba5058c9f6b4409b98c5bbcb790fe4548c6ac3",
+        "apps/site/src/content/docs/widgets/list-multi-picker.mdx": "b2ff9df1a3bc8c22cadac5560e9ff08730e84bff14fa1e6c380e2da569f5b2f6",
+        "apps/site/src/props/list-multi-picker.ts": "805c41c314536ab44f4138fda2524024c003819ea69eed0f0d77abafb0e7eb68"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/list_multi_picker.py",
+        "src/sg_widgets_qt/showcase/demos/list_multi_picker.py",
+        "docs/widgets/list-multi-picker.md",
+        "tests/qt/test_list_multi_picker.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/list-multi-select": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/list-multi-select.tsx": "58bdbda8aa2d5a7b301f85d5f6f4b8a14096616328106f683c08764fa51afecd",
+        "packages/svelte/src/lib/registry/components/list-multi-select.ts": "9165df9d83e845f21c99a3d96830f2d56543b299201e9d494e3e23bbca207b41",
+        "apps/site/src/content/docs/widgets/list-multi-select.mdx": "c97ed7a73c3a4db6081c617aa3226fda405cd2b734286e0789acb9e3e8515835"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/list_multi_select.py",
+        "docs/widgets/list-multi-select.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/list-picker": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/list-picker.tsx": "a075d1d9fccf1040b5119de97ea7a3cc908bb4693f426f4cfa42a7ce9d798f90",
+        "packages/svelte/src/lib/registry/components/list-picker.svelte": "78c65ea8f8be827f3f8165602a08d198ce1c86fcc06d08ef76bda786d0835182",
+        "apps/site/src/demos/list-picker/Demo.tsx": "8a210185bc26c208b99607ecd2dc06b63c8af630e6d3f0f958aa5ed3e474c99b",
+        "apps/site/src/content/docs/widgets/list-picker.mdx": "cb6df1c45f6abd51ba3355f5cb1613123cf012349a3c3d3a40649f5bff57c4e9",
+        "apps/site/src/props/list-picker.ts": "1695950e94e2c6456976adb66472ac816528164d392c4a5fc4ca163318d08fa4"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/list_picker.py",
+        "src/sg_widgets_qt/showcase/demos/list_picker.py",
+        "docs/widgets/list-picker.md",
+        "tests/qt/test_list_picker.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/list-select": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/list-select.tsx": "12dfbe6defc272154b83b4fd9b8909abe155131eec5323e74a5c077fa6f1ee63",
+        "packages/svelte/src/lib/registry/components/list-select.ts": "6e90820f83d7589b3a03b6745bc7112ab6707912ce977b432843d7b05efa234d",
+        "apps/site/src/content/docs/widgets/list-select.mdx": "f7393b1c3577554f36d94d59048595b932a9799983439aa536bc1b3e4fcf1970"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/list_select.py",
+        "docs/widgets/list-select.md"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
@@ -1689,6 +1789,42 @@
         "src/sg_widgets_qt/widgets/picker_row.py",
         "docs/widgets/picker-control.md",
         "tests/qt/test_picker_row.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/project-multi-picker": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/project-multi-picker.tsx": "3a62852f0b3517aaec31ac20ef624ffb7c233c72223f90f924451265891f0931",
+        "packages/svelte/src/lib/registry/components/project-multi-picker.svelte": "150afacbe7fae8ec7f9ca93b5b544ad0ad005e7b345b0f8603288cca1c83d8f7",
+        "apps/site/src/demos/project-multi-picker/Demo.tsx": "d5e88a5381fbb4782c25d9f104b0d8a263c9f869ca139aa9b228dde0759ead35",
+        "apps/site/src/content/docs/widgets/project-multi-picker.mdx": "9182945f808299a5fea9ebecd26f88012a6ec179dd78f43d48734ab2bf2634a2",
+        "apps/site/src/props/project-multi-picker.ts": "b25d962be434352349008db74b1575a94ad2d0f8c75d887820ab7b5fab87123f"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/project_multi_picker.py",
+        "src/sg_widgets_qt/showcase/demos/project_multi_picker.py",
+        "docs/widgets/project-multi-picker.md",
+        "tests/qt/test_project_multi_picker.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/project-picker": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/project-picker.tsx": "dfeb31e760abc36dfe89a7f8b565a760eff5ebad48f2635152c1e066d03a0fcf",
+        "packages/svelte/src/lib/registry/components/project-picker.svelte": "0e47c62b59a456e3e7eedb39fccfa652d947f9a0374b8442313fc04a3c1bbfa2",
+        "apps/site/src/demos/project-picker/Demo.tsx": "b2933ae21921548359a46e67df0655b7153e96967c8551b617e837c8f88481b1",
+        "apps/site/src/content/docs/widgets/project-picker.mdx": "e7cd4994a007cdb89df5d85998cf1e8abf330ddd3d2c638ffb52e95910dce0e1",
+        "apps/site/src/props/project-picker.ts": "3d38605a199f90f384cc62c05f210172269c6d1cf5f538d821d0753468e25234"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/project_picker.py",
+        "src/sg_widgets_qt/showcase/demos/project_picker.py",
+        "docs/widgets/project-picker.md",
+        "tests/qt/test_project_picker.py"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
@@ -1777,6 +1913,42 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "No demo of its own: it is drawn on the status-badge page."
     },
+    "widgets/status-multi-picker": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/status-multi-picker.tsx": "8b3383c4daf54fcc88b991d3c203f52d12cb9b02b6d870219fde26020043dd45",
+        "packages/svelte/src/lib/registry/components/status-multi-picker.svelte": "ea8bea62a3121f04fd435512f2f04c8f34df2d94abbd69182fd45d358e0ca64e",
+        "apps/site/src/demos/status-multi-picker/Demo.tsx": "647400c206c49afbfe089bdde7916df08ea2b476bcf7984561118b039aafe9e8",
+        "apps/site/src/content/docs/widgets/status-multi-picker.mdx": "86c01fdde9ade1968fa9019d249b4285154b0b4b3b8dae0f8d783317a98b6651",
+        "apps/site/src/props/status-multi-picker.ts": "33d9b9672d22232f64a5044c8ff60c1f1a98e01ae79bbad2f09b47d34c147636"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/status_multi_picker.py",
+        "src/sg_widgets_qt/showcase/demos/status_multi_picker.py",
+        "docs/widgets/status-multi-picker.md",
+        "tests/qt/test_status_multi_picker.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/status-picker": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/status-picker.tsx": "975cf7eb5fcc1ec2de1824cfa2784112247a6c00bc1b58f3f59dca5333ce0dc5",
+        "packages/svelte/src/lib/registry/components/status-picker.svelte": "78f246f61d247e9f282aed608743b2446cafd35f6d52fbcaf7c5dcf25333962f",
+        "apps/site/src/demos/status-picker/Demo.tsx": "62bf72815666278a1996586174ea49ff1e5b136e36feaa0c6d107172000708bb",
+        "apps/site/src/content/docs/widgets/status-picker.mdx": "6275af0d05d566b323f56462d4e3eb90dac22b5e670a5dd11fce13f495e4ba63",
+        "apps/site/src/props/status-picker.ts": "bdd28faf591d6afd53a232dc1260a9d070a12770fbc4e2732513c307e5fd2276"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/status_picker.py",
+        "src/sg_widgets_qt/showcase/demos/status_picker.py",
+        "docs/widgets/status-picker.md",
+        "tests/qt/test_status_picker.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
     "widgets/text-editor": {
       "status": "complete",
       "upstream": {
@@ -1845,6 +2017,42 @@
         "src/sg_widgets_qt/showcase/demos/user_avatar.py",
         "docs/widgets/user-avatar.md",
         "tests/qt/test_user_avatar.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/user-multi-picker": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/user-multi-picker.tsx": "f2e05d118f0072fb941c52ce597f04692bac27879d7b9d9b44afd9e96da2fbe0",
+        "packages/svelte/src/lib/registry/components/user-multi-picker.svelte": "3b3459fcce7c9fe57cec2067ca4821c8c00cbbe5fbdbb2f6cec228c0b4c8add9",
+        "apps/site/src/demos/user-multi-picker/Demo.tsx": "d92b88e5140f18f6f47ed1e5924ac40dedc2574716cfcc4d33b540be0983da3e",
+        "apps/site/src/content/docs/widgets/user-multi-picker.mdx": "8cd7567dfcf9c63d2797c5632453d2ace009b54a76295555cd5e531221b148e2",
+        "apps/site/src/props/user-multi-picker.ts": "a74140c77e6bfc2bc5a6caa5a3cf290e0d4ecfae2adc37c2cb9691a640145af3"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/user_multi_picker.py",
+        "src/sg_widgets_qt/showcase/demos/user_multi_picker.py",
+        "docs/widgets/user-multi-picker.md",
+        "tests/qt/test_user_multi_picker.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "widgets/user-picker": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/user-picker.tsx": "c5465f4fbd7ca7963fe0a0e928031857397cf61be8a00fcba7873dfb2dde8319",
+        "packages/svelte/src/lib/registry/components/user-picker.svelte": "5fd267d95555f29b7c1331507d4b9d14a2774540912b0ae9577ebba60abd8dc5",
+        "apps/site/src/demos/user-picker/Demo.tsx": "504cdf735dbff0db3f8f69847b8996f56368c36b81d16eacb0ac5571bd61b4ab",
+        "apps/site/src/content/docs/widgets/user-picker.mdx": "51b1b83a043d4685df5a5e10b4c3cf2abc04f4102a55e66378271ed96085c790",
+        "apps/site/src/props/user-picker.ts": "569cced9bcf9c7c107e6d57ba34a0968bf0f57dca1c3bb59bb8de6d0e543cd62"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/user_picker.py",
+        "src/sg_widgets_qt/showcase/demos/user_picker.py",
+        "docs/widgets/user-picker.md",
+        "tests/qt/test_user_picker.py"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""

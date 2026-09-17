@@ -229,6 +229,7 @@ class SearchControl(ThemedWidget):
         self._list.setObjectName("search-list")
         self._list.setModel(self._model)
         self._sync_delegate()
+        self._sync_query()
         self._list.activated.connect(self._on_activated)
         self._list.load_more_requested.connect(self.load_more)
 
@@ -309,7 +310,18 @@ class SearchControl(ThemedWidget):
         self._model = value
         self._list.setModel(value)
         self._sync_delegate()
+        self._sync_query()
         self._write_rows(self._items)
+
+    def _sync_query(self) -> None:
+        """Hand the query to the model, which is what makes the matched runs bold.
+
+        Matching is the server's alone, so the query is only ever a mark: a model that takes
+        none draws its labels whole.
+        """
+        setter = getattr(self._model, "set_query", None)
+        if callable(setter):
+            setter(self._query)
 
     def _sync_delegate(self) -> None:
         """The row keywords the delegate owns come off the model, which is where a caller sets them."""
@@ -317,6 +329,7 @@ class SearchControl(ThemedWidget):
         thumbnail = getattr(self._model, "thumbnail", True)
         delegate.set_thumbnail(thumbnail is not False)
         delegate.set_round_thumbnail(bool(getattr(self._model, "round_thumbnail", False)))
+        delegate.set_bare_glyph(bool(getattr(self._model, "bare_glyph", False)))
         held, self._rows_signal = self._rows_signal, None
         if held is not None:
             try:
@@ -331,6 +344,9 @@ class SearchControl(ThemedWidget):
     def _on_model_rows(self) -> None:
         delegate = self._list.row_delegate()
         thumbnail = getattr(self._model, "thumbnail", True)
+        bare = bool(getattr(self._model, "bare_glyph", False))
+        if delegate.bare_glyph != bare:
+            delegate.set_bare_glyph(bare)
         if delegate.thumbnail != (thumbnail is not False):
             delegate.set_thumbnail(thumbnail is not False)
             self._list.updateGeometry()
@@ -347,6 +363,7 @@ class SearchControl(ThemedWidget):
         self._query = value
         if self._input is not None and self._input.text() != value:
             self._input.setText(value)
+        self._sync_query()
         self.query_changed.emit(value)
         self._restart()
 
@@ -437,17 +454,17 @@ class SearchControl(ThemedWidget):
     def set_title(self, value: str) -> None:
         self._title = value
         if self._dialog is not None:
-            self._dialog.set_title(value)
+            self._dialog.setAccessibleName(value)
 
     @property
     def description(self) -> str:
-        """The line under the dialog's title."""
+        """The dialog's accessible description. Like the title, it is heard and not drawn."""
         return self._description
 
     def set_description(self, value: str) -> None:
         self._description = value
         if self._dialog is not None:
-            self._dialog.set_description(value)
+            self._dialog.setAccessibleDescription(value)
 
     @property
     def placeholder(self) -> str:
@@ -633,6 +650,7 @@ class SearchControl(ThemedWidget):
         if text == self._query:
             return
         self._query = text
+        self._sync_query()
         self.query_changed.emit(text)
         self._restart()
 
@@ -753,7 +771,12 @@ class SearchControl(ThemedWidget):
         """
         parent = self.parentWidget()
         host = parent.window() if parent is not None else None
-        self._dialog = Dialog(host, title=self._title, description=self._description)
+        # Upstream's command dialog draws no header and no close control: the title and the
+        # description are `sr-only`, so the panel is the search box and its list and nothing
+        # else. Here they are the panel's accessible name and description.
+        self._dialog = Dialog(host, show_close=False)
+        self._dialog.setAccessibleName(self._title)
+        self._dialog.setAccessibleDescription(self._description)
         self._dialog.set_content(self)
         self._dialog.dismissed.connect(self._on_dialog_closed)
         self._dialog.rejected.connect(self._on_dialog_closed)

@@ -35,11 +35,11 @@ from ..primitives.base import (
 from ..primitives.calendar import Calendar
 from ..primitives.input import Input
 from ..primitives.popover import Popover
-from ..theme import with_alpha
+from ..theme import mix, with_alpha
 from .editor_calendar import from_calendar_date, to_calendar_date
 from .value_editor import ValueEditor, ValueSession, fade_disabled
 
-__all__ = ["POPOVER_PAD", "DateEditor", "DateTrigger", "date_popover_panel"]
+__all__ = ["POPOVER_PAD", "DateEditor", "DateTrigger", "date_popover_panel", "focus_on_open"]
 
 #: `p-3` and `gap-3` of the popover the two date editors open.
 POPOVER_PAD = 12
@@ -147,14 +147,23 @@ class DateTrigger(ThemedWidget):
         painter.setRenderHint(QtGui.QPainter.RenderHint.TextAntialiasing, True)
         painter.setOpacity(self.disabled_opacity())
 
-        # The trigger stands on the control ladder, so its box is the widget's own rect: the
-        # border rides the rim and the focus ring is painted inward, as every field does.
+        # The trigger is the `outline` button of `button.tsx`, so its box is the widget's own
+        # rect: the border rides the rim and the focus ring is painted inward, as a field does.
+        # `bg-background` at rest and `bg-muted` on hover, `bg-input/30` and `bg-input/50` on a
+        # dark page; the border is `border` light and `input` dark.
         radius = float(theme.radius_px("lg"))
         box = QRect(0, 0, self.width(), self.height())
         inner = box
-        border = theme.color("destructive") if self._invalid else theme.color("input")
+        rest = with_alpha(theme.input, 0.3) if theme.dark else theme.color("background")
+        over = with_alpha(theme.input, 0.5) if theme.dark else theme.color("muted")
+        surface = mix(rest, over, self._hover.value)
+        border = (
+            theme.color("destructive")
+            if self._invalid
+            else theme.color("input" if theme.dark else "border")
+        )
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(with_alpha(theme.muted, 0.3 * self._hover.value))
+        painter.setBrush(surface)
         painter.drawRoundedRect(QtCore.QRectF(inner), radius, radius)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.setPen(QtGui.QPen(border, 1.0))
@@ -212,6 +221,26 @@ class DateTrigger(ThemedWidget):
             event.accept()
             return
         super().keyPressEvent(event)
+
+
+def focus_on_open(widget: QtWidgets.QWidget) -> None:
+    """Put the caret in a field inside a popover that has just opened.
+
+    A top-level window is mapped a turn after it is shown, and a widget in a window the platform
+    has not mapped yet cannot take the focus, so the caret is asked for now and again next turn.
+    """
+    def again() -> None:
+        try:
+            if not widget.hasFocus():
+                widget.setFocus(Qt.FocusReason.OtherFocusReason)
+        except RuntimeError:  # The popover went while the turn was in flight.
+            pass
+
+    again()
+    # The surface fades in over the popover duration and is only mapped part way through it, so
+    # the caret is asked for again on the next turn and once the surface has landed.
+    QtCore.QTimer.singleShot(0, again)
+    QtCore.QTimer.singleShot(DURATION["popover"] + 20, again)
 
 
 def date_popover_panel(parent: QtWidgets.QWidget | None = None) -> QtWidgets.QWidget:
@@ -294,7 +323,7 @@ class DateEditor(ValueEditor):
         self._calendar.grid().picked.connect(self._pick)
         panel.layout().addWidget(self._calendar)
 
-        self._popover = Popover(self._trigger, panel, side="bottom", align="start")
+        self._popover = Popover(self._trigger, panel, side="bottom", align="start", takes_focus=True)
         self._popover.opened.connect(self._on_opened)
         self._popover.closed.connect(lambda: self.open_changed.emit(False))
 
@@ -327,7 +356,7 @@ class DateEditor(ValueEditor):
         self._calendar.set_value(to_calendar_date(self._session.value))
         self._popover.raise_()
         self._popover.activateWindow()
-        self._day.setFocus(Qt.FocusReason.OtherFocusReason)
+        focus_on_open(self._day)
         self.open_changed.emit(True)
 
     def _on_enter(self, committed: bool) -> None:

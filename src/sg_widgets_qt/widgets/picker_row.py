@@ -186,10 +186,29 @@ class PickerRowModel(QAbstractListModel):
         return list(self._rows)
 
     def set_rows(self, rows: Sequence[RowLike]) -> None:
-        """Replace the rows."""
-        self.beginResetModel()
-        self._rows = list(rows)
-        self.endResetModel()
+        """Replace the rows.
+
+        A load-more page and a pick both answer the rows already on show followed by whatever
+        is new, so those two are told as a `dataChanged` and an insert rather than a reset: a
+        reset drops the view's scroll position and its keyboard cursor, and the list would jump
+        back to the top under a reader. Anything else — a new query — really is a reset.
+        """
+        wanted = list(rows)
+        held = [_key_of(row) for row in self._rows]
+        arriving = [_key_of(row) for row in wanted]
+        if held and arriving[: len(held)] == held:
+            kept = len(held)
+            self._rows = wanted[:kept]
+            self.dataChanged.emit(self.index(0, 0), self.index(kept - 1, 0))
+            extra = wanted[kept:]
+            if extra:
+                self.beginInsertRows(QModelIndex(), kept, kept + len(extra) - 1)
+                self._rows.extend(extra)
+                self.endInsertRows()
+        else:
+            self.beginResetModel()
+            self._rows = wanted
+            self.endResetModel()
         self._ask_plan()
         self._ask_pictures()
 
@@ -520,6 +539,11 @@ class PickerRowModel(QAbstractListModel):
             return ""
         return initials_of(label)
 
+    @property
+    def bare_glyph(self) -> bool:
+        """True when the caller named the glyph, so the row has no picture to stand in for."""
+        return self._glyph_of is not None
+
     def _glyph(self, row: RowLike) -> str:
         if self._glyph_of is not None:
             return self._glyph_of(row) or ""
@@ -577,7 +601,9 @@ class PickerRowModel(QAbstractListModel):
         path = path_of(spec)
         if self._context is None or not path or path == "id" or not self._rows:
             return
-        entity_type = _type_of(self._rows[0])
+        # The first row of a grouped list is a heading, which names no type; the schema is
+        # read off the first row that is an entity.
+        entity_type = next((t for t in (_type_of(row) for row in self._rows) if t), "")
         if not entity_type or self._plan_for == (entity_type, path) or self._plan_pending:
             return
         self._plan_for = (entity_type, path)

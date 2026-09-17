@@ -28,6 +28,10 @@ name at all it is still a muted circle. The name is always in the accessible tre
 An API user is a script account rather than a person, so it has neither a picture nor initials: the
 circle holds a bot glyph on the secondary token pair, and the tooltip says what it is.
 
+`inactive` dims the circle to half and takes the colour out of it, the picture and the tint behind
+the initials alike (`docs/design-rules.md` rule 5), so a discarded person never reads as a live one
+wearing its own hue.
+
 Here the avatar is one painted `QWidget` whose object name is `user-avatar`, so `inactive`,
 `api_user`, `initials`, `hue` and `tinted` are properties rather than data attributes. The picture
 is read through `sg_widgets_qt.images` on a worker, and the circle holds a skeleton of its own

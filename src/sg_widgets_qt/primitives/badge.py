@@ -188,8 +188,11 @@ class Badge(ThemedWidget):
         side = self._cross() + CROSS_PAD * 2
         box = self._box()
         rect = QtCore.QRect(0, 0, side, side)
+        # `QRect.moveCenter` leaves the extra pixel of an even side on the right, so the centre is
+        # taken from the right edge alone: the box then ends exactly `trail` from it, which is the
+        # room the ladder gives the cross (rule 3).
         rect.moveCenter(
-            QtCore.QPoint(box.right() - self._right_pad() - side // 2 + 1, box.center().y())
+            QtCore.QPoint(box.right() - self._right_pad() - side // 2, box.center().y())
         )
         return rect
 

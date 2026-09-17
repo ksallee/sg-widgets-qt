@@ -51,7 +51,11 @@ selection is cleared. `onErrorChange` fires with `null` on that same change, so 
 set clears when the field is answered.
 
 `onOpenChange` fires when the popup opens or closes. Svelte also binds it with `bind:open`.
-::qt-note
+
+`value_changed` carries the whole list as soon as a row is ticked or unticked, and the empty list
+once the selection is cleared. `error_changed` carries None on that same change. `open_changed`
+carries True or False. All three are Qt signals; `on_value_change`, `on_error_change` and
+`on_open_change` take a plain callable instead.
 
 ## Slots
 
@@ -70,3 +74,17 @@ down to a trailing space, so the schema's vocabulary is the whole set a picker m
 
 Hidden values reach the schema only when it is read with a project id, and REST does not enforce
 them on write, so the subtraction is the client's (probe 009).
+
+## Reference
+
+The box and its popup are `widgets/picker_control.py`, the popup is `primitives/popover.py`, the
+list is `primitives/list_view.py`, and every row is drawn by `primitives/row_delegate.py`, so
+PySide6 and PyQt5 draw the same pixels and answer a key the same way. The slots are callables:
+`mark` answers a glyph name per row, `value_chip` answers the widget the control shows for the
+value, and `error_message` answers the widget under it.
+
+`tk-framework-qtwidgets/python/shotgun_fields/list_widget.py` edits a list field as a `QComboBox`
+filled straight from `valid_values`, with the stored string as the item text and an empty first
+item for "no value". The vocabulary is the same one here; the empty item is a clear control
+instead, so a mandatory field can withhold it, and the control is drawn by this repo. It was
+read, and nothing was copied.

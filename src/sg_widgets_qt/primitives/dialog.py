@@ -44,6 +44,15 @@ DIALOG_INSET = 16
 _SCALE_FROM = 0.95
 
 
+def _press_global_pos(event: QtCore.QEvent) -> QtCore.QPoint | None:
+    """Where a mouse press landed, in screen coordinates, on Qt 5 and Qt 6."""
+    getter = getattr(event, "globalPosition", None)
+    if getter is not None:
+        return getter().toPoint()
+    getter = getattr(event, "globalPos", None)
+    return getter() if getter is not None else None
+
+
 class DialogScrim(ThemedWidget):
     """The dimmed sheet over the window a dialog covers, which fades with it."""
 
@@ -247,7 +256,27 @@ class Dialog(QtWidgets.QDialog):
             self._scrim.reveal()
         self._place()
         self.show()
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            app.installEventFilter(self)
         self._start(1.0)
+
+    def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:  # noqa: N802
+        """A press outside the panel dismisses the dialog, as it dismisses a popover.
+
+        The sheet belongs to a window this dialog blocks, so it never sees the press itself;
+        the filter is on the application, which is where `primitives/popover.py` watches too.
+        """
+        if event.type() == QEvent.Type.MouseButtonPress and self.isVisible():
+            pos = _press_global_pos(event)
+            if pos is not None and not self._panel_geometry().contains(pos):
+                self.reject()
+        return False
+
+    def _panel_geometry(self) -> QRect:
+        """The panel on screen, the shadow margins left out."""
+        box = self.surface_rect()
+        return QRect(self.mapToGlobal(box.topLeft()), box.size())
 
     def close(self) -> bool:
         """Fade the panel out and take the scrim with it."""
@@ -261,6 +290,9 @@ class Dialog(QtWidgets.QDialog):
 
     def done(self, result: int) -> None:
         """Leave through the fade, so the scrim and the panel go together."""
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            app.removeEventFilter(self)
         self._result_code = int(result)
         if not self.isVisible():
             super().done(self._result_code)

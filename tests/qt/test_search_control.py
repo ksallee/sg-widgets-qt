@@ -5,10 +5,12 @@ import threading
 from dataclasses import dataclass, field
 
 import pytest
-from qtpy.QtCore import Qt
-from qtpy.QtGui import QKeyEvent
-from qtpy.QtWidgets import QWidget
+from qtpy.QtCore import QEvent, QPoint, QPointF, QRect, Qt
+from qtpy.QtGui import QFontMetrics, QKeyEvent, QMouseEvent
+from qtpy.QtWidgets import QApplication, QStyleOptionViewItem, QWidget
 
+from sg_widgets_qt.primitives.roles import Roles
+from sg_widgets_qt.primitives.row_delegate import ROW_PAD_Y, ROW_TEXT
 from sg_widgets_qt.theme import apply_theme, theme_for
 from sg_widgets_qt.widgets.picker_row import PickerRowModel
 from sg_widgets_qt.widgets.search_control import SearchAnswer, SearchControl, SearchRequest
@@ -220,3 +222,62 @@ def test_nothing_is_read_while_the_control_is_held_back(host, qtbot):
 
 def _key(key: Qt.Key) -> QKeyEvent:
     return QKeyEvent(QKeyEvent.Type.KeyPress, int(key), Qt.KeyboardModifier.NoModifier)
+
+
+def test_the_query_reaches_the_model_so_the_matched_runs_are_marked(host, qtbot):
+    reads = Reads()
+    control = make(host, qtbot, reads)
+    control.input().setText("sh")
+    settle(qtbot, control)
+    assert control.model.query == "sh"
+    runs = control.model.data(control.model.index(0, 0), Roles.RUNS)
+    assert [text for text, matched, *_ in runs if matched] == ["sh"]
+
+
+def test_the_dialog_shell_draws_no_header_and_no_close_control(host, qtbot):
+    control = make(host, qtbot, Reads(), shell="dialog", title="Search", description="By name.")
+    dialog = control.dialog()
+    assert dialog is not None
+    # Upstream's command dialog keeps its title and description `sr-only`.
+    assert dialog.accessibleName() == "Search"
+    assert dialog.accessibleDescription() == "By name."
+    assert not dialog.findChild(QWidget, "dialog-close")
+    for child in dialog.findChildren(QWidget):
+        assert child.property("text") != "Search" or not child.isVisible()
+    control.set_title("Find")
+    assert dialog.accessibleName() == "Find"
+
+
+def test_a_press_outside_the_panel_dismisses_the_dialog(host, qtbot):
+    control = make(host, qtbot, Reads(), shell="dialog")
+    dialog = control.dialog()
+    control.set_open(True)
+    qtbot.waitUntil(lambda: dialog.isVisible(), timeout=SETTLE_MS)
+    outside = dialog.mapToGlobal(dialog.rect().topLeft()) - QPoint(200, 200)
+    QApplication.sendEvent(
+        dialog,
+        QMouseEvent(
+            QEvent.Type.MouseButtonPress,
+            QPointF(outside),
+            QPointF(outside),
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        ),
+    )
+    qtbot.waitUntil(lambda: not control.open, timeout=SETTLE_MS)
+
+
+def test_the_load_more_row_stands_at_the_body_step(host, qtbot):
+    control = make(host, qtbot, Reads(), paging=True)
+    control.set_query("sh")
+    settle(qtbot, control)
+    surface = control.list_surface()
+    qtbot.waitUntil(lambda: surface.load_more_visible(), timeout=SETTLE_MS)
+    delegate = surface.row_delegate()
+    option = QStyleOptionViewItem()
+    option.rect = QRect(0, 0, 300, 40)
+    last = surface.model().index(surface.row_count() - 1, 0)
+    theme = theme_for("default")
+    wanted = QFontMetrics(theme.font(ROW_TEXT["md"])).height() + 2 * ROW_PAD_Y
+    assert delegate.sizeHint(option, last).height() == wanted

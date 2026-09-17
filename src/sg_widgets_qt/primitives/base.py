@@ -339,6 +339,7 @@ class ThemedMixin:
         self._hovered = False
         self._pressed = False
         self._keyboard_focus = False
+        self._theme_read: Theme | None = None
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_Hover, True)
         watch_theme(self, self._on_theme)
 
@@ -351,6 +352,7 @@ class ThemedMixin:
 
     def _on_theme(self, theme: Theme) -> None:
         """A theme landed. Widgets that cache metrics from it override this and call up."""
+        self._theme_read = theme
         self.updateGeometry()
         self.update()
 
@@ -437,9 +439,18 @@ class ThemedMixin:
         elif kind == QtCore.QEvent.Type.ParentChange:
             retheme(self)
 
+    def showEvent(self, event: QtGui.QShowEvent) -> None:  # noqa: N802
+        super().showEvent(event)  # type: ignore[misc]
+        # A widget is in its final tree by the time it is shown, which is the last moment a theme
+        # it was built too early to read can still reach it before it paints.
+        retheme(self)
+
     def apply_current_theme(self) -> None:
-        """Read the nearest theme again, as though one had just landed here."""
-        self._on_theme(self.theme)
+        """Read the nearest theme again, unless the one it last read is still the nearest."""
+        theme = self.theme
+        if self._theme_read is not None and self._theme_read == theme:
+            return
+        self._on_theme(theme)
 
     # --- chrome ---
 

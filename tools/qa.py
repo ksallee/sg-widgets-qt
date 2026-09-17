@@ -108,6 +108,31 @@ def load_drive(path: str) -> object:
     return found
 
 
+#: How long the driver gives the reads in flight to land before it closes the window.
+DRAIN_MS = 4000
+
+
+def drain(timeout_ms: int = DRAIN_MS) -> None:
+    """Stop the reads in flight and wait for their threads before the window goes.
+
+    The mock's thumbnails are real http urls, so a picture read can still be inside a socket
+    when the run ends, and a pool thread that reaches a torn-down application aborts the
+    process on PyQt5 rather than raising. Cancelling first means no answer is written to a
+    widget that has gone.
+    """
+    from sg_widgets_qt import images, workers
+    from sg_widgets_qt.widgets import entity_picker
+
+    pools = [workers.default_pool(), images.image_loader().pool]
+    found = getattr(entity_picker, "_SEARCH_POOL", None)
+    if found is not None:
+        pools.append(found)
+    for pool in pools:
+        pool.cancel_all()
+    for pool in pools:
+        pool.wait(timeout_ms)
+
+
 def main(argv: list[str] | None = None) -> int:
     raw = list(sys.argv[1:] if argv is None else argv)
     args = parser().parse_args(raw)
@@ -211,6 +236,7 @@ def main(argv: list[str] | None = None) -> int:
         failed = True
     if console.criticals:
         failed = True
+    drain()
     window.close()
     sys.stdout.write(json.dumps(out, indent=2, default=str) + "\n")
     return 1 if failed else 0

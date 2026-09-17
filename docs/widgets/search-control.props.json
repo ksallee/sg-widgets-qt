@@ -105,7 +105,7 @@
       "type": "`string`",
       "py_type": "`str`",
       "default": "—",
-      "meaning": "The line under it."
+      "meaning": "The dialog's accessible description. Neither it nor the title is drawn: the panel is the search box and its list, as upstream's is."
     },
     {
       "name": "placeholder",

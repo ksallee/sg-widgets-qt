@@ -28,13 +28,12 @@ from sg_widgets_core.status import Rgb, parse_bg_color
 
 from ..primitives.base import (
     CONTROL_HEIGHT,
-    DURATION,
     ThemedWidget,
     fill_round_rect,
 )
 from ..primitives.input import Input
 from ..primitives.popover import Popover
-from ..theme import with_alpha
+from .date_editor import focus_on_open
 from .value_editor import VALUE_EDITOR_GAP, EditorNote, ValueEditor, ValueSession, fade_disabled
 
 __all__ = ["SENTINEL_NOTE", "SWATCH_SIZE", "ColorEditor", "ColorPicker", "ColorSwatch"]
@@ -89,7 +88,6 @@ class ColorSwatch(ThemedWidget):
         super().__init__(parent, size_step=size if size in CONTROL_HEIGHT else "md")
         self._color = color
         self._readonly = False
-        self._hover = self.animated(DURATION["hover"])
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
@@ -115,9 +113,6 @@ class ColorSwatch(ThemedWidget):
         side = SWATCH_SIZE[self.size_step]
         return QSize(side, side)
 
-    def on_hover_changed(self, value: bool) -> None:
-        self._hover.set(1.0 if value and not self._readonly else 0.0)
-
     def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
         theme = self.theme
         painter = QtGui.QPainter(self)
@@ -126,12 +121,10 @@ class ColorSwatch(ThemedWidget):
         radius = float(theme.radius_px("lg"))
         box = self.rect()
         # Colour that is data is painted as it is; every other pixel is a token.
+        # The swatch is a `<label>` upstream and carries no hover class: the colour it shows is
+        # the value, and a wash over it would be a wash over the value.
         fill = self._color if self._color is not None else theme.color("muted")
         fill_round_rect(painter, box, radius, fill, theme.color("input"))
-        if self._hover.value > 0:
-            fill_round_rect(
-                painter, box, radius, with_alpha(theme.foreground, 0.08 * self._hover.value)
-            )
         if self.keyboard_focus:
             self.paint_focus_ring(painter, box, radius)
         painter.end()
@@ -161,6 +154,8 @@ class ColorPicker(ThemedWidget):
 
     moved = Signal(str)
     picked = Signal(str)
+    #: Escape inside the picker, which is what closes the surface it stands on.
+    escaped = Signal()
 
     def __init__(
         self,
@@ -325,6 +320,12 @@ class ColorPicker(ThemedWidget):
             self._brightness = _clamp(self._brightness - step)
         elif key in (Qt.Key.Key_PageUp, Qt.Key.Key_PageDown):
             self._hue = _clamp(self._hue + (step if key == Qt.Key.Key_PageUp else -step))
+        elif key == Qt.Key.Key_Escape:
+            # The surface this stands on has no caret of its own to answer Escape, so the picker
+            # hands it up rather than swallowing it.
+            self.escaped.emit()
+            event.accept()
+            return
         else:
             super().keyPressEvent(event)
             return
@@ -416,8 +417,9 @@ class ColorEditor(ValueEditor):
         self._picker.setObjectName("color-editor-picker")
         self._picker.moved.connect(self._session.set_draft)
         self._picker.picked.connect(self._session.apply)
+        self._picker.escaped.connect(self._close_picker)
         column.addWidget(self._picker)
-        self._popover = Popover(self._swatch, panel, side="bottom", align="start")
+        self._popover = Popover(self._swatch, panel, side="bottom", align="start", takes_focus=True)
 
         self._session.draft_changed.connect(lambda _draft: self._refresh())
         self._session.committed.connect(lambda _value: self._refresh())
@@ -441,13 +443,18 @@ class ColorEditor(ValueEditor):
             self._popover.open()
             self._popover.raise_()
             self._popover.activateWindow()
-            self._picker.setFocus(Qt.FocusReason.OtherFocusReason)
+            focus_on_open(self._picker)
         else:
             self._popover.close()
 
     def toggle(self) -> None:
         """A press on the swatch."""
         self.set_open(not self.is_open)
+
+    def _close_picker(self) -> None:
+        """Escape inside the picker: the surface goes and the caret comes back to the swatch."""
+        self.set_open(False)
+        self._swatch.setFocus(Qt.FocusReason.OtherFocusReason)
 
     # --- props ---------------------------------------------------------------------------
 

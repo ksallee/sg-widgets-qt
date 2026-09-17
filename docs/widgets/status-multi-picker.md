@@ -53,7 +53,11 @@ The root carries the size and, while the options load, `data-loading`.
 control. A selected code the option set does not carry is kept, never dropped.
 
 `onOpenChange` fires when the popup opens or closes. Svelte also binds it with `bind:open`.
-::qt-note
+
+`value_changed` carries the whole list on every change, including the empty list from the clear
+control, and a selected code the option set does not carry is kept rather than dropped.
+`open_changed` carries True or False. Both are Qt signals; `on_value_change` and `on_open_change`
+take a plain callable instead.
 
 ## Slots
 
@@ -88,4 +92,16 @@ The row, chip and checkbox anatomy follows shadcn's Base UI Combobox, read throu
 The primitive underneath is Base UI Combobox 1.8.0 in React and Bits UI Combobox 2.19.1 in Svelte.
 shadcn-svelte ships no combobox item, so each widget composes the headless primitive of its
 framework and both draw the same rows, the same classes and the same states.
-::qt-note
+
+Here there is no headless primitive to compose. The box and its popup are
+`widgets/picker_control.py`, the popup is `primitives/popover.py` and never takes focus, the list
+is `primitives/list_view.py`, and every row is drawn by `primitives/row_delegate.py`, so PySide6
+and PyQt5 draw the same pixels. The glyph in a row's leading slot is `widgets/status_glyph.py`
+and the value in the control is `widgets/status_badge.py`. The options, the field and the Status
+table are read on `sg_widgets_qt.workers`, through the context's own caches.
+
+`tk-framework-qtwidgets/python/shotgun_fields/status_list_widget.py` edits a status field as a
+`QComboBox` carrying the display name as the item text and the code as the item data, and draws
+the value as a coloured block before the name. The split between the code and its label is the
+same here; the control is drawn by this repo rather than by the host style, and the mark is the
+status's own icon. It was read, and nothing was copied.

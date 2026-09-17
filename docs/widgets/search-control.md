@@ -52,6 +52,11 @@ list itself `search-list`. A wrapper renames any of them.
 dialog, and `bare` the list alone, for a section of a larger surface that draws its own heading and
 takes no query. The shell is settled when the widget is built.
 
+The dialog draws no header and no close control: `title` and `description` are the panel's
+accessible name and description, which a reader hears and no one sees, so the panel is the search
+row and its list and nothing else. A press outside the panel dismisses it, as it dismisses a
+popover; Escape on an empty query does the same.
+
 The highlight is the base's: it lands on the first row whenever the list changes. Matching is the
 server's alone — the command box never filters what came back.
 

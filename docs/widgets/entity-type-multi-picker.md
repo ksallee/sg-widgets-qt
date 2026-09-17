@@ -58,4 +58,10 @@ The row, chip and checkbox anatomy follows shadcn's Base UI Combobox, read throu
 The primitive underneath is Base UI Combobox 1.8.0 in React and Bits UI Combobox 2.19.1 in Svelte.
 shadcn-svelte ships no combobox item, so each widget composes the headless primitive of its
 framework and both draw the same rows, the same classes and the same states.
-::qt-note
+
+Here there is no headless primitive to compose. The box and its popup are
+`widgets/picker_control.py`, the list is `primitives/list_view.py`, and every row is drawn by
+`primitives/row_delegate.py`, so PySide6 and PyQt5 draw the same pixels. A row carries the type's
+glyph from `widgets/entity_glyphs.py` in its leading slot, and the code sits beside the display
+name in the mono family, which is where rule 9 of the design rules puts a code. The one schema
+read runs on `sg_widgets_qt.workers`.

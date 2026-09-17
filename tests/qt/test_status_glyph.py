@@ -92,6 +92,13 @@ def test_an_uploaded_icon_is_decoded_where_it_stands(root, loader):
     assert painted(glyph) > 0
 
 
+def test_an_uploaded_icon_fills_the_glyph_box(root, loader):
+    """A site's own icon is any size at all, so the caller's box sizes it, not the file."""
+    glyph = place(root, StatusGlyph(status=status(ImageIcon(data_url=RED_PNG)), loader=loader))
+    assert glyph.width() > 8  # the file is 8 by 8; the box is the chip glyph's own step
+    assert painted(glyph) == glyph.width() * glyph.height()
+
+
 def test_a_bundled_cell_draws_at_its_own_size(root, loader):
     glyph = place(
         root, StatusGlyph(status=status(ImageMapIcon(image_map_key=BUNDLED_KEY)), loader=loader)

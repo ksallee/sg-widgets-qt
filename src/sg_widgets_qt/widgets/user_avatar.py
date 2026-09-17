@@ -48,6 +48,12 @@ API_GLYPH = "bot"
 INACTIVE_OPACITY = 0.5
 
 
+def _grey(colour: QtGui.QColor) -> QtGui.QColor:
+    """One colour with its own luminance and no hue, which is what `grayscale` does to a picture."""
+    grey = round(0.2126 * colour.red() + 0.7152 * colour.green() + 0.0722 * colour.blue())
+    return QtGui.QColor(grey, grey, grey, colour.alpha())
+
+
 class UserAvatar(ThemedWidget):
     """One person as a round avatar: a picture, initials, or a bot glyph."""
 
@@ -252,10 +258,16 @@ class UserAvatar(ThemedWidget):
     def _surface(self) -> tuple[QtGui.QColor, QtGui.QColor]:
         theme = self.theme
         if self._api_user:
-            return theme.color("secondary"), theme.color("secondary_foreground")
-        if self.tinted:
-            return self._tint()
-        return theme.color("muted"), theme.color("muted_foreground")
+            ground, ink = theme.color("secondary"), theme.color("secondary_foreground")
+        elif self.tinted:
+            ground, ink = self._tint()
+        else:
+            ground, ink = theme.color("muted"), theme.color("muted_foreground")
+        if self._inactive:
+            # A dimmed person is desaturated as well as dimmed, the picture and the tint alike
+            # (rule 5), so the hue a name derives never survives the row being discarded.
+            return _grey(ground), _grey(ink)
+        return ground, ink
 
     # --- painting ---
 
