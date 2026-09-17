@@ -1,9 +1,10 @@
 """What every painted primitive stands on: the ladders, the states, the motion and the chrome.
 
-`ThemedWidget` is the mixin every leaf in this package wears. It reads the nearest theme, repaints
-when one lands, and keeps the three states a painter needs: `hovered`, `pressed` and
-`keyboard_focus`, the last one set only when the focus came from Tab, Backtab or a shortcut, so the
-focus ring is a keyboard mark and never a mouse one.
+`ThemedWidget` is what every painted leaf subclasses, and `ThemedMixin` is the same behaviour in
+front of a Qt class we keep for what it already does, such as the `QLineEdit` under `Input`. Both
+read the nearest theme, repaint when one lands, and keep the three states a painter needs:
+`hovered`, `pressed` and `keyboard_focus`, the last one set only when the focus came from Tab,
+Backtab or a shortcut, so the focus ring is a keyboard mark and never a mouse one.
 
 The ladders are `docs/design-rules.md` rule 3, ported from the upstream `control-classes.ts`,
 `leaf-classes.ts` and `picker-classes.ts` with their docstrings, in pixels rather than Tailwind

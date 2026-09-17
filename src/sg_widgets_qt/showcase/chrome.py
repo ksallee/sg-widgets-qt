@@ -7,7 +7,9 @@ controls once it carries them; until then this module is what the shell wears, a
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence
+import importlib
+from collections.abc import Sequence
+from typing import Any, Callable
 
 from qtpy import QtCore, QtGui, QtWidgets
 
@@ -16,6 +18,8 @@ from ..theme import Theme, mix, theme_of, watch_theme, with_alpha
 
 __all__ = [
     "HEIGHTS",
+    "Ground",
+    "SwitchRow",
     "ChromeButton",
     "ChromeSelect",
     "ChromeSwitch",
@@ -34,13 +38,32 @@ HEIGHTS: dict[str, int] = {"sm": 28, "md": 32, "lg": 36}
 FEEDBACK_MS = 150
 
 
+#: Where a primitive is looked for: the package first, then the modules it does not re-export.
+PRIMITIVE_MODULES: tuple[str, ...] = (
+    "sg_widgets_qt.primitives",
+    "sg_widgets_qt.primitives.button",
+    "sg_widgets_qt.primitives.select",
+    "sg_widgets_qt.primitives.checkbox",
+    "sg_widgets_qt.primitives.input",
+    "sg_widgets_qt.primitives.scrollbar",
+    "sg_widgets_qt.primitives.list_view",
+)
+
+#: Our size step as `primitives/button.py` spells it.
+BUTTON_SIZES: dict[str, str] = {"sm": "sm", "md": "default", "lg": "lg"}
+
+
 def primitive(name: str) -> Any:
     """The primitive of that name, or `None` while `primitives/` does not carry it."""
-    try:
-        module = __import__("sg_widgets_qt.primitives", fromlist=[name])
-    except Exception:
-        return None
-    return getattr(module, name, None)
+    for where in PRIMITIVE_MODULES:
+        try:
+            module = importlib.import_module(where)
+        except Exception:
+            continue
+        found = getattr(module, name, None)
+        if found is not None:
+            return found
+    return None
 
 
 class _Painted(QtWidgets.QWidget):
@@ -217,6 +240,9 @@ class ChromeButton(_Painted):
         if self._glyph:
             width += 22
         return QtCore.QSize(width, self.height())
+
+    def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802
+        return self.sizeHint()
 
     def _font(self) -> QtGui.QFont:
         weight = (
@@ -448,8 +474,100 @@ class ChromeSelect(_Painted):
         painter.end()
 
 
+class TextLine(QtWidgets.QWidget):
+    """One line of text in a token colour, at a size on the type scale."""
+
+    def __init__(
+        self,
+        text: str = "",
+        size: int = 13,
+        token: str = "muted_foreground",
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._text = text
+        self._size = size
+        self._token = token
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
+        watch_theme(self, lambda _theme: self.updateGeometry())
+
+    def text(self) -> str:
+        return self._text
+
+    def set_text(self, text: str) -> None:
+        self._text = text
+        self.updateGeometry()
+        self.update()
+
+    def sizeHint(self) -> QtCore.QSize:  # noqa: N802
+        metrics = QtGui.QFontMetrics(theme_of(self).font(self._size))
+        return QtCore.QSize(metrics.horizontalAdvance(self._text), metrics.height())
+
+    def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
+        theme = theme_of(self)
+        painter = QtGui.QPainter(self)
+        painter.setFont(theme.font(self._size))
+        painter.setPen(theme.color(self._token))
+        painter.drawText(
+            self.rect(),
+            int(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignLeft),
+            self._text,
+        )
+        painter.end()
+
+
+class Ground(QtWidgets.QWidget):
+    """A flat surface in one token, so the area behind a page is the theme's and not the host's."""
+
+    def __init__(self, token: str = "background", parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._token = token
+        watch_theme(self, lambda _theme: self.update())
+
+    def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
+        painter = QtGui.QPainter(self)
+        painter.fillRect(self.rect(), theme_of(self).color(self._token))
+        painter.end()
+
+
+class SwitchRow(QtWidgets.QWidget):
+    """The switch primitive with its label beside it, as one control."""
+
+    toggled = QtCore.Signal(bool)
+
+    def __init__(
+        self,
+        track: QtWidgets.QWidget,
+        label: str = "",
+        size: str = "md",
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setObjectName("switch")
+        self.track = track
+        track.setParent(self)
+        row = QtWidgets.QHBoxLayout(self)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        row.addWidget(track)
+        self.label = TextLine(label, 13, "muted_foreground", self)
+        row.addWidget(self.label)
+        self.setFixedHeight(HEIGHTS.get(size, HEIGHTS["md"]))
+        signal = getattr(track, "toggled", None)
+        if signal is not None:
+            signal.connect(self.toggled)
+
+    def is_checked(self) -> bool:
+        return bool(getattr(self.track, "checked", False))
+
+    def set_checked(self, checked: bool) -> None:
+        setter = getattr(self.track, "set_checked", None)
+        if setter is not None:
+            setter(bool(checked))
+
+
 class SearchField(QtWidgets.QWidget):
-    """A search box: the glyph, the input, and the surface they stand on."""
+    """A search box: the input primitive with the glyph in its leading slot."""
 
     text_changed = QtCore.Signal(str)
 
@@ -463,17 +581,25 @@ class SearchField(QtWidgets.QWidget):
         self.setObjectName("search-field")
         self._size = size
         self.setFixedHeight(HEIGHTS.get(size, HEIGHTS["md"]))
-        layout = QtWidgets.QHBoxLayout(self)
-        layout.setContentsMargins(28, 0, 8, 0)
-        layout.setSpacing(0)
-        self.input = QtWidgets.QLineEdit(self)
+        row = QtWidgets.QHBoxLayout(self)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(0)
+        made = _from_primitive("Input", placeholder=placeholder, size=size, parent=self)
+        self._painted = made is None
+        if made is None:
+            made = QtWidgets.QLineEdit(self)
+            made.setFrame(False)
+            made.setPlaceholderText(placeholder)
+            row.setContentsMargins(28, 0, 8, 0)
+        else:
+            setter = getattr(made, "set_leading_icon", None)
+            if setter is not None:
+                setter("search")
+        self.input = made
         self.input.setObjectName("search-input")
-        self.input.setFrame(False)
-        self.input.setPlaceholderText(placeholder)
         self.input.textChanged.connect(self.text_changed)
-        layout.addWidget(self.input)
-        watch_theme(self, self._restyle)
-        self._restyle(theme_of(self))
+        row.addWidget(self.input)
+        watch_theme(self, lambda theme: self.input.setFont(theme.font(13)))
 
     def text(self) -> str:
         return self.input.text()
@@ -481,11 +607,9 @@ class SearchField(QtWidgets.QWidget):
     def set_text(self, text: str) -> None:
         self.input.setText(text)
 
-    def _restyle(self, theme: Theme) -> None:
-        self.input.setFont(theme.font(13))
-        self.update()
-
     def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
+        if not self._painted:
+            return
         theme = theme_of(self)
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
@@ -500,13 +624,6 @@ class SearchField(QtWidgets.QWidget):
             "search",
             with_alpha(theme.color("muted_foreground"), 0.9),
         )
-        if self.input.hasFocus():
-            pen = QtGui.QPen(theme.color("ring"), 2.0)
-            painter.setPen(pen)
-            painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
-            painter.drawRoundedRect(
-                QtCore.QRectF(self.rect()).adjusted(1.0, 1.0, -1.0, -1.0), radius + 1.0, radius + 1.0
-            )
         painter.end()
 
 
@@ -522,7 +639,9 @@ def button(
     **extra: Any,
 ) -> QtWidgets.QWidget:
     """A button: the primitive where `primitives/button.py` carries one, else the painted one."""
-    made = _from_primitive("Button", text=text, variant=variant, size=size, parent=parent, **extra)
+    made = _from_primitive(
+        "Button", text=text, variant=variant, size=BUTTON_SIZES.get(size, "default"), parent=parent
+    )
     if made is None:
         made = ChromeButton(text=text, variant=variant, size=size, parent=parent, **extra)
     if on_click is not None:
@@ -540,14 +659,14 @@ def select(
     on_pick: Callable[[str], None] | None = None,
 ) -> QtWidgets.QWidget:
     """A select: the primitive where there is one, else the painted one."""
-    made = _from_primitive("Select", options=options, value=value, size=size, parent=parent)
+    made = _from_primitive("Select", items=list(options), value=value, size=size, parent=parent)
     if made is None:
         made = ChromeSelect(options, value=value, size=size, parent=parent)
     if on_pick is not None:
-        for name in ("picked", "value_changed", "currentTextChanged"):
+        for name in ("value_changed", "picked"):
             signal = getattr(made, name, None)
             if signal is not None:
-                signal.connect(on_pick)
+                signal.connect(lambda value: on_pick(str(value)))
                 break
     return made
 
@@ -560,11 +679,11 @@ def switch(
     on_toggle: Callable[[bool], None] | None = None,
 ) -> QtWidgets.QWidget:
     """A switch: the primitive where there is one, else the painted one."""
-    made = _from_primitive("Switch", label=label, checked=checked, size=size, parent=parent)
-    if made is None:
-        made = _from_primitive("Toggle", label=label, checked=checked, size=size, parent=parent)
-    if made is None:
-        made = ChromeSwitch(label=label, checked=checked, size=size, parent=parent)
+    track = _from_primitive("Switch", checked=checked, parent=None)
+    made: QtWidgets.QWidget
+    made = SwitchRow(track, label, size, parent) if track is not None else ChromeSwitch(
+        label=label, checked=checked, size=size, parent=parent
+    )
     if on_toggle is not None:
         signal = getattr(made, "toggled", None)
         if signal is not None:
@@ -590,14 +709,11 @@ def overlay_scroll_area(parent: QtWidgets.QWidget | None = None) -> QtWidgets.QS
     area.setWidgetResizable(True)
     area.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
     area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-    bar = primitive("OverlayScrollBar")
-    if bar is not None:
+    install = primitive("install_overlay_scrollbars")
+    if install is not None:
         try:
-            area.setVerticalScrollBar(bar(QtCore.Qt.Orientation.Vertical, area))
-        except TypeError:
-            try:
-                area.setVerticalScrollBar(bar(area))
-            except TypeError:
-                pass
+            install(area)
+        except Exception:  # A binding the overlay cannot hook keeps the styled native bar.
+            pass
     area.verticalScrollBar().setSingleStep(24)
     return area

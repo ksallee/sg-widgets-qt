@@ -63,6 +63,8 @@ class _LoadMoreProxy(QAbstractProxyModel):
         super().__init__(parent)
         self._visible = False
         self._label = "Load more"
+        # The proxy holds the caller's model, which Qt's own `setSourceModel` does not own.
+        self._source: QAbstractItemModel | None = None
 
     # --- the extra row ---
 
@@ -106,6 +108,7 @@ class _LoadMoreProxy(QAbstractProxyModel):
                     signal.disconnect(handler)
                 except (RuntimeError, TypeError):
                     pass
+        self._source = model
         super().setSourceModel(model)
         if model is not None:
             for signal, handler in self._wiring(model):

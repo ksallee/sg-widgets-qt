@@ -340,7 +340,7 @@ class WidgetPage(QtWidgets.QWidget):
         self.scroll = chrome.overlay_scroll_area(self)
         outer.addWidget(self.scroll)
 
-        body = QtWidgets.QWidget(self.scroll)
+        body = chrome.Ground("background", self.scroll)
         body.setObjectName("page-body")
         self._column = QtWidgets.QVBoxLayout(body)
         self._column.setContentsMargins(24, 24, 24, 24)

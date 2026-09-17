@@ -272,7 +272,7 @@ class Sidebar(QtWidgets.QWidget):
 
         self.scroll = chrome.overlay_scroll_area(self)
         self.scroll.setObjectName("sidebar-scroll")
-        body = QtWidgets.QWidget(self.scroll)
+        body = chrome.Ground("sidebar", self.scroll)
         body.setObjectName("sidebar-list")
         self._list = QtWidgets.QVBoxLayout(body)
         self._list.setContentsMargins(0, 0, 0, 0)
@@ -340,7 +340,7 @@ class HeaderBar(QtWidgets.QWidget):
         self.toolbar.setObjectName("header-toolbar")
         row.addWidget(self.toolbar, 1)
         self.project = chrome.ChromeSelect(
-            [(str(project_id), "Project %d" % project_id)], str(project_id), size="md", parent=self
+            [(str(project_id), f"Project {project_id}")], str(project_id), size="md", parent=self
         )
         self.project.setObjectName("project-picker")
         self.project.setEnabled(prefs.live)
@@ -386,9 +386,8 @@ class ShowcaseWindow(QtWidgets.QMainWindow):
         self._pages: dict[str, WidgetPage] = {}
         self._current = ""
 
-        central = QtWidgets.QWidget(self)
+        central = chrome.Ground("background", self)
         central.setObjectName("showcase-root")
-        central.setAutoFillBackground(True)
         row = QtWidgets.QHBoxLayout(central)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(0)
@@ -405,7 +404,7 @@ class ShowcaseWindow(QtWidgets.QMainWindow):
             self.prefs, live_available(), self.context.project_id, right
         )
         column.addWidget(self.header)
-        self.area = QtWidgets.QWidget(right)
+        self.area = chrome.Ground("background", right)
         self.area.setObjectName("page-area")
         self._area_layout = QtWidgets.QVBoxLayout(self.area)
         self._area_layout.setContentsMargins(0, 0, 0, 0)

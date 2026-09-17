@@ -1012,6 +1012,60 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "generated; Qt notes pending"
     },
+    "primitives/badge": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/badge.tsx": "d9fb280e266119c4b62a4c518e63152de27b094c68d3e5f8929d05bfb0c1bc6c",
+        "packages/react/src/registry/sg/components/leaf-classes.ts": "633c3bc111e74cfcc39112c4871ae292fffcb29fda8bdde07c7ea6fb18445468"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/badge.py",
+        "tests/qt/test_primitives_leaf.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Badge takes the chip ladder and a size keyword; Chip is the same surface with a picture slot."
+    },
+    "primitives/base": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/control-classes.ts": "2480811ee7be785c7460d96ea69f899321be0605d8c8ba7a659cdb0f37693a74",
+        "packages/react/src/registry/sg/components/leaf-classes.ts": "633c3bc111e74cfcc39112c4871ae292fffcb29fda8bdde07c7ea6fb18445468",
+        "packages/react/src/registry/sg/components/picker-classes.ts": "9f653879cf7ae20e7fe43e7aec684fad4ec3076b90b824f3a1fa633c5249994e"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/base.py",
+        "tests/qt/test_primitives_leaf.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The ladders in pixels, with the states, the motion and the chrome the painted leaves share."
+    },
+    "primitives/button": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/button.tsx": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/button.py",
+        "tests/qt/test_primitives_leaf.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "primitives/checkbox": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/checkbox.tsx": "8eaecbed1d1172914861bfabbce77f8313229e26999182707c030942d7b1497b",
+        "packages/react/src/components/ui/switch.tsx": "367ad27cfe2f4ce5648fd3941410d3c3504876ee23e4360a220f1e6cd05f5c2d",
+        "packages/react/src/components/ui/toggle.tsx": "48ab6456afc25c4cf79537252cb9512c5c2846d2b1796170eab8aca91ebf7ddf",
+        "packages/react/src/components/ui/toggle-group.tsx": "ea72fb41374a94a1585e282cc77b4c90de0c50715f912286646ec24f4c092c2d"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/checkbox.py",
+        "tests/qt/test_primitives_leaf.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Upstream's pressed prop on a toggle is checked here: pressed is the mouse state every painted leaf keeps."
+    },
     "primitives/icons": {
       "status": "complete",
       "upstream": {
@@ -1024,6 +1078,45 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
+    },
+    "primitives/input": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/input.tsx": "dab990dfefa0ba78854ab6602ad074270dba9d7d1262184d9bfbb62bd990903b",
+        "packages/react/src/components/ui/textarea.tsx": "82601c91ffc6c727d924162c78d7cb853114bcced4e2eb922a68ca12d4239c0f"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/input.py",
+        "tests/qt/test_primitives_leaf.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "QLineEdit and QPlainTextEdit are kept for the caret and the undo stack; the frame is off and the chrome is painted."
+    },
+    "primitives/label": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/label.tsx": "86232709f634da7f357a8aaec0e815f3f562604bb67202c88997fae97659b450",
+        "packages/react/src/components/ui/kbd.tsx": "d17724eb15923ea4f0432cd1cf22538addb14a386f4f9326661efcce7f97e33b",
+        "packages/react/src/components/ui/separator.tsx": "9a80ff8c110e0c55489509f4f82ebcc929c0174b59544047147b7134f86a54e7"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/label.py",
+        "tests/qt/test_primitives_leaf.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "primitives/skeleton": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/skeleton.tsx": "4c2af7fa9c645358a0fb188779deab6f0b981733b62befc25e18aaebea1350dc"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/skeleton.py",
+        "tests/qt/test_primitives_leaf.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The pulse is the shimmer of design rule 4, off under reduced motion."
     },
     "primitives/theme": {
       "status": "complete",

@@ -57,7 +57,7 @@ def parser() -> argparse.ArgumentParser:
 def rerun_on_qt5(argv: list[str]) -> int:
     """Run this driver again on `.venv-qt5`, with the rest of the flags."""
     if not QT5_PYTHON.is_file():
-        sys.stderr.write("no .venv-qt5 at %s\n" % QT5_PYTHON)
+        sys.stderr.write(f"no .venv-qt5 at {QT5_PYTHON}\n")
         return 2
     rest = [flag for flag in argv if flag != "--qt5"]
     env = dict(os.environ)
@@ -123,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         size = (int(width), int(height))
     except ValueError:
-        sys.stderr.write("unreadable viewport %r\n" % args.viewport)
+        sys.stderr.write(f"unreadable viewport {args.viewport!r}\n")
         return 2
 
     from qtpy import QtCore, QtWidgets
@@ -202,7 +202,7 @@ def main(argv: list[str] | None = None) -> int:
             window.grab().save(str(target))
             out["shot"] = str(target)
     except Exception as error:
-        out["error"] = "%s: %s" % (type(error).__name__, error)
+        out["error"] = f"{type(error).__name__}: {error}"
         failed = True
 
     out["console"] = console.as_json()

@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Iterable
 
 from ..theme import Theme, with_alpha
 
@@ -118,18 +117,18 @@ def inline(text: str) -> str:
     """One line of prose as HTML: code, links, bold, italic and the `kbd` runs of a table."""
     spans: list[str] = []
 
-    def take(match: "re.Match[str]") -> str:
+    def take(match: re.Match[str]) -> str:
         spans.append(match.group(1))
-        return "\x00%d\x00" % (len(spans) - 1)
+        return f"\x00{len(spans) - 1}\x00"
 
     out = _CODE_SPAN.sub(take, text)
     out = _escape(out)
-    out = _KBD.sub(lambda m: '<span class="key">%s</span>' % m.group(1), out)
-    out = _LINK.sub(lambda m: '<a href="%s">%s</a>' % (m.group(2), m.group(1)), out)
-    out = _BOLD.sub(lambda m: "<b>%s</b>" % m.group(1), out)
-    out = _ITALIC.sub(lambda m: "<i>%s</i>" % m.group(1), out)
+    out = _KBD.sub(lambda m: f'<span class="key">{m.group(1)}</span>', out)
+    out = _LINK.sub(lambda m: f'<a href="{m.group(2)}">{m.group(1)}</a>', out)
+    out = _BOLD.sub(lambda m: f"<b>{m.group(1)}</b>", out)
+    out = _ITALIC.sub(lambda m: f"<i>{m.group(1)}</i>", out)
     for index, span in enumerate(spans):
-        out = out.replace("\x00%d\x00" % index, '<code>%s</code>' % _escape(span))
+        out = out.replace(f"\x00{index}\x00", f"<code>{_escape(span)}</code>")
     return out
 
 
@@ -141,9 +140,9 @@ def _table(rows: list[str]) -> str:
     head = cells[0]
     body = [row for row in cells[2:]] if len(cells) > 2 else []
     out = ['<table class="md" cellspacing="0" cellpadding="0" width="100%">']
-    out.append("<tr>" + "".join("<th>%s</th>" % inline(cell) for cell in head) + "</tr>")
+    out.append("<tr>" + "".join(f"<th>{inline(cell)}</th>" for cell in head) + "</tr>")
     for row in body:
-        out.append("<tr>" + "".join("<td>%s</td>" % inline(cell) for cell in row) + "</tr>")
+        out.append("<tr>" + "".join(f"<td>{inline(cell)}</td>" for cell in row) + "</tr>")
     out.append("</table>")
     return "".join(out)
 
@@ -168,14 +167,13 @@ def to_html(source: str, _theme: Theme | None = None) -> str:
                 code.append(lines[index])
                 index += 1
             index += 1
-            out.append('<pre class="code">%s</pre>' % _escape("\n".join(code)))
+            out.append(f'<pre class="code">{_escape(chr(10).join(code))}</pre>')
             continue
 
         if stripped.startswith("#"):
             level = len(stripped) - len(stripped.lstrip("#"))
-            out.append(
-                "<h%d>%s</h%d>" % (min(level, 3), inline(stripped[level:].strip()), min(level, 3))
-            )
+            depth = min(level, 3)
+            out.append(f"<h{depth}>{inline(stripped[level:].strip())}</h{depth}>")
             index += 1
             continue
 
@@ -197,7 +195,7 @@ def to_html(source: str, _theme: Theme | None = None) -> str:
                     item.append(lines[index].strip())
                     index += 1
                 items.append(" ".join(item))
-            out.append("<ul>" + "".join("<li>%s</li>" % inline(item) for item in items) + "</ul>")
+            out.append("<ul>" + "".join(f"<li>{inline(item)}</li>" for item in items) + "</ul>")
             continue
 
         if stripped.startswith("> "):
@@ -205,7 +203,7 @@ def to_html(source: str, _theme: Theme | None = None) -> str:
             while index < len(lines) and lines[index].strip().startswith("> "):
                 quote.append(lines[index].strip()[2:])
                 index += 1
-            out.append('<p class="quote">%s</p>' % inline(" ".join(quote)))
+            out.append(f'<p class="quote">{inline(" ".join(quote))}</p>')
             continue
 
         paragraph: list[str] = []
@@ -215,7 +213,7 @@ def to_html(source: str, _theme: Theme | None = None) -> str:
                 break
             paragraph.append(current)
             index += 1
-        out.append("<p>%s</p>" % inline(" ".join(paragraph)))
+        out.append(f"<p>{inline(' '.join(paragraph))}</p>")
     return "".join(out)
 
 

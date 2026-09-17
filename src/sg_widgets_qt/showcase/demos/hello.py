@@ -161,8 +161,8 @@ def _leaf(context: DemoContext, parent: QtWidgets.QWidget) -> QtWidgets.QWidget 
     if builder is None:
         return None
     try:
-        return builder(context, parent)
-    except Exception:
+        return builder(parent)
+    except Exception:  # The leaf page is a bonus; a demo never fails over it.
         return None
 
 

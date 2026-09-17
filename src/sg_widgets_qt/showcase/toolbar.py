@@ -6,7 +6,7 @@ a list of pref keys, so the header and each stage's caption carry the same contr
 """
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from qtpy import QtCore, QtWidgets
 

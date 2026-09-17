@@ -87,15 +87,20 @@ def popup_flags() -> Qt.WindowFlags:
 
 
 def anchor_rect(widget: QtWidgets.QWidget) -> QRect:
-    """A widget's rectangle in global coordinates."""
-    return QRect(widget.mapToGlobal(QPoint(0, 0)), widget.size())
+    """A widget's rectangle in global coordinates.
+
+    The size comes from `width` and `height` rather than `size`, which a widget carrying a
+    `size` prop of its own shadows.
+    """
+    top_left = widget.mapToGlobal(QPoint(0, 0))
+    return QRect(top_left.x(), top_left.y(), widget.width(), widget.height())
 
 
 def available_rect(widget: QtWidgets.QWidget) -> QRect:
     """The usable area of the screen the widget is on."""
     screen = None
     getter = getattr(widget, "screen", None)
-    if getter is not None:
+    if callable(getter):
         screen = getter()
     if screen is None:
         app = QtGui.QGuiApplication.instance()
@@ -649,8 +654,8 @@ def _label(
     theme = theme_of(parent)
     weight = QtGui.QFont.Weight.Medium if medium else QtGui.QFont.Weight.Normal
     label.setFont(theme.font(14, weight))
-    token = "muted_foreground" if muted else "popover_foreground"
-    palette = label.palette()
-    palette.setColor(QtGui.QPalette.ColorRole.WindowText, theme.color(token))
-    label.setPalette(palette)
+    # A colour on the label itself, because the root's generated stylesheet sets `QLabel`'s
+    # own `color` and would otherwise win over a palette role.
+    ink = theme.color("muted_foreground" if muted else "popover_foreground")
+    label.setStyleSheet(f"color: rgba({ink.red()}, {ink.green()}, {ink.blue()}, {ink.alpha()});")
     return label

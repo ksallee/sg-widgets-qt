@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from qtpy.QtCore import QEvent, QModelIndex, QRect, QSize, Qt
+from qtpy.QtCore import QEvent, QModelIndex, QRect, QRectF, QSize, Qt
 from qtpy.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPixmap
 from qtpy.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem, QToolTip, QWidget
 
@@ -376,7 +376,7 @@ class RowDelegate(QStyledItemDelegate):
                 Qt.TransformationMode.SmoothTransformation,
             )
             path = QPainterPath()
-            path.addRoundedRect(slot, radius, radius)
+            path.addRoundedRect(QRectF(slot), radius, radius)
             painter.save()
             painter.setClipPath(path)
             painter.drawPixmap(

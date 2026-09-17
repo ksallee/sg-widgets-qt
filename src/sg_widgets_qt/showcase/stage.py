@@ -15,7 +15,6 @@ from __future__ import annotations
 import importlib
 import logging
 import time
-from typing import Any
 
 from qtpy import QtCore, QtGui, QtWidgets
 
@@ -165,7 +164,7 @@ class DemoStage(QtWidgets.QWidget):
         try:
             module = importlib.import_module(demo_module_name(self.data_name))
         except ImportError:
-            self._body.addWidget(_Line("No demo for %s yet" % self.data_name, "muted", self._stage))
+            self._body.addWidget(_Line(f"No demo for {self.data_name} yet", "muted", self._stage))
             self._built_at = time.monotonic()
             self.built.emit()
             return
@@ -173,7 +172,7 @@ class DemoStage(QtWidgets.QWidget):
             widget = module.build(context, self._stage)
         except Exception as error:  # A broken demo never takes the page with it.
             log.exception("demo %s failed to build", self.data_name)
-            self._error = "%s: %s" % (type(error).__name__, error)
+            self._error = f"{type(error).__name__}: {error}"
             self._body.addWidget(_Line(self._error, "destructive", self._stage))
             self._built_at = time.monotonic()
             self.built.emit()
@@ -325,6 +324,3 @@ class _Line(QtWidgets.QWidget):
         )
         painter.end()
 
-
-def _unused(_value: Any) -> None:
-    """Kept so the module's typing import is used where a binding drops it."""

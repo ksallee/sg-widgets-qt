@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 __all__ = [
     "ENV_KEYS",
@@ -165,13 +165,10 @@ def _live_client(values: dict[str, str]) -> Any:
 
 def _wrap(client: Any, site_url: str) -> Any:
     try:
-        from sg_widgets_core.context import create_sg_context  # type: ignore[attr-defined]
+        from sg_widgets_core.context import SgContextOptions, create_sg_context
     except Exception:
         return _PlaceholderContext(client, site_url)
-    try:
-        return create_sg_context(client=client, site_url=site_url)
-    except TypeError:
-        return create_sg_context(client=client)
+    return create_sg_context(client, SgContextOptions(site_url=site_url or None))
 
 
 # --- the context -----------------------------------------------------------------------------
@@ -284,7 +281,3 @@ def clear_demo_context() -> None:
     """Forget the shared contexts. The next call builds them again."""
     _SHARED.clear()
 
-
-def on_thread(fn: Callable[..., Any]) -> Callable[..., Any]:
-    """The callable a demo hands to a worker: the read, with no Qt in it."""
-    return fn

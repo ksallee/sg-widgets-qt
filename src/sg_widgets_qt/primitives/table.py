@@ -61,7 +61,7 @@ def _pad_y(density: str) -> int:
 class HeaderDelegate(QHeaderView):
     """The header row: its labels, its sort arrow, its rule and its resize handles."""
 
-    sort_requested = Signal(int, int)
+    sort_requested = Signal(int, object)
 
     def __init__(self, parent: QWidget | None = None, density: str = "default") -> None:
         super().__init__(Qt.Orientation.Horizontal, parent)
@@ -100,7 +100,7 @@ class HeaderDelegate(QHeaderView):
         if self.sortIndicatorSection() == column and self.sortIndicatorOrder() == order:
             order = Qt.SortOrder.DescendingOrder
         self.setSortIndicator(column, order)
-        self.sort_requested.emit(column, int(order))
+        self.sort_requested.emit(column, order)
 
     def paintSection(self, painter: QPainter, rect: QRect, column: int) -> None:  # noqa: N802
         theme = self._theme()
@@ -228,7 +228,7 @@ class CellDelegate(QStyledItemDelegate):
 class TableSurface(QTableView):
     """A table wearing the shadcn look: no grid, a rule per row, and our overlay scrollbars."""
 
-    sort_requested = Signal(int, int)
+    sort_requested = Signal(int, object)
 
     def __init__(self, parent: QWidget | None = None, density: str = "default") -> None:
         super().__init__(parent)
