@@ -174,8 +174,8 @@ class Badge(ThemedWidget):
         return QtCore.QSize(min(self._natural_width(), CHIP_HEIGHT[self.size_step]), CHIP_HEIGHT[self.size_step])
 
     def _corner(self) -> float:
-        """A badge is a pill, `rounded-4xl` upstream."""
-        return CHIP_HEIGHT[self.size_step] / 2.0
+        """`rounded-4xl` upstream: 2.6 of the theme's radius, a pill at most, square at radius none."""
+        return min(float(self.theme.radius_px("4xl")), CHIP_HEIGHT[self.size_step] / 2.0)
 
     def _box(self) -> QtCore.QRect:
         height = min(self.height(), CHIP_HEIGHT[self.size_step])

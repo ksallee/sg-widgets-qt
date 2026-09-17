@@ -502,7 +502,7 @@
       "note": "generated; Qt notes pending"
     },
     "docs/core-client": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
         "apps/site/src/content/docs/core/client.mdx": "3c0d23a8b029b5499231fd84864ded27fe4777c3fe1d02ac1b99d75b87819254"
       },
@@ -510,10 +510,10 @@
         "docs/core/client.md"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "generated; Qt rewrite pending"
+      "note": ""
     },
     "docs/core-context": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
         "apps/site/src/content/docs/core/context.mdx": "998fc99a41173186eb16971af50b223792267667684efc3c31da7a0f56c76db2"
       },
@@ -521,10 +521,10 @@
         "docs/core/context.md"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "generated; Qt rewrite pending"
+      "note": ""
     },
     "docs/core-index": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
         "apps/site/src/content/docs/core/index.mdx": "dd43cd29c2b67917e03d7e91559171ce07d302b747703fc784fe304d848ed2f1"
       },
@@ -532,7 +532,7 @@
         "docs/core/index.md"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "generated; Qt rewrite pending"
+      "note": ""
     },
     "docs/date-editor": {
       "status": "partial",
@@ -968,7 +968,7 @@
       "note": "generated; Qt notes pending"
     },
     "docs/start-install": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
         "apps/site/src/content/docs/start/install.mdx": "b1aa330214bdb3355ab1c13f2792fada2867d9fb41d39e195d1d9d9c78bd506a"
       },
@@ -976,10 +976,10 @@
         "docs/start/install.md"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "generated; Qt rewrite pending"
+      "note": ""
     },
     "docs/start-introduction": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
         "apps/site/src/content/docs/start/introduction.mdx": "ed84830a6736e9ae17a3eef20dcca4696c724f7bc67b7537b8b7098666be6aa2"
       },
@@ -987,7 +987,7 @@
         "docs/start/introduction.md"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "generated; Qt rewrite pending"
+      "note": ""
     },
     "docs/state-line": {
       "status": "partial",
@@ -1137,6 +1137,17 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "generated; Qt notes pending"
+    },
+    "docs/widgets-index": {
+      "status": "complete",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/index.mdx": "4b0021fe7c312d9e8b2826465c7ee3c2012a9f7b31ab9b93a3cb39245e8ee4c8"
+      },
+      "ported": [
+        "docs/widgets/index.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
     },
     "primitives/badge": {
       "status": "complete",

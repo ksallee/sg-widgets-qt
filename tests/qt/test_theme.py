@@ -92,8 +92,9 @@ def test_radius_ladder(qapp):
     assert theme.radius_px("full") == 9999
     assert theme.with_(radius=0).radius_px("sm") == 0
     assert theme.radius_px("2xl") == 18
+    assert theme.radius_px("4xl") == 26
     with pytest.raises(KeyError):
-        theme.radius_px("3xl")
+        theme.radius_px("5xl")
 
 
 def test_with_derives(qapp):

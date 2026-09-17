@@ -1,51 +1,49 @@
 ---
 title: Install
-description: How a host app installs the widgets, and the one line it runs by hand.
+description: How a host app installs the widgets, and how the showcase runs.
 ---
 
-One command installs every item of a registry.
-::qt-note
+One command installs the widgets and the core.
 
 ```sh
-pnpm dlx shadcn@latest add https://sg-widgets.dev/r/react/sg-widgets.json
-pnpm dlx shadcn-svelte@latest add https://sg-widgets.dev/r/svelte/sg-widgets.json
+pip install sg-widgets-qt
 ```
 
-A widget page names its own item, for a host that wants one widget rather than the set.
+It brings qtpy and shotgun_api3. It brings no Qt binding, because the host supplies that one.
 
-Run `init` first. It writes `components.json`, the stylesheet and `lib/utils`, and installs the
-packages those need. Every item imports `lib/utils`, and no item generates it.
+Maya, Houdini, Nuke and the other DCCs ship a Qt binding and import it before your code runs. qtpy
+binds to the binding already imported, so a DCC needs nothing beyond the line above. Installing a
+second binding into a DCC's interpreter is what breaks it.
 
-Every item names `@sg-widgets/core`. That package is not on npm. The CLI installs an item's packages
-in one call, and the call fails on that name, so it installs nothing. Run the line for your
-framework before `add`, with core pointed at a local checkout.
+Outside a DCC, name a binding as an extra.
 
 ```sh
-pnpm add @sg-widgets/core@link:../sg-widgets/packages/core \
-  @base-ui/react lucide-react class-variance-authority \
-  @tanstack/react-table @tanstack/react-virtual \
-  cn react-day-picker date-fns tw-animate-css
+pip install "sg-widgets-qt[pyside6]"
+pip install "sg-widgets-qt[pyqt5]"
 ```
+
+PySide2 and PyQt6 have no extra of their own. Install either by name beside the package. Where more
+than one binding is importable, `QT_API` picks which one qtpy takes.
+
+The showcase runs from the installed package.
 
 ```sh
-pnpm add @sg-widgets/core@link:../sg-widgets/packages/core \
-  bits-ui @lucide/svelte @internationalized/date \
-  @tanstack/svelte-table @tanstack/virtual-core \
-  clsx tailwind-merge tailwind-variants tw-animate-css
+python -m sg_widgets_qt.showcase
 ```
 
-Each line is the union of what the items name and what the shadcn primitives they pull import. A
-host installing one widget needs less.
-::qt-note
+It holds one page per widget, with a demo, the props, signals, slots and keyboard tables, and the
+prose. The demos run on `MockClient`, so it needs no site. The toolbar's source select offers Live
+when `.env.local` sits beside the checkout and holds `FPT_API_SITE_URL`, `FPT_API_SCRIPT_NAME` and
+`FPT_API_API_KEY`. Live mode reads the site those three name and writes nothing. The file is read for
+those keys alone, and nothing prints their values.
 
-With the line in place, `shadcn add` names only the packages `package.json` lacks, so its call
-succeeds and the files land. `shadcn-svelte add` writes the files first and then fails on its
-install call. Either way `package.json` is left as it was, `link:` included.
-::qt-note
+Work on the package itself starts from a checkout.
 
-This registry ships its own `command` and `popover` for React, and its own `command`, `select` and
-`checkbox` for Svelte. A host that already has a primitive of that name is asked before it is
-overwritten. Accept, or pass `--overwrite`. A host that keeps its own `command` has no status part,
-and `search-control` fails to compile against it; one that keeps its own `popover` has no
-`positionMethod`, and the date editors fail the same way.
-::qt-note
+```sh
+uv venv --python 3.9 .venv && uv pip install -e . --group dev
+uv run pytest
+python tools/sync_status.py
+```
+
+The dev group brings pytest, pytest-qt and PySide6. `sync_status.py` lists what changed in
+sg-widgets since the last port.

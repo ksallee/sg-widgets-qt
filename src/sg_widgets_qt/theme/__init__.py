@@ -100,7 +100,7 @@ RADII: dict[str, int | None] = {
 
 #: The ladder a widget rounds on, as an offset from the theme's radius. `full` is a pill.
 # Upstream `global.css`: sm 0.6, md 0.8, lg 1, xl 1.4, 2xl 1.8 of `--radius`.
-RADIUS_LADDER: dict[str, float] = {"sm": 0.6, "md": 0.8, "lg": 1.0, "xl": 1.4, "2xl": 1.8}
+RADIUS_LADDER: dict[str, float] = {"sm": 0.6, "md": 0.8, "lg": 1.0, "xl": 1.4, "2xl": 1.8, "3xl": 2.2, "4xl": 2.6}
 RADIUS_FULL = 9999
 
 _PROPERTY = "_sg_theme"
