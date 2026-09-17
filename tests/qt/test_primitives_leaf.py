@@ -346,22 +346,28 @@ def test_an_expanded_button_keeps_its_hover_background(root):
     assert image(button) != plain
 
 
-def test_an_inert_field_wears_the_input_wash_and_fades_its_placeholder(root):
-    # `disabled:bg-input/50 disabled:opacity-50` of `input.tsx`: an inert field is not a plain
-    # box, and the ink Qt draws itself takes the inert step on the colour, since no painter
-    # opacity reaches it.
-    theme = theme_for("default")
+def test_an_inert_field_wears_the_input_wash(root):
+    # `disabled:bg-input/50` of `input.tsx`: an inert field is not a plain box.
     live = place(root, Input(placeholder="https://example.com/plate.mov"))
     inert = place(root, Input(placeholder="https://example.com/plate.mov"))
     inert.setEnabled(False)
     QtWidgets.QApplication.processEvents()
-
-    role = QtGui.QPalette.ColorRole
-    assert live.palette().color(role.PlaceholderText) == theme.color("muted_foreground")
-    assert inert.palette().color(role.PlaceholderText).alpha() == 128
-
     middle = (live.width() // 2, live.height() // 2)
     assert inert.grab().toImage().pixelColor(*middle) != live.grab().toImage().pixelColor(*middle)
+
+
+def test_an_inert_field_fades_the_ink_qt_draws_itself(root):
+    # `disabled:opacity-50` reaches the placeholder too, and no painter opacity does, so the
+    # inert step is on the colour the palette carries.
+    theme = theme_for("default")
+    role = QtGui.QPalette.ColorRole
+    field = Input(placeholder="https://example.com/plate.mov", parent=root)
+    field.apply_theme_to_palette()
+    assert field.palette().color(role.PlaceholderText).name() == theme.color("muted_foreground").name()
+    assert field.palette().color(role.PlaceholderText).alpha() == 255
+    field.setEnabled(False)
+    field.apply_theme_to_palette()
+    assert field.palette().color(role.PlaceholderText).alpha() == 128
 
 
 def test_the_switch_thumb_is_the_glyph_step(root):

@@ -10,6 +10,7 @@ from qtpy.QtWidgets import QStyleOptionViewItem, QWidget
 
 from sg_widgets_core.picker import PickerRow
 from sg_widgets_core.render import initials_of, name_hue
+from sg_widgets_core.status import StatusRecord
 from sg_widgets_qt.images import ImageLoader
 from sg_widgets_qt.primitives.roles import Roles
 from sg_widgets_qt.primitives.row_delegate import initials_of as delegate_initials
@@ -110,8 +111,10 @@ def test_a_person_with_no_picture_falls_back_to_initials(host):
     assert model.data(model.index(0, 0), Roles.INITIALS) == "AL"
 
 
-def test_a_status_secondary_draws_as_a_glyph_and_a_name(host):
-    paint = status_painter("In progress", "#2563eb")
+def test_a_status_secondary_draws_as_the_badge(host):
+    """A status in a row's secondary column is a value, and rule 9 draws a value as the badge."""
+    record = StatusRecord(id=1, code="ip", name="In Progress", bg_color="38,141,255")
+    paint = status_painter("ip", statuses={"ip": record})
     option = QStyleOptionViewItem()
     option.widget = host
     canvas = QPixmap(200, 24)
@@ -121,14 +124,18 @@ def test_a_status_secondary_draws_as_a_glyph_and_a_name(host):
     device.end()
     image = canvas.toImage()
     marks = [
-        image.pixelColor(x, y)
+        (x, y)
         for x in range(image.width())
         for y in range(image.height())
         if image.pixelColor(x, y) != QColor(255, 255, 255)
     ]
-    # The status colour is drawn as the dot, and the name beside it.
     assert marks
-    assert any(colour.blue() > colour.red() for colour in marks)
+    # The badge is a bordered pill at the trailing edge, not a bare line of text.
+    left = min(x for x, _ in marks)
+    assert left > image.width() // 3
+    top = min(y for _, y in marks)
+    bottom = max(y for _, y in marks)
+    assert any(x == left and top < y < bottom for x, y in marks)
 
 
 def test_the_thumbnail_field_turns_the_leading_slot_off(host):
@@ -262,3 +269,14 @@ def test_a_page_landing_under_the_rows_is_an_insert_not_a_reset(qtbot):
     model.set_rows([ADA])
     assert events == ["reset"]
     assert model.rowCount() == 1
+
+
+def test_the_sub_label_marks_its_matched_runs_too(host):
+    """A row matched on its email shows why, as upstream's MatchText on the sub-label does."""
+    model = PickerRowModel([ADA], host, query="ada", sub_label_field="email")
+    runs = model.data(model.index(0, 0), Roles.SUB_RUNS)
+    assert "".join(text for text, _ in runs) == "ada@example.test"
+    assert [text for text, matched in runs if matched] == ["ada"]
+    # A row with no query marks nothing and keeps its line whole.
+    plain = PickerRowModel([ADA], host, sub_label_field="email")
+    assert [text for text, matched in plain.data(plain.index(0, 0), Roles.SUB_RUNS) if matched] == []

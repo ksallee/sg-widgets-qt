@@ -17,11 +17,11 @@ it is an option rather than a value.
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any
 
 from qtpy.QtCore import QAbstractListModel, QModelIndex, QObject, QRect, QSize, Qt, Signal
-from qtpy.QtGui import QColor, QPainter, QPixmap
+from qtpy.QtGui import QPainter, QPixmap
 from qtpy.QtWidgets import QSizePolicy, QStyle, QStyleOptionViewItem, QWidget
 
 from sg_widgets_core.picker import entity_key, placeholder_name
@@ -43,14 +43,14 @@ from sg_widgets_core.row import (
     secondary_type,
 )
 from sg_widgets_core.search import match_runs
-from sg_widgets_core.status import status_paint
 
 from ..images import ImageLoader, image_loader
 from ..primitives.roles import Roles
-from ..primitives.row_delegate import CODE_TEXT, LEAD, RowDelegate
+from ..primitives.row_delegate import LEAD, RowDelegate
 from ..theme import theme_of, watch_theme
 from ..workers import default_pool
 from .entity_glyphs import entity_glyph
+from .field_value import FieldValueOptions, field_value_size_hint, paint_field_value
 
 __all__ = [
     "PEOPLE_TYPES",
@@ -65,9 +65,8 @@ PEOPLE_TYPES: tuple[str, ...] = ("HumanUser", "ApiUser", "ClientUser")
 #: The crumb separator a hierarchy row draws before its label.
 CRUMB_SEPARATOR = " › "
 
-#: The dot a status secondary leads with, and the room between it and the label.
-STATUS_DOT = 8
-STATUS_GAP = 6
+#: The data type a status secondary is drawn by (`field_types/status_list`).
+STATUS_TYPE = "status_list"
 
 RowLike = Any
 """A core `PickerRow`, or anything carrying `type`, `id`, `name` and `values`."""
@@ -76,43 +75,37 @@ RowLike = Any
 _ROOT = QModelIndex()
 
 
-def status_painter(label: str, color: str | None) -> Callable[..., None]:
-    """A painter for a status secondary: the status colour as a dot, then its name.
+def status_painter(
+    code: str,
+    field: Any = None,
+    statuses: Mapping[str, Any] | None = None,
+    site_url: str = "",
+    on_ready: Callable[[], None] | None = None,
+) -> Callable[..., None]:
+    """A painter for a status secondary: the badge, right-aligned in the column it is given.
 
-    A status offered as an option is its glyph and its name as plain text, rule 9. The badge
-    is what a status is where it is a value, which a cell draws instead.
+    A status in a row's secondary column is a value rather than an option, and rule 9 draws a
+    value as the badge; `paint_field_value` is the one face that badge is drawn by, so a row
+    and a table cell read the same.
     """
 
     def paint(painter: QPainter, rect: QRect, option: QStyleOptionViewItem) -> None:
         widget = getattr(option, "widget", None)
         theme = theme_of(widget) if widget is not None else None
-        selected = bool(option.state & QStyle.StateFlag.State_Selected)
         if theme is None:
-            ink = QColor(128, 128, 128)
-        else:
-            ink = theme.color("accent_foreground" if selected else "muted_foreground")
-        painter.setFont(theme.font(CODE_TEXT) if theme is not None else painter.font())
-        metrics = painter.fontMetrics()
-        text = metrics.elidedText(
-            label, Qt.TextElideMode.ElideRight, max(0, rect.width() - STATUS_DOT - STATUS_GAP)
+            return
+        options = FieldValueOptions(
+            theme=theme,
+            field=field,
+            statuses=statuses,
+            site_url=site_url,
+            selected=bool(option.state & QStyle.StateFlag.State_Selected),
+            on_ready=on_ready,
         )
-        width = metrics.horizontalAdvance(text)
-        right = rect.right() + 1
-        box = QRect(right - width, rect.top(), width, rect.height())
-        painter.setPen(ink)
-        painter.drawText(
-            box, int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter), text
-        )
-        if color:
-            dot = QRect(
-                box.left() - STATUS_GAP - STATUS_DOT,
-                rect.center().y() - STATUS_DOT // 2,
-                STATUS_DOT,
-                STATUS_DOT,
-            )
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QColor(color))
-            painter.drawEllipse(dot)
+        wanted = field_value_size_hint(code, STATUS_TYPE, options).width()
+        width = max(0, min(wanted, rect.width()))
+        box = QRect(rect.right() + 1 - width, rect.top(), width, rect.height())
+        paint_field_value(painter, box, code, STATUS_TYPE, options)
 
     return paint
 
@@ -425,6 +418,9 @@ class PickerRowModel(QAbstractListModel):
             return row_code(_values(row), label, self._show_code)
         if role == Roles.SUB_LABEL:
             return self._sub_label_of(row, anatomy)
+        if role == Roles.SUB_RUNS:
+            sub = self._sub_label_of(row, anatomy)
+            return [(run.text, run.match) for run in match_runs(sub, self._query)] if sub else []
         if role == Roles.SECONDARY:
             return self._secondary_text(row, anatomy)
         if role == Roles.PAINTER:
@@ -509,11 +505,13 @@ class PickerRowModel(QAbstractListModel):
         data_type = secondary_type(anatomy, getattr(self._field, "data_type", None))
         if render_kind_for(data_type) != "status":
             return None
-        code = str(raw)
-        record = self._statuses.get(code)
-        paint = status_paint(record)
-        label = getattr(record, "name", "") or self._status_label(code)
-        return status_painter(label or code, paint.background if paint else None)
+        return status_painter(
+            str(raw),
+            field=self._field,
+            statuses=self._statuses,
+            site_url=self.site_url,
+            on_ready=self._redraw,
+        )
 
     def _status_label(self, code: str) -> str:
         values = getattr(self._field, "display_values", None)

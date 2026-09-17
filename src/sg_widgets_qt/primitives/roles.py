@@ -53,3 +53,5 @@ class Roles(IntEnum):
     PAINTER = int(Qt.ItemDataRole.UserRole) + 13
     #: True on a column that sorts, read by `HeaderDelegate`.
     SORTABLE = int(Qt.ItemDataRole.UserRole) + 14
+    #: The sub-label as runs, so a row matched on its login or its email shows why.
+    SUB_RUNS = int(Qt.ItemDataRole.UserRole) + 15

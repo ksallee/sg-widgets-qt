@@ -108,6 +108,35 @@ def load_drive(path: str) -> object:
     return found
 
 
+def grab_with_popups(window: object) -> tuple:
+    """The window, with every popup standing over it drawn where it stands.
+
+    A popover here is a top-level window of its own, so `QWidget.grab` on the showcase window
+    answers a page with no list on it and a shot of an open picker would show the control alone.
+    The popups are grabbed in stacking order and painted at their offset from the window, which
+    is what a reader sees and what the upstream shot — one DOM — carries by itself.
+    """
+    from qtpy import QtCore, QtGui, QtWidgets
+
+    shot = window.grab()
+    ratio = shot.devicePixelRatio() or 1.0
+    origin = window.mapToGlobal(QtCore.QPoint(0, 0))
+    drawn: list = []
+    painter = QtGui.QPainter(shot)
+    for other in QtWidgets.QApplication.topLevelWidgets():
+        if other is window or not other.isVisible() or other.isHidden():
+            continue
+        if other.width() <= 0 or other.height() <= 0:
+            continue
+        where = other.mapToGlobal(QtCore.QPoint(0, 0)) - origin
+        painter.drawPixmap(where, other.grab())
+        drawn.append({"name": other.objectName() or type(other).__name__, "at": [where.x(), where.y()]})
+    painter.end()
+    if ratio:
+        shot.setDevicePixelRatio(ratio)
+    return shot, drawn
+
+
 #: How long the driver gives the reads in flight to land before it closes the window.
 DRAIN_MS = 4000
 
@@ -224,8 +253,10 @@ def main(argv: list[str] | None = None) -> int:
             target = Path(args.shot)
             target.parent.mkdir(parents=True, exist_ok=True)
             wait(120)
-            window.grab().save(str(target))
+            shot, over = grab_with_popups(window)
+            shot.save(str(target))
             out["shot"] = str(target)
+            out["popups"] = over
     except Exception as error:
         out["error"] = f"{type(error).__name__}: {error}"
         failed = True

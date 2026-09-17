@@ -372,13 +372,13 @@ class RowDelegate(QStyledItemDelegate):
 
         if sub:
             sub_box = QRect(box.left(), top + label_height, box.width(), sub_height)
-            painter.setFont(theme.font(CODE_TEXT))
-            painter.setPen(muted)
-            shown = elide(painter, sub, sub_box.width())
-            cut = cut or shown != sub
-            painter.drawText(
-                sub_box, int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter), shown
-            )
+            # The sub-label marks its matched runs too, so a row matched on its login or its
+            # email shows why it came back, as upstream's `MatchText` does there.
+            sub_runs = _sub_runs(index, sub)
+            quiet = theme.font(CODE_TEXT)
+            heavy = theme.font(CODE_TEXT, QFont.Weight.DemiBold)
+            painter.setFont(quiet)
+            cut = _draw_runs(painter, sub_box, sub_runs, quiet, heavy, muted, muted) or cut
 
         if cut:
             self._elided.add(index.row())
@@ -524,6 +524,19 @@ def label_weight(runs: Sequence[tuple[str, bool, bool]]) -> QFont.Weight:
     """
     crumbed = any(len(run) > 2 and run[2] for run in runs)
     return QFont.Weight.Medium if crumbed else QFont.Weight.Normal
+
+
+def _sub_runs(index: QModelIndex, sub: str) -> list[tuple[str, bool, bool]]:
+    """The sub-label as runs, or one plain run of it where the model marks none."""
+    value = index.data(Roles.SUB_RUNS)
+    if isinstance(value, Sequence) and not isinstance(value, str):
+        out: list[tuple[str, bool, bool]] = []
+        for run in value:
+            if isinstance(run, Sequence) and not isinstance(run, str) and len(run) >= 2:
+                out.append((str(run[0]), bool(run[1]), False))
+        if out:
+            return out
+    return [(sub, False, False)]
 
 
 def _runs(index: QModelIndex) -> list[tuple[str, bool, bool]]:

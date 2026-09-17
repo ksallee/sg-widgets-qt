@@ -74,6 +74,13 @@ def wait_for(read, wait, ms: int = 10000) -> bool:
     return False
 
 
+def _pictures(control: PickerControl) -> int:
+    """How many rows on show have their picture, which the shot waits for."""
+    model = control.list_surface().source_model()
+    held = getattr(model, "_pictures", None)
+    return len(held) if held is not None else 1
+
+
 def demo_widget(page):
     for stage in page.stages:
         found = stage.widget
@@ -128,7 +135,8 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
         paged = next((one for one in found if demo_of(one) == "more"), control)
         paged.set_open(True)
         wait_for(lambda: paged.list_surface().row_count() > 0, wait)
-        wait(500)
+        wait_for(lambda: _pictures(paged) > 0, wait, 6000)
+        wait(1200)
         return {
             "verdict": "PASS more",
             "state": state,
@@ -148,7 +156,9 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
 
     wait_for(lambda: control.list_surface().row_count() > 0, wait)
     if state == "open":
-        wait(500)
+        # The pictures are read after the rows, so the shot waits for them as upstream's does.
+        wait_for(lambda: _pictures(control) > 0, wait, 6000)
+        wait(1200)
         return {"verdict": "PASS open", "state": state, "rows": control.list_surface().row_count()}
 
     caret = control.caret()
@@ -156,9 +166,11 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
     QTest.keyClicks(caret, "sh010" if state == "query" else "zzzqqq")
     if state == "query":
         wait_for(lambda: control.list_surface().row_count() > 0, wait)
+        wait_for(lambda: _pictures(control) > 0, wait, 6000)
+        wait(1200)
     else:
         wait_for(lambda: control.empty, wait)
-    wait(600)
+        wait(600)
     return {
         "verdict": f"PASS {state}",
         "state": state,
