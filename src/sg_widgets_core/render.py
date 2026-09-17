@@ -176,8 +176,10 @@ def locale_marks(locale: str | None) -> tuple[str, str]:
 
 
 def zone_of(time_zone: str | None) -> tzinfo:
-    """An IANA zone, UTC when it is unnamed or the tz database has no entry for it."""
-    if time_zone is None or ZoneInfo is None:
+    """An IANA zone; the runtime's own zone when unnamed, as `Intl` defaults; UTC for a name the tz database lacks."""
+    if time_zone is None:
+        return datetime.now().astimezone().tzinfo or timezone.utc
+    if ZoneInfo is None:
         return timezone.utc
     try:
         return ZoneInfo(time_zone)

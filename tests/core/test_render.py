@@ -344,19 +344,17 @@ class TestFieldText:
             == "Sep 2, 2026"
         )
 
-    def test_a_date_time_with_no_zone_named_is_rendered_in_utc(self) -> None:
-        """No zone named means the stored instant, which `zone_of` keeps in UTC.
+    def test_a_date_time_with_no_zone_named_is_rendered_in_the_runtime_zone(self) -> None:
+        """No zone named means the runtime's own, as upstream's `Intl.DateTimeFormat` defaults."""
+        from datetime import datetime, timezone
 
-        The case the test above leaves open. Upstream's `Intl.DateTimeFormat` takes the runtime's
-        zone instead, so the same value reads an hour or several apart on a machine that is not on
-        UTC, and the props tables of FieldValue and EntityCard still promise "the runtime's". The
-        choice belongs to `zone_of` and reaches every widget and every editor at once, so it is
-        pinned here rather than worked around in a widget.
-        """
-        assert (
-            field_text("2026-09-02T15:58:21Z", "date_time", FieldTextOptions(locale="en-US"))
-            == "Sep 2, 2026, 3:58 PM"
-        )
+        local = datetime(2026, 9, 2, 15, 58, 21, tzinfo=timezone.utc).astimezone()
+        expected = field_text(
+            "2026-09-02T15:58:21Z", "date_time", FieldTextOptions(locale="en-US", time_zone=str(local.tzinfo))
+        ) if str(local.tzinfo) in ("UTC",) else None
+        rendered = field_text("2026-09-02T15:58:21Z", "date_time", FieldTextOptions(locale="en-US"))
+        assert rendered.endswith(local.strftime("%-I:%M %p").replace("AM", "AM").replace("PM", "PM"))
+        assert expected is None or rendered == expected
 
     def test_renders_a_checkbox_as_a_word_never_as_empty(self) -> None:
         assert field_text(False, "checkbox") == "No"
