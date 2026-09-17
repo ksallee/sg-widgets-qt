@@ -14,7 +14,7 @@ from __future__ import annotations
 from qtpy import QtCore, QtGui, QtWidgets
 from qtpy.QtCore import QEvent, QRect, QSize, Qt, Signal
 
-from ..theme import theme_of, with_alpha
+from ..theme import apply_theme, theme_of, watch_theme, with_alpha
 from .base import DURATION, EASE_IN, EASE_OUT, ThemedWidget
 from .button import Button
 from .popover import SHADOW_MARGIN, paint_surface
@@ -223,6 +223,22 @@ class Dialog(QtWidgets.QDialog):
         self._animation.valueChanged.connect(self._on_progress)
         self._animation.finished.connect(self._on_animation_done)
 
+        # A dialog is its own top-level, and a top-level takes the application's palette rather
+        # than its parent's, so the walk up to a theme has to be made here. The surface it paints
+        # is the popover one, which is the ground its stylesheet names for everything inside it.
+        self._wear_host_theme()
+        if parent is not None:
+            watch_theme(parent, lambda _theme: self._wear_host_theme())
+
+    def _wear_host_theme(self) -> None:
+        """Wear the theme of the widget the dialog was opened from, on the popover surface."""
+        source = self.parentWidget()
+        try:
+            theme = theme_of(source) if source is not None else theme_of(self)
+        except RuntimeError:  # The host is gone; the dialog follows shortly.
+            return
+        apply_theme(self, theme, surface="popover")
+
     # --- contents -----------------------------------------------------------------------
 
     @property
@@ -261,6 +277,7 @@ class Dialog(QtWidgets.QDialog):
         """Show the scrim and the panel, without blocking the caller."""
         if self.isVisible():
             return
+        self._wear_host_theme()
         self._closing = False
         if self._scrim is not None:
             self._scrim.reveal()

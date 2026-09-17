@@ -45,6 +45,7 @@ __all__ = [
     "ThemedMixin",
     "ThemedWidget",
     "elide",
+    "keep_themed",
     "text_width",
     "fill_round_rect",
     "painter_for",
@@ -154,6 +155,9 @@ FOCUS_RING_WIDTH = 2
 FOCUS_RING_OFFSET = 2
 
 PainterOrMetrics = Union[QtGui.QPainter, QtGui.QFontMetrics]
+
+#: What `keep_themed` and `watch_theme` hand a widget when a theme reaches it.
+ThemeCallback = Callable[[Theme], None]
 
 
 def elide(source: PainterOrMetrics, text: str, width: float) -> str:
@@ -498,6 +502,72 @@ class ThemedWidget(ThemedMixin, QtWidgets.QWidget):
     """A painted leaf: a `QWidget` that reads the nearest theme and tracks its own states."""
 
 
+#: The moments a widget Qt draws for itself has to read the nearest theme again. The first three
+#: are Qt rebuilding what a theme wrote; the last two are the widget arriving somewhere new.
+_REREAD = (
+    QtCore.QEvent.Type.StyleChange,
+    QtCore.QEvent.Type.PaletteChange,
+    QtCore.QEvent.Type.Polish,
+    QtCore.QEvent.Type.ParentChange,
+    QtCore.QEvent.Type.Show,
+)
+
+
+class _ThemeKeeper(QtCore.QObject):
+    """One widget's event filter, re-reading the theme at every moment its dressing could be gone.
+
+    `ThemedMixin` is enough for a widget that paints itself: the painter reads `self.theme` at
+    paint time, so it cannot hold a stale one. A widget Qt draws, a `QLineEdit` or a `QLabel`,
+    carries what the theme gave it in its palette or its own stylesheet, and two things take that
+    away.
+
+    Qt rebuilds a widget's palette when it polishes it, and a stylesheet rule naming the widget's
+    class makes it rebuild that palette from the *application's* rather than from the widget's
+    own. Polishing happens on the first show and on every restyle after it, so a field is
+    dressed, then shown, and the show undoes it: the application's black, on whatever surface is
+    under it.
+
+    The other is a widget built before it joined a themed tree. `watch_theme` only hears a theme
+    that lands while the widget is already under the root it lands on, so a part built on the
+    first open of a popup read the host's theme and kept it.
+
+    The keeper holds no theme of its own: every one of those events makes it read the nearest one
+    afresh and wear it.
+    """
+
+    def __init__(self, widget: QtWidgets.QWidget, wear: ThemeCallback) -> None:
+        super().__init__(widget)
+        self.wear = wear
+        self._wearing = False
+        widget.installEventFilter(self)
+
+    def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent) -> bool:  # noqa: N802
+        if event.type() in _REREAD and not self._wearing:
+            self._wearing = True
+            try:
+                self.wear(theme_of(watched))
+            except RuntimeError:  # The widget went while the event was in flight.
+                pass
+            finally:
+                self._wearing = False
+        return False
+
+
+def keep_themed(widget: QtWidgets.QWidget, wear: ThemeCallback) -> None:
+    """Have `wear(theme)` run whenever a widget Qt draws could have lost what a theme gave it.
+
+    A widget grows exactly one keeper; a later call replaces what it wears. `wear` is handed the
+    nearest theme and has to be able to run again at any time, because it will.
+    """
+    found = widget.findChild(
+        _ThemeKeeper, "", QtCore.Qt.FindChildOption.FindDirectChildrenOnly
+    )
+    if found is None:
+        _ThemeKeeper(widget, wear)
+        return
+    found.wear = wear
+
+
 def retheme(root: QtWidgets.QWidget) -> None:
     """Read the theme again on every themed widget at or under `root`.
 
@@ -539,5 +609,3 @@ def fill_round_rect(
     painter.drawRoundedRect(path_rect, radius, radius)
     painter.restore()
 
-
-ThemeCallback = Callable[[Theme], None]

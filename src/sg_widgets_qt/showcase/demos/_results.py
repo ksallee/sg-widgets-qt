@@ -31,6 +31,8 @@ from sg_widgets_core.collection import (
 from sg_widgets_core.filter import FilterNode, condition, group, to_api3_hash
 
 from ...images import image_loader
+from ...primitives.base import keep_themed
+from ...primitives.input import apply_field_ink
 from ...primitives.scrollbar import install_overlay_scrollbars
 from ...theme import theme_of, watch_theme
 from ...widgets.entity_table import EntityTable
@@ -422,6 +424,9 @@ class WireView(QtWidgets.QPlainTextEdit):
         install_overlay_scrollbars(self)
         watch_theme(self, lambda _theme: self._apply_theme())
         self._apply_theme()
+        # After the first dressing, for the same reason `input_group.py` gives: the keeper
+        # `apply_field_ink` leaves writes back the ink alone, and the family is part of this one.
+        keep_themed(self, lambda _theme: self._apply_theme())
 
     def set_text(self, text: str) -> None:
         """Write the serialised filter into the block."""
@@ -448,16 +453,9 @@ class WireView(QtWidgets.QPlainTextEdit):
         self.setFont(theme.font(12, mono=True))
         self.viewport().setAutoFillBackground(False)
         # The ink is the palette's: a plain text document draws with `Text`, black by default.
-        palette = self.palette()
-        for colour_group in (
-            QtGui.QPalette.ColorGroup.Active,
-            QtGui.QPalette.ColorGroup.Inactive,
-            QtGui.QPalette.ColorGroup.Disabled,
-        ):
-            palette.setColor(colour_group, QtGui.QPalette.ColorRole.Text, theme.color("foreground"))
-            palette.setColor(colour_group, QtGui.QPalette.ColorRole.Base, QtGui.QColor(0, 0, 0, 0))
-        self.setPalette(palette)
-        self.viewport().setPalette(palette)
+        # `apply_field_ink` is what every field in the package writes it with, and the keeper it
+        # leaves behind puts it back when Qt rebuilds the palette on a repolish.
+        apply_field_ink(self, theme)
         self.update()
 
     def paintEvent(self, event: QtGui.QPaintEvent) -> None:  # noqa: N802

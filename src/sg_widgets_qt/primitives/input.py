@@ -22,6 +22,7 @@ from .base import (
     DURATION,
     ThemedMixin,
     fill_round_rect,
+    keep_themed,
     painter_for,
 )
 
@@ -57,7 +58,11 @@ def apply_field_ink(widget: QtWidgets.QWidget, theme: object) -> None:
     itself, so `disabled:opacity-50` is a colour here, and Qt picks it from the `Disabled` group
     on its own. Nothing about the ink goes through a stylesheet, because a stylesheet anywhere
     over a field beats every palette under it, and Qt 5 then derives the placeholder from it too.
+
+    The first call also gives the field a keeper, so the ink is written again whenever Qt rebuilds
+    the palette out from under it or the field arrives under a theme it has not read.
     """
+    keep_themed(widget, lambda theme: apply_field_ink(widget, theme))
     palette = widget.palette()
     role = QtGui.QPalette.ColorRole
     group = QtGui.QPalette.ColorGroup
@@ -96,6 +101,9 @@ class _Field(ThemedMixin):
         self.set_size_step(size if size in CONTROL_HEIGHT else "md")
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_Hover, True)
         self.apply_theme_to_palette()
+        # After the first dressing: `apply_field_ink` leaves a keeper that writes back the ink
+        # alone, and a field's dressing is the type step too.
+        keep_themed(self, lambda _theme: self.apply_theme_to_palette())
 
     # --- props ---
 

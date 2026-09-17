@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _walk_pickers import (  # noqa: E402
     Walk,
     arm,
+    check_ink,
     click,
     click_row,
     key,
@@ -212,6 +213,9 @@ def drive(page, wait, find, prefs) -> dict:
     open_panel(selector, wait)
     wear(prefs, wait, theme="dark")
     walk.check("header: dark leaves the open panel up", selector.open, True, selector.open)
+    # The panel's three sections in dark. The recents block is a scroll area, and a scroll area
+    # fills its scrolled widget from the application's palette unless the stylesheet says not to.
+    check_ink(walk)
     key(selector.tree().search_control().input(), QtCore.Qt.Key.Key_Escape)
     wait(400)
     wear(prefs, wait, palette="nova", size="lg", density="compact", settle=1600)

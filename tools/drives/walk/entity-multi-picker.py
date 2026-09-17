@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _walk_pickers import (  # noqa: E402
     Walk,
     case_widget,
+    check_ink,
     click,
     key,
     open_and_type,
@@ -236,6 +237,9 @@ def drive(page, wait, find, prefs) -> dict:
     wait(200)
     wear(prefs, wait, theme="dark")
     walk.check("header: dark leaves the open popup up", many.control.is_open, True, False)
+    # The list, its chips and the box the query is typed into, in the theme this class of defect
+    # shows in: a field holding the application's ink is black on the popover's surface.
+    check_ink(walk)
     outside_click(page, wait)
     wear(prefs, wait, palette="nova", size="lg", density="compact", settle=1400)
     rebuilt = picker_in(page, "multi")

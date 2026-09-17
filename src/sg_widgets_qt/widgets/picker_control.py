@@ -39,9 +39,11 @@ from ..primitives.base import (
     ThemedWidget,
     elide,
     fill_round_rect,
+    keep_themed,
     painter_for,
     text_width,
 )
+from ..primitives.input import apply_field_ink
 from ..primitives.list_view import LIST_PAD, ListSurface
 from ..primitives.popover import MIN_WIDTH as POPUP_MIN_WIDTH
 from ..primitives.popover import Popover
@@ -130,9 +132,6 @@ TOKEN_CARET_MIN_WIDTH = 16
 #: The body step of rule 6.
 TEXT_SIZE = 14
 
-#: `disabled:opacity-50`, on the ink Qt draws itself, which no painter opacity reaches.
-DISABLED_INK = 0.5
-
 #: The row a press on the last row of a page carries, rather than an item key.
 LOAD_MORE = "__load-more"
 
@@ -208,6 +207,10 @@ class _Caret(QtWidgets.QLineEdit):
         )
         self.setMinimumWidth(0)
         self.setTextMargins(0, 0, 0, 0)
+        # The popup's search box is built on the first open, after the theme landed, so nothing
+        # hands it one; and Qt rebuilds its palette when it polishes it with the popup's show.
+        # The keeper reads the nearest theme again at both moments.
+        keep_themed(self, self.apply_theme)
 
     @property
     def keyboard_focus(self) -> bool:
@@ -217,29 +220,13 @@ class _Caret(QtWidgets.QLineEdit):
     def apply_theme(self, theme: Any) -> None:
         """Wear the tokens Qt's own text drawing reads.
 
-        A painter's opacity never reaches the text Qt draws itself, so the inert step of rule 5
-        is applied to the ink here.
+        `apply_field_ink` is what writes them, the same call the `Input` primitive makes, so the
+        inert step of rule 5 and the keeper that puts the ink back after Qt repolishes the widget
+        are the ones every field in this package has.
         """
         self._theme = theme
-        step = 1.0 if self.isEnabled() else DISABLED_INK
-        palette = self.palette()
-        role = QtGui.QPalette.ColorRole
-        palette.setColor(role.Base, QtGui.QColor(Qt.GlobalColor.transparent))
-        palette.setColor(role.Window, QtGui.QColor(Qt.GlobalColor.transparent))
-        palette.setColor(role.Text, with_alpha(theme.foreground, step))
-        palette.setColor(role.WindowText, with_alpha(theme.foreground, step))
-        palette.setColor(role.Highlight, theme.color("accent"))
-        palette.setColor(role.HighlightedText, theme.color("accent_foreground"))
-        placeholder = getattr(role, "PlaceholderText", None)
-        if placeholder is not None:
-            palette.setColor(placeholder, with_alpha(theme.muted_foreground, step))
-        self.setPalette(palette)
+        apply_field_ink(self, theme)
         self.setFont(theme.font(TEXT_SIZE))
-
-    def changeEvent(self, event: QtCore.QEvent) -> None:  # noqa: N802
-        super().changeEvent(event)
-        if event.type() == QtCore.QEvent.Type.EnabledChange and self._theme is not None:
-            self.apply_theme(self._theme)
 
     def focusInEvent(self, event: QtGui.QFocusEvent) -> None:  # noqa: N802
         super().focusInEvent(event)

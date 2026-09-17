@@ -20,7 +20,15 @@ from qtpy import QtCore, QtGui, QtWidgets
 from qtpy.QtCore import QEvent, QPoint, QRect, QSize, Qt, Signal
 
 from ..theme import Theme, apply_theme, theme_of, watch_theme, with_alpha
-from .base import DURATION, EASE_IN, EASE_OUT, ThemedWidget, fill_round_rect, paint_shadow
+from .base import (
+    DURATION,
+    EASE_IN,
+    EASE_OUT,
+    ThemedWidget,
+    fill_round_rect,
+    keep_themed,
+    paint_shadow,
+)
 
 __all__ = [
     "ALIGNS",
@@ -417,7 +425,10 @@ class Popover(ThemedWidget):
             theme = theme_of(anchor)
         except RuntimeError:  # The anchor is gone; the popover follows shortly.
             return
-        apply_theme(self, theme)
+        # The surface this window paints is `popover`, so that is the ground its stylesheet names:
+        # a section inside it, a view's viewport, a scroll area's scrolled widget all stand on the
+        # surface the reader sees rather than on the page's background behind it.
+        apply_theme(self, theme, surface="popover")
 
     def open(self) -> None:
         """Place the surface, show it without taking focus, and fade it in."""
@@ -726,11 +737,21 @@ def _label(
 ) -> QtWidgets.QLabel:
     label = QtWidgets.QLabel(text, parent)
     label.setWordWrap(True)
-    theme = theme_of(parent)
     weight = QtGui.QFont.Weight.Medium if medium else QtGui.QFont.Weight.Normal
-    label.setFont(theme.font(14, weight))
-    # A colour on the label itself, because the root's generated stylesheet sets `QLabel`'s
-    # own `color` and would otherwise win over a palette role.
-    ink = theme.color("muted_foreground" if muted else "popover_foreground")
-    label.setStyleSheet(f"color: rgba({ink.red()}, {ink.green()}, {ink.blue()}, {ink.alpha()});")
+    token = "muted_foreground" if muted else "popover_foreground"
+
+    def dress(theme: Theme) -> None:
+        label.setFont(theme.font(14, weight))
+        # A colour on the label itself, because the root's generated stylesheet sets `QLabel`'s
+        # own `color` and would otherwise win over a palette role.
+        ink = theme.color(token)
+        label.setStyleSheet(
+            f"color: rgba({ink.red()}, {ink.green()}, {ink.blue()}, {ink.alpha()});"
+        )
+
+    # Content is often built before it is handed to a popover, so the theme it reads at this
+    # moment is the host's. The keeper reads the nearest one again when it joins the window that
+    # wears the anchor's theme, and every time after that.
+    keep_themed(label, dress)
+    dress(theme_of(label))
     return label

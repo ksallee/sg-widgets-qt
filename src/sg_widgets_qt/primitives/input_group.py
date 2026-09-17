@@ -13,7 +13,14 @@ from qtpy.QtWidgets import QHBoxLayout, QLineEdit, QSizePolicy, QWidget
 
 from .. import icons
 from ..theme import theme_of, watch_theme, with_alpha
-from .base import CONTROL_GLYPH, CONTROL_HEIGHT, DURATION, ThemedWidget, fill_round_rect
+from .base import (
+    CONTROL_GLYPH,
+    CONTROL_HEIGHT,
+    DURATION,
+    ThemedWidget,
+    fill_round_rect,
+    keep_themed,
+)
 from .input import TEXT_SIZE, apply_field_ink
 from .type_scale import line_box
 
@@ -47,6 +54,12 @@ class InputGroupInput(QLineEdit):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         watch_theme(self, lambda _theme: self._apply_theme())
         self._apply_theme()
+        # The caret inside a picker's popup or a popover editor is built on the first open, after
+        # the theme landed, so `watch_theme` never hears one for it. The keeper reads the nearest
+        # theme again the moment it joins a tree, is shown, or Qt repolishes it. It goes on after
+        # the first dressing, because `apply_field_ink` leaves a keeper of its own that writes
+        # back the ink alone, and the whole dressing here is the type step as well.
+        keep_themed(self, lambda _theme: self._apply_theme())
 
     def _apply_theme(self) -> None:
         theme = theme_of(self)

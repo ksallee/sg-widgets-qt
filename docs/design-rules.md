@@ -29,7 +29,17 @@ copied. The docs page names what was read.
   applied at paint time.
 - A theme applies to a root widget through `apply_theme(root, theme)`, which sets the generated
   QSS on that root and a `Theme` the widgets under it read through `theme_of(widget)`. Never
-  `QApplication.setStyleSheet`. A host's own stylesheet survives.
+  `QApplication.setStyleSheet`. A host's own stylesheet survives. `surface` names the token that
+  root stands on: a floating window passes `popover`, so every ground and ink the stylesheet
+  names is the surface the reader is looking at.
+- The stylesheet is what carries the tokens to the widgets Qt draws, never a `QPalette` handed
+  down from the root: a stylesheet anywhere above a widget makes Qt rebuild that widget's palette
+  from the *application's* every time it polishes it, which is on the first show and on every
+  restyle after. A widget that keeps an ink of its own, a field or a label with a colour,
+  registers what it wears with `keep_themed(widget, wear)`, which reads the nearest theme again
+  at each of those moments and at every reparent. `watch_theme` alone is not enough for anything
+  built lazily: it only hears a theme that lands while the widget is already under the root it
+  lands on, and a popup built on its first open never is.
 - `host_theme()` derives tokens from the host `QPalette`, so a widget dropped into Maya, Houdini or
   Nuke wears the host's greys and its accent.
 - Light and dark, and the palettes the showcase offers, are values of the same tokens, read from

@@ -15,7 +15,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _walk_editors import Walk, blur, key, popups, press_enter, retype, set_view  # noqa: E402
+from _walk_editors import (  # noqa: E402
+    Walk,
+    blur,
+    check_ink,
+    key,
+    popups,
+    press_enter,
+    retype,
+    set_view,
+)
 from qtpy import QtCore  # noqa: E402
 from qtpy.QtTest import QTest  # noqa: E402
 
@@ -101,6 +110,9 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: PLR0915
     missed = set_view(page, wait, theme="dark", size="lg")
     walk.same("header: every control moved", [], missed)
     walk.same("header: the page wears dark", "dark", prefs.theme)
+    # Every field on the page in dark: an input, a textarea and the three blocked rows. Their ink
+    # is Qt's own drawing, and a restyle repolishes every one of them.
+    check_ink(walk)
     again = find("text-editor-demo")
     walk.check("header: the demo survived the size step", again is not None, True, again)
     if again is not None:

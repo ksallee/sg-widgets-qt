@@ -483,16 +483,20 @@ def _application_family() -> str:
 # --- the stylesheet --------------------------------------------------------------------------
 
 
-def generate_qss(theme: Theme) -> str:
+def generate_qss(theme: Theme, surface: str = "background") -> str:
     """The base stylesheet for the plain Qt widgets that appear inside ours.
 
     Our own widgets paint themselves from the tokens; this covers what Qt still draws: labels and
     frames, the viewports of the views we keep for their models, tooltips, menus, the line edit
     inside a picker, and the thin overlay scrollbars.
+
+    `surface` is the token the root stands on, so a stylesheet generated for a floating window
+    names `popover` wherever one generated for a page names `background`.
     """
+    ink = surface + "_foreground" if surface != "background" else "foreground"
     return _QSS.format(
-        background=_qss_color(theme.background),
-        foreground=_qss_color(theme.foreground),
+        background=_qss_color(getattr(theme, surface)),
+        foreground=_qss_color(getattr(theme, ink)),
         popover=_qss_color(theme.popover),
         popover_foreground=_qss_color(theme.popover_foreground),
         accent=_qss_color(theme.accent),
@@ -513,6 +517,13 @@ QLabel, .QFrame {{
 QScrollArea, QAbstractScrollArea {{
     background: {background};
     border: none;
+}}
+/* `QScrollArea.setWidget` turns the scrolled widget's auto-fill on, and Qt fills it from the
+   application's own palette, which is the grey a host or a default build ships. A stylesheet
+   anywhere above a widget resets its palette to that one, so the ground has to be named here
+   rather than handed down: transparent, and the surface under it is what the reader sees. */
+QAbstractScrollArea > QWidget#qt_scrollarea_viewport > QWidget {{
+    background: transparent;
 }}
 QAbstractItemView {{
     background: {background};
@@ -602,11 +613,20 @@ class ThemeBus(QtCore.QObject):
 theme_bus = ThemeBus()
 
 
-def apply_theme(root: QtWidgets.QWidget, theme: Theme) -> None:
-    """Put a theme on one root widget: the widgets under it read it, and it wears the stylesheet."""
+def apply_theme(root: QtWidgets.QWidget, theme: Theme, surface: str = "background") -> None:
+    """Put a theme on one root widget: the widgets under it read it, and it wears the stylesheet.
+
+    `surface` names the token the root stands on, so a floating window passes `popover` and every
+    ground and ink the stylesheet names is the surface the reader is looking at.
+
+    A `QPalette` is not what carries this: a stylesheet anywhere above a widget makes Qt rebuild
+    that widget's palette from the application's own, so a ground handed down from a root would be
+    thrown away by the root's own stylesheet. The tokens Qt draws with are named in the stylesheet,
+    and the fields that keep an ink of their own write it back through `apply_field_ink`.
+    """
     ensure_fonts()
     root.setProperty(_PROPERTY, theme)
-    root.setStyleSheet(generate_qss(theme))
+    root.setStyleSheet(generate_qss(theme, surface))
     theme_bus.changed.emit(root)
 
 

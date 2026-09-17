@@ -116,9 +116,16 @@ class _Prose(QtWidgets.QTextBrowser):
 
     def restyle(self, theme: Theme) -> None:
         """Dress the document from the theme and lay it out again."""
-        # The prose owns its ground, so a re-layout leaves nothing of the last one behind.
+        # The prose owns its ground, so a re-layout leaves nothing of the last one behind. The
+        # ink goes in the same rule: the document's own stylesheet colours every run it emits,
+        # and this is what anything it does not name falls back to. It cannot be a palette here,
+        # because a rule naming `QTextBrowser` makes Qt rebuild this widget's palette from the
+        # application's on every repolish, and black is what the application's holds.
         ground = theme.color("background")
-        self.setStyleSheet(f"QTextBrowser {{ background: {ground.name()}; border: none; }}")
+        ink = theme.color("foreground")
+        self.setStyleSheet(
+            f"QTextBrowser {{ background: {ground.name()}; color: {ink.name()}; border: none; }}"
+        )
         self.document().setDefaultStyleSheet(markdown.stylesheet(theme))
         self.document().setDefaultFont(theme.font(14))
         self.setHtml(markdown.to_html(self._source, theme))

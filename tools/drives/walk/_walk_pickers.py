@@ -19,16 +19,23 @@ A drive file is exec'd by `tools/qa.py`, so it puts this directory on `sys.path`
 """
 from __future__ import annotations
 
+import sys
 import time
+from pathlib import Path
 from typing import Any, Callable
 
 from qtpy import QtCore, QtWidgets
 from qtpy.QtTest import QTest
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from _ink import check_ink  # noqa: E402
+
 __all__ = [
     "Walk",
     "arm",
     "case_widget",
+    "check_ink",
     "click",
     "click_at",
     "click_chip_cross",

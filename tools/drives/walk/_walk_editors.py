@@ -19,6 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from _common import click, escape, key, press_enter, top_levels, type_text  # noqa: E402, F401
+from _ink import check_ink  # noqa: E402, F401
 from qtpy import QtCore, QtGui, QtWidgets  # noqa: E402
 from qtpy.QtTest import QTest  # noqa: E402
 
@@ -27,6 +28,7 @@ __all__ = [
     "activate",
     "blur",
     "case_widget",
+    "check_ink",
     "chrome_control",
     "click",
     "click_chip_cross",
