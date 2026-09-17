@@ -158,7 +158,8 @@ class _Field(ThemedMixin):
         painter = painter_for(device)
         painter.setOpacity(self.disabled_opacity())
 
-        surface = mix(theme.background, theme.muted, 0.3 * self._hover.value)
+        # The shadcn input has no hover state; the wash on hover belongs to the picker control alone.
+        surface = theme.color("background")
         wash = self._wash(theme)
         if wash is not None:
             surface = mix(surface, QtGui.QColor(wash.rgb()), wash.alphaF())
