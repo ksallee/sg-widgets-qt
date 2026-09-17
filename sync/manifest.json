@@ -1462,6 +1462,27 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
     },
+    "widgets/column-picker": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/column-picker.tsx": "2a3dc203c9024dd037f8159c7cb55468d042dc08eb67e3767af0fccaff7b187d",
+        "packages/svelte/src/lib/registry/components/column-picker.svelte": "df2aa0b71754b23648c8330e34de4899cf743b85227cb5b443ad252d8ea91c80",
+        "apps/site/src/props/column-picker.ts": "c2c5ba3a42448ac3056dd8b8b36dee07c453e991315e1b6b1f7045942aa303a0",
+        "apps/site/src/content/docs/widgets/column-picker.mdx": "937a979725df14acb5f53e1a3e6078095b2e98ac3bad902bcd5e41362d88f180",
+        "apps/site/src/demos/column-picker/Demo.tsx": "c094e25bfd3a9572c6a0aa76520bd21d47e8a01485f43be94787f67fa591823b"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/column_picker.py",
+        "src/sg_widgets_qt/showcase/demos/column_picker.py",
+        "docs/widgets/column-picker.md",
+        "docs/widgets/column-picker.props.json",
+        "tests/qt/test_column_picker.py",
+        "shots/column-picker-light.png",
+        "shots/column-picker-dark.png"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The chosen list is a QListView with this package's row delegate on core's sortable, so the grip, the label and the cross are painted. No column widths: upstream declares none. The live region is the list's accessible description."
+    },
     "widgets/context-selector": {
       "status": "complete",
       "upstream": {
@@ -1638,6 +1659,48 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
+    },
+    "widgets/field-editor": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/field-editor.tsx": "0426df8cb58d115ed68035be47ba6016e9fe76eb92fdf4fe0935887b55bf0e0b",
+        "packages/svelte/src/lib/registry/components/field-editor.svelte": "64ef1a1ecedf1c2a1a0374a9117ad9796234afef26936b831c52fe5f1dcd4aaa",
+        "apps/site/src/props/field-editor.ts": "201ebf604c3970c6b6e1fd6d8a8d8db743178a3db96b97f8e737ddd7726f13be",
+        "apps/site/src/content/docs/widgets/field-editor.mdx": "e497bec9136f99889b571c75fc534c5f15a837d250eebc9b13c9ff126595a1a6",
+        "apps/site/src/demos/field-editor/Demo.tsx": "f1a4af778abff3770108d0ca62b244a7b28ac03a55bc3a45a6e56e8e7202143c"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/field_editor.py",
+        "src/sg_widgets_qt/showcase/demos/field_editor.py",
+        "docs/widgets/field-editor.md",
+        "docs/widgets/field-editor.props.json",
+        "tests/qt/test_field_editor.py",
+        "shots/field-editor-light.png",
+        "shots/field-editor-dark.png"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "FieldValue has not landed, so the display half is drawn here from core's field_text with a status badge and entity chips. Adds an 'entity' keyword: with one the commit is written through context.client.update on a worker and the row read back (024_read_after_write); without one it only emits, as upstream does. readonly also follows the schema's editable."
+    },
+    "widgets/field-picker": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/field-picker.tsx": "50b9f4d303065b2a48d3591ea9cc8f202ea30e81108beee5224fc2c749af0646",
+        "packages/svelte/src/lib/registry/components/field-picker.svelte": "21792cc2403c33034cf619811b0dc8bc08540077a0115369edecf7c1350e2028",
+        "apps/site/src/props/field-picker.ts": "9207ef7fccabf03435f29f23ebdae9684029e583e48246f76e33d9c9bfc88ee6",
+        "apps/site/src/content/docs/widgets/field-picker.mdx": "d5feb511b6a101d295ce13b5c2558b1b38c5f8cd76dc27ff728cc3bb74464731",
+        "apps/site/src/demos/field-picker/Demo.tsx": "b3c21714dac37048e8e7ddc2ae073a09489c2ea27f1c5538de8cbf28698b0748"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/field_picker.py",
+        "src/sg_widgets_qt/showcase/demos/field_picker.py",
+        "docs/widgets/field-picker.md",
+        "docs/widgets/field-picker.props.json",
+        "tests/qt/test_field_picker.py",
+        "shots/field-picker-light.png",
+        "shots/field-picker-dark.png"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Built on picker_control with text_value and a breadcrumb over the search row, rather than upstream's Popover over a Command list. Left, Right and Enter on a link belong to the levels, so a descend never closes the popup."
     },
     "widgets/field-value": {
       "status": "complete",
