@@ -171,3 +171,20 @@ def test_a_sort_answering_after_the_widget_is_freed_lands_nowhere(qtbot):
     default_pool().wait(5000)
     qtbot.wait(20)
     assert source.snapshot().sort == [SortSpec(path="code", descending=True)]
+
+
+def test_a_call_answered_before_submit_returns_still_lets_the_queue_move(context, qtbot):
+    """The queue is held by one call at a time, and that hold has to be let go every time.
+
+    The pool starts a job inside `submit`, so a call the mock answers in a microsecond can be
+    over before `submit` has returned. Wiring the finish afterwards missed those, and the queue
+    behind such a call never moved again: on PyQt5 the page size, the pager arrows, a write and
+    every load-more of the entity-table walk waited on a runner that was holding a job nobody
+    was waiting for.
+    """
+    control = _control(context)
+    runner = control.binding.runner
+    for size in range(1, 41):
+        control.binding.set_page_size(size)
+    qtbot.waitUntil(lambda: not runner.running, timeout=10000)
+    assert control.binding.source.page_size == 40

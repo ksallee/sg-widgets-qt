@@ -257,9 +257,11 @@ def test_keys_on_the_trigger_type_into_the_browse_search(host, qtbot, context):
     selector = make(host, qtbot, context)
     settle(qtbot, selector)
     selector.set_open(True)
-    qtbot.wait(100)
+    # The popover hides its content for the length of the fade it enters on, so the box stands
+    # once that has run: a fixed wait is the animation's own duration and races it.
     box = selector._tree.search_control().input()
-    assert box is not None and box.isVisible()
+    assert box is not None
+    qtbot.waitUntil(box.isVisible, timeout=SETTLE_MS)
     QTest.keyClicks(selector, "sh0")
     qtbot.wait(50)
     assert selector._tree.search_control().query == "sh0"
@@ -267,4 +269,23 @@ def test_keys_on_the_trigger_type_into_the_browse_search(host, qtbot, context):
     QTest.keyClick(selector, Qt.Key.Key_Backspace)
     qtbot.wait(50)
     assert selector._tree.search_control().query == "sh"
+    selector.set_open(False)
+
+
+def test_a_key_typed_while_the_panel_fades_in_still_reaches_the_browse_search(host, qtbot, context):
+    """The panel showing is what the browse box needs, not the box being drawn yet.
+
+    A popover hides its content for the length of the fade it enters on, so a reader who
+    presses the trigger and starts typing at once was losing the first letters.
+    """
+    from qtpy.QtTest import QTest
+
+    selector = make(host, qtbot, context)
+    settle(qtbot, selector)
+    selector.set_open(True)
+    box = selector._tree.search_control().input()
+    assert not box.isVisible(), "the fade has not run yet"
+    QTest.keyClicks(selector, "sh")
+    assert selector._tree.search_control().query == "sh"
+    assert box.text() == "sh"
     selector.set_open(False)

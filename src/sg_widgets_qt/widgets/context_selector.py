@@ -924,8 +924,14 @@ class ContextSelector(QWidget):
         super().keyPressEvent(event)
 
     def _type_into_browse(self, event: QKeyEvent) -> bool:
+        """Hand one key to the browse box, which stands in the popover the panel is.
+
+        The panel showing is what the box needs, not the box being visible itself: the popover
+        hides its content for the length of the fade it enters on, and a reader who presses the
+        trigger and starts typing at once would lose those first letters.
+        """
         box = self._tree.search_control().input()
-        if box is None or not box.isVisible():
+        if box is None or not self._popover.isVisible():
             return False
         QApplication.sendEvent(box, event)
         return event.isAccepted()

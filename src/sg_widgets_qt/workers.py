@@ -116,6 +116,7 @@ class Job(QObject):
         args: tuple,
         on_result: ResultCallback | None = None,
         on_error: ErrorCallback | None = None,
+        on_finished: Callable[[], None] | None = None,
         ticket: TicketRef | None = None,
         pool: JobPool | None = None,
         parent: QObject | None = None,
@@ -136,6 +137,11 @@ class Job(QObject):
         self.done.connect(self._deliver_result)
         self.failed.connect(self._deliver_error)
         self.finished.connect(self._retire)
+        # Wired here rather than by the caller, because the caller only holds the job once
+        # `submit` has already started it: a job that answers first would emit `finished` with
+        # nothing connected, and whoever waits on that signal would wait for ever.
+        if on_finished is not None:
+            self.finished.connect(on_finished)
 
     def cancel(self) -> None:
         """Mark the job so a late answer is dropped. The callable itself runs to its end."""
@@ -291,14 +297,25 @@ class JobPool(QObject):
         *args: Any,
         on_result: ResultCallback | None = None,
         on_error: ErrorCallback | None = None,
+        on_finished: Callable[[], None] | None = None,
         ticket: TicketRef | None = None,
     ) -> Job:
         """Run `fn(*args)` on the pool and hand the answer back on the calling thread.
 
         `ticket` is a `(Ticket, n)` pair: the callbacks are dropped once `n` is no longer the
-        ticket that holds.
+        ticket that holds. `on_finished` is called once the job has answered, failed or been
+        dropped, and is wired before the work starts, which connecting to the returned job's
+        `finished` cannot be.
         """
-        job = Job(fn, args, on_result=on_result, on_error=on_error, ticket=ticket, pool=self)
+        job = Job(
+            fn,
+            args,
+            on_result=on_result,
+            on_error=on_error,
+            on_finished=on_finished,
+            ticket=ticket,
+            pool=self,
+        )
         with self._lock:
             self._live.add(job)
         self._pool.start(_Runner(job))

@@ -303,3 +303,21 @@ def test_an_answer_the_callback_itself_refuses_still_raises(qtbot, pool):
         qtbot.wait(50)
     seen.extend(caught)
     assert [str(one[1]) for one in seen] == ["the crew list is not answering"]
+
+
+def test_on_finished_lands_for_a_job_that_answered_before_its_caller_saw_it(qtbot, pool):
+    """The pool starts the job inside `submit`, so `finished` can be emitted before it returns.
+
+    A caller that connects to the returned job's `finished` misses that emission and waits for
+    ever; `on_finished` is wired in the job itself, before the work can start. `SerialRunner`
+    holds its whole queue on this, and on PyQt5 it lost the race about once in fourteen calls.
+    """
+    ran = threading.Event()
+    seen: list[str] = []
+
+    pool.submit(ran.set, on_finished=lambda: seen.append("finished"))
+    assert ran.wait(5.0), "the work ran"
+    pool.wait(5000)
+    # The job is over and `finished` is already emitted: nothing connected from out here could
+    # have been in place for it.
+    qtbot.waitUntil(lambda: seen == ["finished"], timeout=5000)

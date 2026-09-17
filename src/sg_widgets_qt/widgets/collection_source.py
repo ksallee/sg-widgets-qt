@@ -143,6 +143,10 @@ class SerialRunner:
         self._on_error = on_error
         self._queue: deque = deque()
         self._live: Job | None = None
+        # Raised before the pool is asked, not once `submit` answers: the job may have run and
+        # been forgotten by then, and a flag set afterwards would say a call is in flight for
+        # ever and hold every call behind it.
+        self._in_flight = False
 
     @property
     def pool(self) -> JobPool:
@@ -152,7 +156,7 @@ class SerialRunner:
     @property
     def running(self) -> bool:
         """True while a call is in flight or waiting its turn."""
-        return self._live is not None or bool(self._queue)
+        return self._in_flight or bool(self._queue)
 
     def submit(self, fn: Any, *args: Any, on_result: Any = None, on_error: Any = None) -> None:
         """Run `fn(*args)` once every call asked for before it has answered."""
@@ -175,16 +179,28 @@ class SerialRunner:
         return not self.running
 
     def _pump(self) -> None:
-        if self._live is not None or not self._queue:
+        if self._in_flight or not self._queue:
             return
         fn, args, on_result, on_error = self._queue.popleft()
+        # `on_finished` rather than `job.finished.connect(self._done)` after the call: the pool
+        # starts the job inside `submit`, and a call the mock answers in a microsecond finishes
+        # before that connection exists. The queue behind it then never moves again, which on
+        # PyQt5 is what a page size, a pager arrow and a write all wait on for ever.
+        self._in_flight = True
+        self._live = None
         job = self._pool.submit(
-            fn, *args, on_result=on_result, on_error=on_error or self._on_error
+            fn,
+            *args,
+            on_result=on_result,
+            on_error=on_error or self._on_error,
+            on_finished=self._done,
         )
-        self._live = job
-        job.finished.connect(self._done)
+        # `_done` may already have run and started the next call, whose job this is not.
+        if self._in_flight:
+            self._live = job
 
     def _done(self) -> None:
+        self._in_flight = False
         self._live = None
         self._pump()
 
