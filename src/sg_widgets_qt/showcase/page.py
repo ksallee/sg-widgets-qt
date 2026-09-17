@@ -12,6 +12,7 @@ from pathlib import Path
 
 from qtpy import QtCore, QtGui, QtWidgets
 
+from ..primitives.table import TableSurface
 from ..theme import Theme, theme_of, watch_theme
 from . import chrome, markdown
 from .context import DemoContext, repo_root
@@ -19,6 +20,9 @@ from .prefs import Prefs
 from .stage import DemoStage, demo_module_name
 
 __all__ = ["PropsTable", "WidgetPage", "docs_dir", "page_path"]
+
+#: The columns drawn in the monospace family: names, types and stored values.
+MONO_COLUMNS = ("name", "py_type", "type", "default", "key", "payload", "receives")
 
 #: The shortest a row may be: the 8px vertical inset over one line of body text.
 ROW_MIN_HEIGHT = 32
@@ -203,8 +207,8 @@ class PropsTable(QtWidgets.QWidget):
         layout.setSpacing(0)
 
         columns = TABLE_COLUMNS.get(kind, TABLE_COLUMNS["props"])
-        surface = chrome.primitive("TableSurface")
-        self.table = self._build_table(columns, surface)
+        self._model = self._build_model(columns)
+        self.table = self._build_table(columns)
         self._laid_width = 0
         self._pending = False
         self.table.installEventFilter(self)
@@ -229,10 +233,27 @@ class PropsTable(QtWidgets.QWidget):
         rows = data.get(kind) or []
         return [row for row in rows if isinstance(row, dict)]
 
-    def _build_table(self, columns: tuple, surface: object) -> QtWidgets.QTableWidget:
-        table = QtWidgets.QTableWidget(len(self._rows), len(columns), self)
+    def _build_model(self, columns: tuple) -> QtGui.QStandardItemModel:
+        """The rows as a model, so the table is a view of ours or the primitive's."""
+        model = QtGui.QStandardItemModel(len(self._rows), len(columns), self)
+        model.setHorizontalHeaderLabels([label for _key, label in columns])
+        for row, values in enumerate(self._rows):
+            for column, (key, _label) in enumerate(columns):
+                item = QtGui.QStandardItem(_strip(values.get(key)))
+                item.setEditable(False)
+                if key in MONO_COLUMNS:
+                    item.setData(True, QtCore.Qt.ItemDataRole.UserRole)
+                if key == "py_type" and values.get("type"):
+                    item.setToolTip("TypeScript: " + _strip(values.get("type")))
+                if key == "meaning" and values.get("owner"):
+                    item.setToolTip("From " + _strip(values.get("owner")))
+                model.setItem(row, column, item)
+        return model
+
+    def _build_table(self, columns: tuple) -> QtWidgets.QTableView:
+        table = TableSurface(self)
         table.setObjectName("props-table-view")
-        table.setHorizontalHeaderLabels([label for _key, label in columns])
+        table.setModel(self._model)
         table.verticalHeader().setVisible(False)
         table.setShowGrid(False)
         table.setWordWrap(False)
@@ -242,9 +263,12 @@ class PropsTable(QtWidgets.QWidget):
         table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         table.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # A props cell wraps, which the collection cell delegate does not, so the cells here
+        # are drawn by this page's own delegate.
         table.setItemDelegate(_RowDelegate(self, table))
         header = table.horizontalHeader()
         header.setHighlightSections(False)
+        header.setSectionsClickable(False)
         header.setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         for column, (key, _label) in enumerate(columns):
             if key in STRETCH_COLUMNS:
@@ -252,27 +276,9 @@ class PropsTable(QtWidgets.QWidget):
                 continue
             header.setSectionResizeMode(column, QtWidgets.QHeaderView.ResizeMode.Fixed)
             table.setColumnWidth(column, COLUMN_WIDTHS.get(key, 140))
-        for row, values in enumerate(self._rows):
-            for column, (key, _label) in enumerate(columns):
-                item = QtWidgets.QTableWidgetItem(_strip(values.get(key)))
-                if key in ("name", "py_type", "type", "default", "key", "payload", "receives"):
-                    item.setData(QtCore.Qt.ItemDataRole.UserRole, True)
-                if key == "py_type" and values.get("type"):
-                    item.setToolTip("TypeScript: " + _strip(values.get("type")))
-                if key == "meaning" and values.get("owner"):
-                    item.setToolTip("From " + _strip(values.get("owner")))
-                table.setItem(row, column, item)
         return table
 
-    def _restyle(self, theme: Theme) -> None:
-        self.table.setStyleSheet(
-            _TABLE_QSS.format(
-                muted=theme.muted_foreground,
-                border=theme.border,
-                background=theme.background,
-            )
-        )
-        self.table.horizontalHeader().setFont(theme.font(12, weight=QtGui.QFont.Weight.Medium))
+    def _restyle(self, _theme: Theme) -> None:
         self._lay_rows()
         self._fit()
 
@@ -303,10 +309,11 @@ class PropsTable(QtWidgets.QWidget):
         """Each row as tall as its tallest cell wrapped at that cell's column."""
         self._laid_width = self.table.width()
         theme = theme_of(self)
-        for row in range(self.table.rowCount()):
+        rows = self._model.rowCount()
+        for row in range(rows):
             height = ROW_MIN_HEIGHT
-            for column in range(self.table.columnCount()):
-                item = self.table.item(row, column)
+            for column in range(self._model.columnCount()):
+                item = self._model.item(row, column)
                 if item is None:
                     continue
                 mono = bool(item.data(QtCore.Qt.ItemDataRole.UserRole))
@@ -318,27 +325,10 @@ class PropsTable(QtWidgets.QWidget):
 
     def _fit(self) -> None:
         height = self.table.horizontalHeader().height()
-        for row in range(self.table.rowCount()):
+        for row in range(self._model.rowCount()):
             height += self.table.rowHeight(row)
         self.table.setFixedHeight(height + 2)
         self.setFixedHeight(height + 2)
-
-
-_TABLE_QSS = """
-QTableWidget {{
-    background: transparent;
-    border: none;
-    color: {muted};
-}}
-QHeaderView::section {{
-    background: transparent;
-    color: {muted};
-    border: none;
-    border-bottom: 1px solid {border};
-    padding: 8px 12px;
-    text-transform: uppercase;
-}}
-"""
 
 
 class _Heading(QtWidgets.QWidget):

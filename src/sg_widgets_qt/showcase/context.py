@@ -18,6 +18,9 @@ import os
 from pathlib import Path
 from typing import Any
 
+from sg_widgets_core.context import SgContext, SgContextOptions, create_sg_context
+from sg_widgets_core.mock import MOCK_NOW, MockClient
+
 __all__ = [
     "ENV_KEYS",
     "MOCK_PROJECT_ID",
@@ -91,83 +94,22 @@ class _Counting:
         return counted
 
 
-# --- the placeholders ------------------------------------------------------------------------
-
-
-class _PlaceholderClient:
-    """What the demos read until `sg_widgets_core.mock` lands.
-
-    Enough of an `SgClient` for the hello demo to answer: the entity types of a small site.
-    """
-
-    NAMES = (
-        ("Asset", "Asset"),
-        ("Shot", "Shot"),
-        ("Sequence", "Sequence"),
-        ("Task", "Task"),
-        ("Version", "Version"),
-        ("Note", "Note"),
-        ("HumanUser", "Person"),
-        ("Project", "Project"),
-    )
-
-    def __init__(self, latency_ms: int = MOCK_LATENCY_MS, **_: Any) -> None:
-        self.latency_ms = latency_ms
-
-    def entity_types(self) -> list:
-        from sg_widgets_core.client import EntityTypeInfo
-
-        self._wait()
-        return [EntityTypeInfo(name=name, display_name=label) for name, label in self.NAMES]
-
-    def statuses(self) -> list:
-        self._wait()
-        return []
-
-    def _wait(self) -> None:
-        import time
-
-        if self.latency_ms:
-            time.sleep(self.latency_ms / 1000.0)
-
-
-class _PlaceholderContext:
-    """What wraps a client until `sg_widgets_core.context` lands."""
-
-    def __init__(self, client: Any, site_url: str = "") -> None:
-        self.client = client
-        self.schema = None
-        self.statuses = None
-        self.site_url = site_url.rstrip("/")
-        self.preferences: dict[str, Any] = {}
-
-    def invalidate(self) -> None:
-        """Drop everything cached. There is nothing cached here."""
-
-
 def _mock_client(reads: dict[str, int], **options: Any) -> Any:
-    try:
-        from sg_widgets_core.mock import MOCK_NOW, MockClient  # type: ignore[attr-defined]
-    except Exception:
-        return _Counting(_PlaceholderClient(**options), reads)
-    built = {"seed": MOCK_SEED, "latency_ms": MOCK_LATENCY_MS, "now": MOCK_NOW}
+    """The mock, counted. The clock is pinned to the day the fixtures are dated around."""
+    built: dict[str, Any] = {"seed": MOCK_SEED, "latency_ms": MOCK_LATENCY_MS, "now": MOCK_NOW}
     built.update(options)
     return _Counting(MockClient(**built), reads)
 
 
 def _live_client(values: dict[str, str]) -> Any:
-    from sg_widgets_core.shotgun_client import ShotgunClient  # type: ignore[attr-defined]
+    from sg_widgets_core.shotgun_client import ShotgunClient
 
     env = dict(os.environ)
     env.update({key: value for key, value in values.items() if value})
     return ShotgunClient.from_env(env)
 
 
-def _wrap(client: Any, site_url: str) -> Any:
-    try:
-        from sg_widgets_core.context import SgContextOptions, create_sg_context
-    except Exception:
-        return _PlaceholderContext(client, site_url)
+def _wrap(client: Any, site_url: str) -> SgContext:
     return create_sg_context(client, SgContextOptions(site_url=site_url or None))
 
 
@@ -179,7 +121,7 @@ class DemoContext:
 
     def __init__(
         self,
-        context: Any,
+        context: SgContext,
         live: bool = False,
         project_id: int = MOCK_PROJECT_ID,
         project_name: str = "",
@@ -202,29 +144,31 @@ class DemoContext:
 
     @property
     def schema(self) -> Any:
-        return getattr(self.context, "schema", None)
+        """The schema service every widget on this context shares."""
+        return self.context.schema
 
     @property
     def statuses(self) -> Any:
-        return getattr(self.context, "statuses", None)
+        """The status table, read once for the site."""
+        return self.context.statuses
 
     @property
     def site_url(self) -> str:
-        return getattr(self.context, "site_url", "")
+        """The web app the rows came from, without its trailing slash."""
+        return self.context.site_url
 
     @property
     def preferences(self) -> Any:
-        return getattr(self.context, "preferences", {})
+        """What the site decides about display."""
+        return self.context.preferences
 
     def project_for(self, mock_id: int) -> int:
         """The project a demo that names a mock project of its own should read."""
         return self.project_id if self.live else mock_id
 
     def invalidate(self) -> None:
-        """Drop everything cached."""
-        invalidate = getattr(self.context, "invalidate", None)
-        if callable(invalidate):
-            invalidate()
+        """Drop everything cached. Call it after a write."""
+        self.context.invalidate()
 
     def reset_reads(self) -> None:
         """Forget what the demos have cost so far."""

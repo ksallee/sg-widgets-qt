@@ -339,7 +339,7 @@ class HeaderBar(QtWidgets.QWidget):
         )
         self.toolbar.setObjectName("header-toolbar")
         row.addWidget(self.toolbar, 1)
-        self.project = chrome.ChromeSelect(
+        self.project = chrome.select(
             [(str(project_id), f"Project {project_id}")], str(project_id), size="md", parent=self
         )
         self.project.setObjectName("project-picker")

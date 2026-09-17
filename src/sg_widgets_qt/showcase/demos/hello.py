@@ -50,9 +50,11 @@ class Hello(QtWidgets.QWidget):
         )
         self.load.setObjectName("load-entity-types")
         buttons.addWidget(self.load)
+        self._buttons = [self.load]
         for variant, label in VARIANTS:
             made = chrome.button(label, variant=variant, size="md", parent=row)
             made.setObjectName("button-" + variant)
+            self._buttons.append(made)
             buttons.addWidget(made)
         buttons.addStretch(1)
         column.addWidget(row)
@@ -66,11 +68,9 @@ class Hello(QtWidgets.QWidget):
             column.addWidget(leaf)
 
     def set_size(self, size: str) -> None:
-        """Wear the size step the toolbar holds."""
-        for child in self.findChildren(QtWidgets.QWidget):
-            setter = getattr(child, "set_size", None)
-            if callable(setter) and child is not self:
-                setter(size)
+        """Wear the size step the toolbar holds. The leaf page under it names its own sizes."""
+        for made in self._buttons:
+            made.set_size(chrome.BUTTON_SIZES.get(size, "default"))
 
     def _read(self) -> None:
         if self._busy:
