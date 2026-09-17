@@ -1051,6 +1051,17 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
     },
+    "primitives/calendar": {
+      "status": "partial",
+      "upstream": {
+        "packages/react/src/components/ui/calendar.tsx": "f27bdee7bff15b40047071310ff6b6ea6f77f2b7d0a35011f593708ca09e3934"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/calendar.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "react-day-picker becomes one painted grid. Month and year are our Select; the week start follows the locale keyword. Month names are English until core's render is ported."
+    },
     "primitives/checkbox": {
       "status": "complete",
       "upstream": {
@@ -1065,6 +1076,17 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "Upstream's pressed prop on a toggle is checked here: pressed is the mouse state every painted leaf keeps."
+    },
+    "primitives/command": {
+      "status": "partial",
+      "upstream": {
+        "packages/react/src/components/ui/command.tsx": "41faa024186f01cd0bf1ac985f174921ba47f1f5ec302ecea75d9943b9600083"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/command.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "CommandDialog is not ported. Groups, separators and shortcuts are row kinds and a painter role on the model, not child components."
     },
     "primitives/dialog": {
       "status": "complete",
@@ -1128,6 +1150,17 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "QLineEdit and QPlainTextEdit are kept for the caret and the undo stack; the frame is off and the chrome is painted."
     },
+    "primitives/input-group": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/input-group.tsx": "492310e6d519441c3e2a3b11330b3f35da71bd37630672f749271b9585a88e64"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/input_group.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Addons are widgets in a leading or trailing slot; block-start and block-end alignment are not ported."
+    },
     "primitives/label": {
       "status": "complete",
       "upstream": {
@@ -1142,6 +1175,18 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
     },
+    "primitives/list-view": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/picker-classes.ts": "9f653879cf7ae20e7fe43e7aec684fad4ec3076b90b824f3a1fa633c5249994e",
+        "packages/react/src/components/ui/command.tsx": "41faa024186f01cd0bf1ac985f174921ba47f1f5ec302ecea75d9943b9600083"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/list_view.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "PICKER_LIST as a QListView: max-h-72, p-1, the 24px edge fade from core's overflow_edges, loop off. The mask becomes a painted gradient."
+    },
     "primitives/popover": {
       "status": "complete",
       "upstream": {
@@ -1153,6 +1198,30 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "A frameless translucent Tool window rather than a portal: the anchor keeps its focus and its caret while the surface is up."
+    },
+    "primitives/row-delegate": {
+      "status": "partial",
+      "upstream": {
+        "packages/react/src/registry/sg/components/picker-row.tsx": "91feeb45c0942ced44472204d93cd76fb6bc9712dad6b6ffd366a211e0af8417",
+        "packages/react/src/registry/sg/components/picker-classes.ts": "9f653879cf7ae20e7fe43e7aec684fad4ec3076b90b824f3a1fa633c5249994e"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/row_delegate.py",
+        "src/sg_widgets_qt/primitives/roles.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The secondary renders as text or through a painter role; field_value and the status sprite land later. Matched runs come from a model role until core's match_runs is ported."
+    },
+    "primitives/scrollbar": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/picker-classes.ts": "9f653879cf7ae20e7fe43e7aec684fad4ec3076b90b824f3a1fa633c5249994e"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/scrollbar.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The overlay bar replaces the stock scrollbar on any QAbstractScrollArea; upstream hides it with no-scrollbar and keeps a stable gutter."
     },
     "primitives/select": {
       "status": "complete",
@@ -1177,6 +1246,17 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "The pulse is the shimmer of design rule 4, off under reduced motion."
+    },
+    "primitives/table": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/table.tsx": "300dc171ff0e09543dce0787f43a3ceb0d168fa800eaecb98b6c5630f3c6d7e9"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/table.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The header is a QHeaderView of ours, the body a delegate. TableCaption and TableFooter have no Qt counterpart yet."
     },
     "primitives/theme": {
       "status": "complete",

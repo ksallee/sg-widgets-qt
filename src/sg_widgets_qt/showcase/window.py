@@ -14,7 +14,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 from ..theme import Theme, mix, theme_of, watch_theme, with_alpha
 from . import chrome
 from .context import DemoContext, demo_context, live_available
-from .page import WidgetPage, docs_dir
+from .page import SECTIONS, WidgetPage, docs_dir
 from .prefs import Prefs
 from .toolbar import HEADER_KEYS, PrefsToolbar
 
@@ -440,8 +440,10 @@ class ShowcaseWindow(QtWidgets.QMainWindow):
         names = self.page_names()
         if name in names:
             return name
-        for candidate in names:
-            if candidate.rpartition("/")[2] == name:
+        # A bare name is a widget page first: `index` is the widgets overview, not `core/index`.
+        for section in SECTIONS:
+            candidate = section + "/" + name
+            if candidate in names:
                 return candidate
         return name
 

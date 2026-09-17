@@ -20,6 +20,36 @@ from .stage import DemoStage, demo_module_name
 
 __all__ = ["PropsTable", "WidgetPage", "docs_dir", "page_path"]
 
+#: The shortest a row may be: the 8px vertical inset over one line of body text.
+ROW_MIN_HEIGHT = 32
+
+#: The horizontal inset of a cell, both edges, `docs/design-rules.md` rule 2.
+CELL_PAD = 12
+
+
+def _wrapped_height(theme: Theme, text: str, mono: bool, column: int) -> int:
+    """How tall one cell's text stands, wrapped at its column."""
+    metrics = QtGui.QFontMetrics(theme.font(12, mono=True) if mono else theme.font(13))
+    width = max(60, column - CELL_PAD * 2)
+    box = metrics.boundingRect(
+        QtCore.QRect(0, 0, width, 10000), int(QtCore.Qt.TextFlag.TextWordWrap), text
+    )
+    return box.height() + 16
+
+
+#: The column that takes whatever width is left.
+STRETCH_COLUMNS = ("meaning", "when", "draws", "does")
+
+#: What the other columns are worth, in pixels.
+COLUMN_WIDTHS: dict[str, int] = {
+    "name": 180,
+    "py_type": 220,
+    "default": 120,
+    "key": 180,
+    "payload": 220,
+    "receives": 220,
+}
+
 #: The columns each kind of table draws, and what the header calls them.
 TABLE_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
     "props": (("name", "Name"), ("py_type", "Type"), ("default", "Default"), ("meaning", "Meaning")),
@@ -68,18 +98,23 @@ class _Prose(QtWidgets.QTextBrowser):
         self._source = source
         self.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         self.setOpenExternalLinks(True)
+        # No margin of its own: the page's own inset is what the prose lines up on.
+        self.document().setDocumentMargin(0)
+        self.setViewportMargins(0, 0, 0, 0)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed
         )
-        self.viewport().setAutoFillBackground(False)
-        self.setStyleSheet("QTextBrowser { background: transparent; border: none; }")
+        self.viewport().setAutoFillBackground(True)
         watch_theme(self, self.restyle)
         self.restyle(theme_of(self))
 
     def restyle(self, theme: Theme) -> None:
         """Dress the document from the theme and lay it out again."""
+        # The prose owns its ground, so a re-layout leaves nothing of the last one behind.
+        ground = theme.color("background")
+        self.setStyleSheet(f"QTextBrowser {{ background: {ground.name()}; border: none; }}")
         self.document().setDefaultStyleSheet(markdown.stylesheet(theme))
         self.document().setDefaultFont(theme.font(14))
         self.setHtml(markdown.to_html(self._source, theme))
@@ -92,14 +127,18 @@ class _Prose(QtWidgets.QTextBrowser):
     def _fit(self) -> None:
         document = self.document()
         document.setTextWidth(max(1, self.viewport().width()))
-        self.setFixedHeight(int(document.size().height()) + 4)
+        height = int(document.size().height()) + 4
+        if height != self.height():
+            self.setFixedHeight(height)
+        self.viewport().update()
 
 
 class _RowDelegate(QtWidgets.QStyledItemDelegate):
     """A props table's cell: the documented inset, the row line, and the selection left out."""
 
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, table: QtWidgets.QTableWidget) -> None:
         super().__init__(parent)
+        self._table = table
 
     def paint(
         self,
@@ -121,7 +160,7 @@ class _RowDelegate(QtWidgets.QStyledItemDelegate):
         painter.setPen(theme.color("foreground" if not mono else "muted_foreground"))
         text = str(index.data(QtCore.Qt.ItemDataRole.DisplayRole) or "")
         painter.drawText(
-            box.adjusted(12, 8, -12, -8).toRect(),
+            box.adjusted(CELL_PAD, 8, -CELL_PAD, -8).toRect(),
             int(
                 QtCore.Qt.AlignmentFlag.AlignTop
                 | QtCore.Qt.AlignmentFlag.AlignLeft
@@ -136,13 +175,9 @@ class _RowDelegate(QtWidgets.QStyledItemDelegate):
     ) -> QtCore.QSize:
         theme = theme_of(self.parent())
         mono = bool(index.data(QtCore.Qt.ItemDataRole.UserRole))
-        metrics = QtGui.QFontMetrics(theme.font(12, mono=True) if mono else theme.font(13))
-        width = max(80, option.rect.width() - 24)
+        column = self._table.columnWidth(index.column()) or option.rect.width()
         text = str(index.data(QtCore.Qt.ItemDataRole.DisplayRole) or "")
-        box = metrics.boundingRect(
-            QtCore.QRect(0, 0, width, 10000), int(QtCore.Qt.TextFlag.TextWordWrap), text
-        )
-        return QtCore.QSize(option.rect.width(), box.height() + 16)
+        return QtCore.QSize(column, _wrapped_height(theme, text, mono, column))
 
 
 class PropsTable(QtWidgets.QWidget):
@@ -170,6 +205,9 @@ class PropsTable(QtWidgets.QWidget):
         columns = TABLE_COLUMNS.get(kind, TABLE_COLUMNS["props"])
         surface = chrome.primitive("TableSurface")
         self.table = self._build_table(columns, surface)
+        self._laid_width = 0
+        self._pending = False
+        self.table.installEventFilter(self)
         layout.addWidget(self.table)
         watch_theme(self, self._restyle)
         self._restyle(theme_of(self))
@@ -197,24 +235,23 @@ class PropsTable(QtWidgets.QWidget):
         table.setHorizontalHeaderLabels([label for _key, label in columns])
         table.verticalHeader().setVisible(False)
         table.setShowGrid(False)
-        table.setWordWrap(True)
+        table.setWordWrap(False)
         table.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
         table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         table.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        table.setItemDelegate(_RowDelegate(self))
+        table.setItemDelegate(_RowDelegate(self, table))
         header = table.horizontalHeader()
         header.setHighlightSections(False)
         header.setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         for column, (key, _label) in enumerate(columns):
-            mode = (
-                QtWidgets.QHeaderView.ResizeMode.Stretch
-                if key in ("meaning", "when", "draws", "does")
-                else QtWidgets.QHeaderView.ResizeMode.ResizeToContents
-            )
-            header.setSectionResizeMode(column, mode)
+            if key in STRETCH_COLUMNS:
+                header.setSectionResizeMode(column, QtWidgets.QHeaderView.ResizeMode.Stretch)
+                continue
+            header.setSectionResizeMode(column, QtWidgets.QHeaderView.ResizeMode.Fixed)
+            table.setColumnWidth(column, COLUMN_WIDTHS.get(key, 140))
         for row, values in enumerate(self._rows):
             for column, (key, _label) in enumerate(columns):
                 item = QtWidgets.QTableWidgetItem(_strip(values.get(key)))
@@ -236,13 +273,48 @@ class PropsTable(QtWidgets.QWidget):
             )
         )
         self.table.horizontalHeader().setFont(theme.font(12, weight=QtGui.QFont.Weight.Medium))
-        self.table.resizeRowsToContents()
+        self._lay_rows()
         self._fit()
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # noqa: N802
         super().resizeEvent(event)
-        self.table.resizeRowsToContents()
+        self._schedule()
+
+    def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent) -> bool:  # noqa: N802
+        """Lay the rows again once the stretched column has taken its width."""
+        if watched is self.table and event.type() == QtCore.QEvent.Type.Resize:
+            self._schedule()
+        return super().eventFilter(watched, event)
+
+    def _schedule(self) -> None:
+        """Lay out on the next turn of the loop: the stretched column takes its width after the
+        resize this was called from."""
+        if self._pending or self.table.width() == self._laid_width:
+            return
+        self._pending = True
+        QtCore.QTimer.singleShot(0, self._lay_and_fit)
+
+    def _lay_and_fit(self) -> None:
+        self._pending = False
+        self._lay_rows()
         self._fit()
+
+    def _lay_rows(self) -> None:
+        """Each row as tall as its tallest cell wrapped at that cell's column."""
+        self._laid_width = self.table.width()
+        theme = theme_of(self)
+        for row in range(self.table.rowCount()):
+            height = ROW_MIN_HEIGHT
+            for column in range(self.table.columnCount()):
+                item = self.table.item(row, column)
+                if item is None:
+                    continue
+                mono = bool(item.data(QtCore.Qt.ItemDataRole.UserRole))
+                height = max(
+                    height,
+                    _wrapped_height(theme, item.text(), mono, self.table.columnWidth(column)),
+                )
+            self.table.setRowHeight(row, height)
 
     def _fit(self) -> None:
         height = self.table.horizontalHeader().height()
@@ -359,6 +431,13 @@ class WidgetPage(QtWidgets.QWidget):
     def ready(self) -> bool:
         """True once every stage on the page has built and its first read has settled."""
         return all(stage.ready for stage in self.stages)
+
+    @property
+    def context(self) -> DemoContext | None:
+        """What the demos on this page read through."""
+        if self._context is not None:
+            return self._context
+        return self.stages[0].context if self.stages else None
 
     def stage(self, name: str) -> DemoStage | None:
         """The stage of that demo name."""

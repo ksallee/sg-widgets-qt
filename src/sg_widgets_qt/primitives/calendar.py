@@ -341,7 +341,8 @@ class Calendar(ThemedWidget):
 
     `mode` of `single` keeps one day and `range` keeps two. `value` and `value_changed` carry
     ISO strings: one string in `single`, a `(start, end)` pair in `range`, either end None while
-    it is unset.
+    it is unset. `surface` of `transparent` drops the `background` fill, for a calendar sitting
+    in a popover that has painted one already.
     """
 
     value_changed = Signal(object)
@@ -354,10 +355,12 @@ class Calendar(ThemedWidget):
         min: DateLike = None,  # noqa: A002
         max: DateLike = None,  # noqa: A002
         locale: str = "en-US",
+        surface: str = "background",
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._mode = mode if mode in ("single", "range") else "single"
+        self._surface = surface
         self._locale = locale
         self._min = as_date(min)
         self._max = as_date(max)
@@ -370,8 +373,8 @@ class Calendar(ThemedWidget):
         self._next = IconButton("chevron-right", self, side=NAV_SIZE, glyph=16, tooltip="Next month")
         self._month_select = Select(parent=self, size="sm", placeholder="Month")
         self._year_select = Select(parent=self, size="sm", placeholder="Year")
-        self._month_select.setMaximumWidth(132)
-        self._year_select.setMaximumWidth(112)
+        self._month_select.setMinimumWidth(124)
+        self._year_select.setMinimumWidth(96)
         self._grid = MonthGrid(self, locale=locale)
         self._grid.set_mode(self._mode)
         self._grid.set_bounds(self._min, self._max)
@@ -499,6 +502,13 @@ class Calendar(ThemedWidget):
     def handle_key(self, event: QKeyEvent) -> bool:
         """Take one key from a widget holding the focus above this one."""
         return self._grid.handle_key(event)
+
+    def paintEvent(self, _event: QEvent) -> None:  # noqa: N802
+        if self._surface == "transparent":
+            return
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), self.theme.color("background"))
+        painter.end()
 
 
 def _add_months(day: datetime.date, delta: int) -> datetime.date:

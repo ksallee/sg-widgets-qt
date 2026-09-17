@@ -296,10 +296,10 @@ class RowDelegate(QStyledItemDelegate):
             painter.restore()
             right -= width + GAP
         elif secondary:
-            font = theme.font(CODE_TEXT)
-            width = min(QFontMetrics(font).horizontalAdvance(secondary), box.width() // 2)
+            painter.setFont(theme.font(CODE_TEXT))
+            # A pixel of slack: the elider measures a shade wider than the advance.
+            width = min(painter.fontMetrics().horizontalAdvance(secondary) + 2, box.width() // 2)
             cell = QRect(right - width, box.top(), width, box.height())
-            painter.setFont(font)
             painter.setPen(muted)
             painter.drawText(
                 cell,
@@ -329,18 +329,20 @@ class RowDelegate(QStyledItemDelegate):
 
         runs = _runs(index)
         code = _text(index, Roles.CODE)
-        code_font = theme.font(CODE_TEXT, mono=True)
-        code_width = QFontMetrics(code_font).horizontalAdvance(code) if code else 0
+        code_width = 0
+        if code:
+            painter.setFont(theme.font(CODE_TEXT, mono=True))
+            code_width = painter.fontMetrics().horizontalAdvance(code) + 2
         room = max(0, box.width() - (code_width + LABEL_GAP if code else 0))
         # The code sits beside the label, not at the far edge, so the two read as one line.
-        width = min(_runs_width(runs, base, bold), room)
+        width = min(_runs_width(painter, runs, base, bold) + 2, room)
 
         line = QRect(box.left(), top, width, label_height)
         cut = _draw_runs(painter, line, runs, base, bold, ink)
 
         if code:
             code_box = QRect(box.left() + width + LABEL_GAP, top, code_width, label_height)
-            painter.setFont(code_font)
+            painter.setFont(theme.font(CODE_TEXT, mono=True))
             painter.setPen(muted)
             painter.drawText(
                 code_box,
@@ -505,9 +507,10 @@ def _runs(index: QModelIndex) -> list[tuple[str, bool]]:
     return [(_text(index, Roles.LABEL) or _display(index), False)]
 
 
-def _runs_width(runs: list[tuple[str, bool]], base: QFont, bold: QFont) -> int:
-    """How wide the runs stand, each in the weight it is drawn in."""
-    normal, heavy = QFontMetrics(base), QFontMetrics(bold)
+def _runs_width(painter: QPainter, runs: list[tuple[str, bool]], base: QFont, bold: QFont) -> int:
+    """How wide the runs stand, each in the weight it is drawn in, on the painter's device."""
+    device = painter.device()
+    normal, heavy = QFontMetrics(base, device), QFontMetrics(bold, device)
     return sum((heavy if matched else normal).horizontalAdvance(text) for text, matched in runs)
 
 
@@ -528,9 +531,8 @@ def _draw_runs(
         if not text or x >= right:
             cut = cut or bool(text)
             continue
-        font = bold if matched else base
-        painter.setFont(font)
-        metrics = QFontMetrics(font)
+        painter.setFont(bold if matched else base)
+        metrics = painter.fontMetrics()
         width = metrics.horizontalAdvance(text)
         run_box = QRect(x, box.top(), min(width, right - x), box.height())
         shown = text

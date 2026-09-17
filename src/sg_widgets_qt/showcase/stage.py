@@ -133,6 +133,11 @@ class DemoStage(QtWidgets.QWidget):
     # --- the demo ----------------------------------------------------------------------------
 
     @property
+    def context(self) -> DemoContext | None:
+        """What the demo reads through. A drive asserts on `context.reads`."""
+        return self._context
+
+    @property
     def widget(self) -> QtWidgets.QWidget | None:
         """The widget the demo built, while it stands."""
         return self._widget
@@ -160,7 +165,9 @@ class DemoStage(QtWidgets.QWidget):
         """Build the demo, replacing whatever stood here."""
         self._clear()
         self._error = ""
-        context = self._context if self._context is not None else _lazy_context(self._prefs)
+        if self._context is None:
+            self._context = _lazy_context(self._prefs)
+        context = self._context
         try:
             module = importlib.import_module(demo_module_name(self.data_name))
         except ImportError:

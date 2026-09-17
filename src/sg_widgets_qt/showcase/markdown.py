@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from ..theme import Theme, with_alpha
+from ..theme import Theme, mix
 
 __all__ = [
     "Block",
@@ -219,7 +219,10 @@ def to_html(source: str, _theme: Theme | None = None) -> str:
 
 def stylesheet(theme: Theme) -> str:
     """The document stylesheet one theme dresses a page's prose with."""
-    code_ground = with_alpha(theme.color("muted"), 1.0).name()
+    # A token may carry an alpha, and a document stylesheet takes `#rrggbb` alone, so the code
+    # surface is `muted` flattened over the page.
+    muted = theme.color("muted")
+    code_ground = mix(theme.color("background"), muted, muted.alphaF()).name()
     return _STYLE.format(
         foreground=theme.foreground,
         muted=theme.muted_foreground,
