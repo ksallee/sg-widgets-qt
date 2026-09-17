@@ -78,6 +78,8 @@ ENTITY_GRID_DENSITY_VALUES: tuple[str, ...] = ("compact", "default")
 #: The gap between tiles; compact halves it, as it halves a row's padding elsewhere.
 ENTITY_GRID_GAP: dict[str, int] = {"compact": 6, "default": 12}
 
+#: The tiles a first read stands behind, as upstream draws them.
+SKELETON_TILES = 8
 #: The inset the grid's own box takes around its tiles.
 GRID_PAD = 12
 
@@ -313,6 +315,8 @@ class EntityGrid(QtWidgets.QWidget):
         body.addWidget(self._state)
         self._skeleton = _GridSkeleton(self._box)
         self._skeleton.hide()
+        #: The height the tiles last stood at, for the next read's skeletons.
+        self._rows_height = 0
         body.addWidget(self._skeleton)
         self._bottom = _BottomBlock(self._box)
         self._bottom.setObjectName("entity-grid-bottom")
@@ -768,6 +772,18 @@ class EntityGrid(QtWidgets.QWidget):
     def _sync(self) -> None:
         state = self.control.snapshot()
         view = self.control.view(len(self.model.rows))
+        if view == "loading" and self.model.rows and self.view.isVisible():
+            # Read now, while the tiles still stand, so the skeletons fill the rows they stood in.
+            self._rows_height = self.view.height()
+        if view == "loading":
+            tile = card_tile_size(self.size)
+            gap = ENTITY_GRID_GAP[self.density]
+            if self._rows_height > 0:
+                rows = max(1, round((self._rows_height - 2 * GRID_PAD + gap) / (tile.height() + gap)))
+                per_row = max(1, (self.view.width() - 2 * GRID_PAD + gap) // (tile.width() + gap))
+                self._skeleton.set_tiles(rows * per_row, tile, gap, self.view.width())
+            else:
+                self._skeleton.set_tiles(SKELETON_TILES, tile, gap, self.view.width())
         self.view.setVisible(view == "rows")
         self._skeleton.setVisible(view == "loading")
         self._state.setVisible(view in ("empty", "error"))
@@ -808,20 +824,46 @@ class EntityGrid(QtWidgets.QWidget):
 
 
 class _GridSkeleton(SkeletonBlock):
-    """Tiles a first read stands behind: the same surface, the same inset, the same height."""
+    """Tiles a read stands behind: the same surface, the same inset, the same height.
+
+    A first read draws upstream's eight; a re-read of tiles already on screen, a sort or a
+    new page, draws as many as filled the rows the tiles stood in, so the grid keeps its
+    height and nothing under it moves while the answer is on its way.
+    """
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("entity-grid-loading")
         self.setAccessibleName("Loading…")
-        line = QtWidgets.QHBoxLayout(self)
-        line.setContentsMargins(GRID_PAD, GRID_PAD, GRID_PAD, GRID_PAD)
-        line.setSpacing(ENTITY_GRID_GAP["default"])
-        tile = card_tile_size("md")
-        for _ in range(4):
+        self._grid = QtWidgets.QGridLayout(self)
+        self._grid.setContentsMargins(GRID_PAD, GRID_PAD, GRID_PAD, GRID_PAD)
+        self._tiles = 0
+        self.set_tiles(SKELETON_TILES, card_tile_size("md"), ENTITY_GRID_GAP["default"], 0)
+
+    @property
+    def tiles(self) -> int:
+        """How many tiles stand in the block."""
+        return self._tiles
+
+    def set_tiles(self, count: int, tile: QtCore.QSize, gap: int, width: int) -> None:
+        """`count` tiles of `tile`, `gap` apart, wrapped to `width` (0 for one row)."""
+        count = max(1, int(count))
+        per_row = max(1, (width - 2 * GRID_PAD + gap) // (tile.width() + gap)) if width > 0 else count
+        while self._grid.count():
+            item = self._grid.takeAt(0)
+            made = item.widget()
+            if made is not None:
+                made.setParent(None)
+                made.deleteLater()
+        self._grid.setHorizontalSpacing(gap)
+        self._grid.setVerticalSpacing(gap)
+        for index in range(count):
             block = Skeleton(width=tile.width(), height=tile.height(), parent=self)
-            line.addWidget(block)
-        line.addStretch(1)
+            self._grid.addWidget(block, index // per_row, index % per_row, QtCore.Qt.AlignmentFlag.AlignLeft)
+        self._grid.setColumnStretch(per_row, 1)
+        rows = (count + per_row - 1) // per_row
+        self._tiles = count
+        self.setFixedHeight(rows * tile.height() + (rows - 1) * gap + 2 * GRID_PAD)
 
 
 #: The tile width per step, so a caller can size its own column around one.

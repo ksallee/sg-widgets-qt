@@ -998,8 +998,8 @@ class GroupedList(QtWidgets.QWidget):
     def _sync(self) -> None:
         state = self.control.snapshot()
         view = self.control.view(len(self.model.lines))
-        if view == "rows" and self.model.lines and self.view.isVisible():
-            # Remembered for the next read, so its skeletons fill the height the rows had.
+        if view == "loading" and self.model.lines and self.view.isVisible():
+            # Read now, while the rows still stand, so the skeletons fill the height they had.
             first = next((i for i, line in enumerate(self.model.lines) if line.kind == "row"), 0)
             self._rows_height = self.view.height()
             self._row_height = max(SKELETON_HEIGHT + 2, self.view.sizeHintForRow(first))

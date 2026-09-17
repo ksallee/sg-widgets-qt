@@ -238,3 +238,35 @@ def test_the_cursor_survives_the_page_the_scroller_appended(context, qtbot):
     assert len(grid.control.rows) > held, "the end of the loaded tiles asked for a page"
     assert grid.view.currentIndex().isValid()
     assert grid.view.currentIndex().row() == held - 1
+
+
+def test_a_re_read_stands_behind_tiles_that_keep_the_grids_height(qtbot):
+    """A sort re-reads the rows; the tiles that stand in fill the rows the tiles stood in.
+
+    Upstream draws eight tiles on any read; here a first read draws those eight and a re-read
+    draws as many as filled the tiles' rows, so the page under the grid does not jump.
+    """
+    from qtpy.QtWidgets import QWidget
+
+    from sg_widgets_core.collection import SortSpec
+
+    slow = mock_context(latency_ms=400)
+    source = create_entity_source(
+        EntitySourceOptions(
+            client=slow.client, entity_type="Version", fields=list(FIELDS), mode="pages", page_size=12
+        )
+    )
+    grid = _grid(slow, qtbot, source=source)
+    before = grid.height()
+    rows_height = grid.view.height()
+    grid.control.apply_sort([SortSpec(path="code", descending=True)])
+    qtbot.wait(40)
+    assert grid.control.snapshot().status == "loading"
+    skeleton = grid.findChild(QWidget, "entity-grid-loading")
+    assert skeleton.isVisible() and not grid.view.isVisible()
+    # Two rows of three at this width and height: the box the tiles filled, not a cold read's eight.
+    assert skeleton.tiles == 6
+    assert abs(skeleton.height() - rows_height) <= 40
+    assert abs(grid.height() - before) <= 40
+    settle(grid, grid.control.binding)
+    assert grid.view.isVisible() and abs(grid.height() - before) <= 2
