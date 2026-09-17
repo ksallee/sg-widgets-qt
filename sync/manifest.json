@@ -2,7 +2,7 @@
   "upstream": {
     "path": "~/dev/sg-widgets",
     "branch": "dev",
-    "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6"
+    "commit": "8cf8f61c5aba25c3f33b0d557a705e3df334d330"
   },
   "items": {
     "core/client": {
@@ -499,6 +499,17 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
     },
+    "demos/filter-editor": {
+      "status": "complete",
+      "upstream": {
+        "apps/site/src/demos/filter-editor/Demo.tsx": "c2f6092138401a29d883c57c2820b1027a0b6f094596d0413de32706be8e6b0b"
+      },
+      "ported": [
+        "src/sg_widgets_qt/showcase/demos/filter_editor.py"
+      ],
+      "commit": "8cf8f61c5aba25c3f33b0d557a705e3df334d330",
+      "note": "Recorded from the feature branch feat/filter-editor-demo-catalogue (8cf8f61), not from dev. The catalogue tree is seeded row for row: six groups, forty rows, the same field paths, operators and value shapes. A link on many values draws EntityMultiPicker, which is the Qt widget behind the web's multiple entity picker; a range and a list of values are the editor's own filter-range and filter-list. The live branch is the status row alone, as upstream."
+    },
     "demos/grouped-list": {
       "status": "partial",
       "upstream": {
@@ -869,7 +880,7 @@
     "docs/filter-editor": {
       "status": "complete",
       "upstream": {
-        "apps/site/src/content/docs/widgets/filter-editor.mdx": "7fb3256e4b646cb3cf8e801d2a096844a6aa1530eb2f4eebaaea2697e4b2d5c1",
+        "apps/site/src/content/docs/widgets/filter-editor.mdx": "8b628cdf9eed10660b061dc73a1e7923ef6ca9f21828c3ee1486068d51983019",
         "apps/site/src/props/entity-fields.ts": "e51b567fbbbb376e88a918778ea86c2364fe609c9299c191843224f491cf75d8",
         "apps/site/src/props/filter-editor.ts": "5283e4840678080fb7717c7ed5b4382e1102fbeef042ceb483d54bbbe1915f31"
       },
@@ -878,8 +889,8 @@
         "docs/widgets/entity-fields.props.json",
         "docs/widgets/filter-editor.props.json"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "Qt notes written by the widget pass"
+      "commit": "8cf8f61c5aba25c3f33b0d557a705e3df334d330",
+      "note": "Recorded from the feature branch feat/filter-editor-demo-catalogue (8cf8f61), not from dev. Qt notes written by the widget pass. The demo caption and the catalogue paragraph come from that branch."
     },
     "docs/global-search": {
       "status": "complete",

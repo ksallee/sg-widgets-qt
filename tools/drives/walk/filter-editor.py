@@ -2,7 +2,7 @@
 
     .venv/bin/python tools/qa.py --page filter-editor --drive tools/drives/walk/filter-editor.py
 
-The page opens on a tree a person would have built. The walk adds a condition and removes it,
+The page opens on the catalogue tree, one group per data-type family. The walk adds a condition and removes it,
 adds a group and nests a condition inside it, moves a row with the grip, turns All into Any on
 both levels, changes a field, an operator and a value on every data type the tree carries, and
 after each act reads the serialised filter under the tree and the count of the rows it matches.
@@ -98,7 +98,7 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901, PLR0915
     results = demo.results
 
     # --- the tree the page opens on ------------------------------------------------------------
-    walk.same("the demo opens on five children", 5, len(editor.value.conditions))
+    walk.same("the demo opens on one group per data-type family", 6, len(editor.value.conditions))
     walk.check(
         "the block under the tree prints its filter",
         json.loads(demo.wire.toPlainText()) == wire(editor),
@@ -166,27 +166,27 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901, PLR0915
     # --- All and Any on the root --------------------------------------------------------------------
     # The group is drawn afresh after every edit, so its All and Any is looked up again each time:
     # a walk that held the first one would be pressing a widget that has gone.
-    walk.same("the root opens on All", "and", editor.value.logical_operator)
-    click(slot(editor, "logic").toggles()[1])
-    wait(700)
-    walk.same("pressing Any turns the root", "or", editor.value.logical_operator)
-    walk.same("the wire follows the turn", "or", wire(editor).get("logical_operator"))
-    walk.check(
-        "the block follows the turn",
-        json.loads(demo.wire.toPlainText()).get("logical_operator") == "or",
-        "or",
-        json.loads(demo.wire.toPlainText()).get("logical_operator"),
-    )
-    loosened = counted(results, wait)
-    walk.check(
-        "Any matches at least as many rows as All",
-        loosened.kind == "ready" and loosened.total >= opening.total,
-        f">= {opening.total}",
-        loosened,
-    )
+    walk.same("the root opens on Any", "or", editor.value.logical_operator)
     click(slot(editor, "logic").toggles()[0])
     wait(700)
-    walk.same("pressing All turns it back", "and", editor.value.logical_operator)
+    walk.same("pressing All turns the root", "and", editor.value.logical_operator)
+    walk.same("the wire follows the turn", "and", wire(editor).get("logical_operator"))
+    walk.check(
+        "the block follows the turn",
+        json.loads(demo.wire.toPlainText()).get("logical_operator") == "and",
+        "and",
+        json.loads(demo.wire.toPlainText()).get("logical_operator"),
+    )
+    tightened = counted(results, wait)
+    walk.check(
+        "All matches no more rows than Any",
+        tightened.kind == "ready" and tightened.total <= opening.total,
+        f"<= {opening.total}",
+        tightened,
+    )
+    click(slot(editor, "logic").toggles()[1])
+    wait(700)
+    walk.same("pressing Any turns it back", "or", editor.value.logical_operator)
     counted(results, wait)
 
     # --- a row moved by its grip ----------------------------------------------------------------------

@@ -4,10 +4,10 @@
     .venv/bin/python tools/qa.py --page filter-editor --drive tools/drives/filter-editor-wire.py --qt5
 
 The demo prints `to_api3_hash` of whatever the editor last emitted, so the block under the tree
-is the wire payload a caller would send. The drive rebuilds the seeded tree from core by hand
-and compares, then walks the tree through every edit the state matrix shoots — a condition
-added, removed, pointed at another field, moved onto another operator, a group nested and
-un-nested, a row moved by the keyboard — and after each one asserts three things:
+is the wire payload a caller would send. The drive builds the seeded tree from core, on its own
+side of the page, and compares, then walks the tree through every edit the state matrix shoots:
+a condition added, removed, pointed at another field, moved onto another operator, a group
+nested and un-nested, a row moved by the keyboard. After each one it asserts three things:
 
   * the block equals `to_api3_hash` of the tree the editor now holds,
   * `changed` and `filters_changed` carried that same tree, once each,
@@ -19,34 +19,14 @@ from __future__ import annotations
 import json
 import time
 
-from sg_widgets_core.filter import EntityRef, condition, group, to_api3_hash
+from sg_widgets_core.filter import condition, group, to_api3_hash
+from sg_widgets_qt.showcase.demos.filter_editor import initial
 from sg_widgets_qt.widgets.filter_editor import FilterEditor
 
 
-#: The tree the demo opens on, built here rather than read from the page.
+#: The tree the demo opens on, built from core rather than read off the page.
 def seeded():
-    return group(
-        "and",
-        [
-            condition("sg_status_list", "in", ["rev", "vwd", "fin", "cmpt", "apr"]),
-            condition(
-                "entity.Shot.sg_sequence", "is", EntityRef(type="Sequence", id=100, name="sh010")
-            ),
-            condition("project.Project.sg_status", "is", "Active"),
-            condition("entity.Shot.sg_working_duration", "greater_than", 90),
-            group(
-                "or",
-                [
-                    condition("code", "contains", "comp"),
-                    condition("sg_version_type", "in", ["Type A", "Type B"]),
-                    condition("sg_bar_color", "is", "253,94,99"),
-                    condition("sg_first_frame", "in", [1001, 1101]),
-                    condition("created_at", "in_last", [3, "MONTH"]),
-                    condition("entity.Shot.sg_turnover_date", "in_next", [2, "WEEK"]),
-                ],
-            ),
-        ],
-    )
+    return initial(False)
 
 
 def wait_for(read, wait, ms: int = 8000) -> bool:
@@ -56,6 +36,11 @@ def wait_for(read, wait, ms: int = 8000) -> bool:
         if read():
             return True
     return False
+
+
+def last(editor) -> list[int]:
+    """Where the row added to the root stands."""
+    return [len(editor.value.conditions) - 1]
 
 
 def block_of(page):
@@ -105,7 +90,7 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
         if not same:
             failures.append(f"{name}: the block reads {json.dumps(got)[:120]}")
 
-    # The seeded tree, rebuilt from core rather than read off the page.
+    # The seeded tree, built from core rather than read off the page.
     want = to_api3_hash(seeded())
     got = printed()
     table.append({"state": "rest", "wire": "same" if got == want else "differs"})
@@ -114,8 +99,10 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
 
     edits = (
         ("added", lambda: editor.append([], condition("", "is", ""))),
-        ("field", lambda: editor.pick_field([5], editor.node_at([5]), "sg_first_frame")),
-        ("operator", lambda: editor.pick_preset([0], editor.node_at([0]), "not_in")),
+        # The added row stands past the groups the catalogue opens on; the operator moves
+        # on the first row of the first group.
+        ("field", lambda: editor.pick_field(last(editor), editor.node_at(last(editor)), "sg_first_frame")),
+        ("operator", lambda: editor.pick_preset([0, 0], editor.node_at([0, 0]), "not_in")),
         ("nested", lambda: editor.append([], group("or", []))),
         ("unnested", lambda: editor.remove([len(editor.value.conditions) - 1])),
         ("moved", lambda: editor.move([1], -1)),

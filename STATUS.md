@@ -147,6 +147,7 @@ Last synced upstream commit: `a3e515188ab1`.
 | entity-table | complete | `Demo.tsx` | Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. The toolbar's sort control takes the shown columns through options, so it sorts on the linked column too. |
 | entity-table-infinite | complete | `Demo.tsx` |  |
 | entity-tree | complete | `Demo.tsx` |  |
+| filter-editor | complete | `Demo.tsx` | Recorded from the feature branch feat/filter-editor-demo-catalogue (8cf8f61), not from dev. The catalogue tree is seeded row for row: six groups, forty rows, the same field paths, operators and value shapes. A link on many values draws EntityMultiPicker, the Qt widget behind the web's multiple entity picker. |
 | grouped-list | partial | `Demo.tsx` | The armed-failure section is out: the demo client here has no failNext. |
 | hello | complete | `Demo.tsx` |  |
 | picker-padding | complete | `Demo.tsx` | The picker box harness is the picker-box drive, measuring every picker at the three sizes, empty and filled |
@@ -181,7 +182,7 @@ Last synced upstream commit: `a3e515188ab1`.
 | field-value | complete | `field-value.mdx`, `field-value.ts` | Qt notes written by the widget pass |
 | filter-bar | complete | `filter-bar.mdx`, `filter-bar.ts` | Qt notes written by the widget pass |
 | filter-dialog | complete | `filter-dialog.mdx`, `filter-dialog.ts` | Qt notes written by the widget pass |
-| filter-editor | complete | `filter-editor.mdx`, `entity-fields.ts`, `filter-editor.ts` | Qt notes written by the widget pass |
+| filter-editor | complete | `filter-editor.mdx`, `entity-fields.ts`, `filter-editor.ts` | Recorded from the feature branch feat/filter-editor-demo-catalogue (8cf8f61), not from dev. Qt notes written by the widget pass. |
 | global-search | complete | `global-search.mdx` |  |
 | grouped-list | complete | `grouped-list.mdx` | Every ::qt-note answered. |
 | hierarchical-search | complete | `hierarchical-search.mdx` |  |
@@ -228,10 +229,11 @@ Last synced upstream commit: `a3e515188ab1`.
 
 | where | what |
 |---|---|
-| filter-editor page | A rebuild of the five demo editors takes 55ms on PySide6 (30ms on PyQt5), 5ms over the 50ms budget of the thread drive, after the picker popup became lazy. Next cost is the row layout itself. |
+| filter-editor page | A rebuild of the demo editors is over the 50ms budget of the thread drive: 58ms on the five-row tree, 143ms now the first tree is the forty-row catalogue. The cost is the row layout, built in one pass when the entity type changes. |
 | text search on the Python API | The endpoint refuses a term under three characters, so the client answers one itself with a name read per type; such a row carries no linked name. Documented on both search pages. |
 | `tests/qt/test_primitives_leaf.py::test_a_filled_button_paints_primary_at_its_centre` | Flaked once under a random test order during concurrent edits; passes alone, in file order and in every final run on either binding. Watch it. |
 | field-picker, sort-picker, pickers, entity-table demo | Recorded from upstream branch `feat/field-picker-options` (PR #255), not from `dev`. Re-record the six items against the merged commit once the PR lands. |
+| filter-editor demo and docs page | Recorded from upstream branch `feat/filter-editor-demo-catalogue` (PR #257), not from `dev`. Re-record the two items against the merged commit once the PR lands. |
 | `pytest -q` | `addopts` already carries `-q`; a second `-q` hides the summary line. Run `pytest` bare. |
 
 ## Verified

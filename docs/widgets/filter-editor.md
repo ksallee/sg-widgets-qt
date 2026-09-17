@@ -14,7 +14,12 @@ to the body `_search` takes.
 from sg_widgets_qt.widgets.filter_editor import FilterEditor
 ```
 
-::demo{name="filter-editor" title="FilterEditor: a nested tree on Version with its serialised filter, a Note read-state row, and sizes"}
+::demo{name="filter-editor" title="FilterEditor: a catalogue of Version filters, one group per data type, with its serialised filter, a Note read-state row, and sizes"}
+
+The first tree is a catalogue. One group holds each data type's family: text, the numeric types,
+links, the coded lists, dates, and the flags and colours. Each group spreads that family's
+operators, so every value control and every operator shape is on the page at once. The top level is
+Any, so the count under it counts rows.
 
 A row is one 36px line: the field, the operator, the value and, on its own axis at the end, the
 remove control. A group is a header, its rows and a foot. The header carries the All and Any toggle

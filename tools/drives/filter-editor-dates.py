@@ -75,11 +75,19 @@ def _walk(node):
         yield from _walk(child)
 
 
-def index_of(editor: FilterEditor, path: str) -> int:
-    for i, child in enumerate(editor.value.conditions):
-        if child.kind == "condition" and child.path == path:
-            return i
-    return -1
+def path_of(editor: FilterEditor, wanted) -> list[int] | None:
+    """Where in the tree the first condition the test accepts stands, groups and all."""
+
+    def walk(node, at: list[int]) -> list[int] | None:
+        if node.kind == "condition":
+            return at if wanted(node) else None
+        for i, child in enumerate(node.conditions):
+            found = walk(child, [*at, i])
+            if found is not None:
+                return found
+        return None
+
+    return walk(editor.value, [])
 
 
 def drive(page, wait, find, prefs) -> dict:  # noqa: C901
@@ -123,25 +131,17 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
         failures.append(f"the editor reads {editor.error!r}")
 
     # The calendar half: every entry of the `created_at` menu, against the docs page's table.
-    at = index_of(editor, "created_at")
-    if at < 0:
-        # The relative rows sit in the nested group; the root's own date row is the one walked.
-        for i, child in enumerate(editor.value.conditions):
-            if child.kind == "condition" and editor.data_type_of(child.path) in ("date", "date_time"):
-                at = i
-                break
+    at = path_of(editor, lambda one: one.path == "created_at")
+    if at is None:
+        at = path_of(editor, lambda one: editor.data_type_of(one.path) in ("date", "date_time"))
     calendar: list[dict] = []
-    if at < 0:
-        node = None
-        for i, child in enumerate(editor.value.conditions):
-            if child.kind == "condition":
-                node = child
-                at = i
-                break
-        if node is not None:
-            editor.pick_field([at], node, "created_at")
-            wait_for(lambda: (editor.node_at([at]) or node).path == "created_at", wait, 8000)
-    node = editor.node_at([at]) if at >= 0 else None
+    if at is None:
+        at = path_of(editor, lambda _one: True)
+        node = editor.node_at(at) if at is not None else None
+        if at is not None and node is not None:
+            editor.pick_field(at, node, "created_at")
+            wait_for(lambda: (editor.node_at(at) or node).path == "created_at", wait, 8000)
+    node = editor.node_at(at) if at is not None else None
     if node is None or node.kind != "condition":
         failures.append("no date row to walk the calendar entries on")
     else:
@@ -155,10 +155,10 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
         if not offered:
             failures.append(f"the {data_type} menu offers no calendar entry")
         for preset_id in offered:
-            here = editor.node_at([at])
-            editor.pick_preset([at], here, preset_id)
+            here = editor.node_at(at)
+            editor.pick_preset(at, here, preset_id)
             wait(80)
-            after = editor.node_at([at])
+            after = editor.node_at(at)
             operator, offset = CALENDAR[preset_id]
             got = (after.operator, after.value) if after is not None else ("", None)
             calendar.append({"preset": preset_id, "operator": got[0], "value": got[1]})
