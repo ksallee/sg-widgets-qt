@@ -467,3 +467,23 @@ def _key_event(key, text: str = "") -> QtCore.QEvent:
     from qtpy.QtGui import QKeyEvent
 
     return QKeyEvent(QtCore.QEvent.Type.KeyPress, int(key), Qt.KeyboardModifier.NoModifier, text)
+
+
+def test_a_popover_wears_the_anchor_s_theme_not_the_window_s(qtbot):
+    """The stage under the window is dark; the popover, a top-level, must read dark too."""
+    from sg_widgets_qt.primitives.popover import Popover
+    from sg_widgets_qt.theme import apply_theme, theme_for, theme_of
+
+    window = QtWidgets.QWidget()
+    qtbot.addWidget(window)
+    stage = QtWidgets.QWidget(window)
+    apply_theme(stage, theme_for("default", dark=True))
+    anchor = QtWidgets.QPushButton("anchor", stage)
+    window.show()
+    popover = Popover(anchor, QtWidgets.QLabel("content"))
+    assert theme_of(popover).dark is True
+    popover.open()
+    assert theme_of(popover.content()).dark is True
+    apply_theme(stage, theme_for("default", dark=False))
+    assert theme_of(popover).dark is False
+    popover.close()

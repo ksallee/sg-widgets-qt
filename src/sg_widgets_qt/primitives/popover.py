@@ -19,7 +19,7 @@ from collections.abc import Callable
 from qtpy import QtCore, QtGui, QtWidgets
 from qtpy.QtCore import QEvent, QPoint, QRect, QSize, Qt, Signal
 
-from ..theme import Theme, theme_of, with_alpha
+from ..theme import Theme, apply_theme, theme_of, watch_theme, with_alpha
 from .base import DURATION, EASE_IN, EASE_OUT, ThemedWidget, fill_round_rect, paint_shadow
 
 __all__ = [
@@ -248,6 +248,10 @@ class Popover(ThemedWidget):
         self._progress = 0.0
         self._animating = False
         self._closing = False
+        # A popover is its own top-level, so the walk up to a theme stops at the window and misses
+        # the stage under it. It wears the anchor's theme instead, and follows it.
+        self._wear_anchor_theme()
+        watch_theme(anchor, lambda _theme: self._wear_anchor_theme())
         self._frame = QtGui.QPixmap()
         self._guard: Callable[[QPoint], bool] | None = None
         self._anchor_rect: Callable[[], QRect] | None = None
@@ -393,10 +397,19 @@ class Popover(ThemedWidget):
         """True from `open` until `close`, the closing animation included."""
         return self._open
 
+    def _wear_anchor_theme(self) -> None:
+        anchor = self._anchor
+        try:
+            theme = theme_of(anchor)
+        except RuntimeError:  # The anchor is gone; the popover follows shortly.
+            return
+        apply_theme(self, theme)
+
     def open(self) -> None:
         """Place the surface, show it without taking focus, and fade it in."""
         if self._open:
             return
+        self._wear_anchor_theme()
         self._open = True
         self._closing = False
         self.reposition()
