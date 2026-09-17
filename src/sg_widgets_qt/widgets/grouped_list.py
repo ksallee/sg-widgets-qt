@@ -310,6 +310,9 @@ class _ListView(QtWidgets.QListView):
             option = self.viewOptions()
         option.rect = rect
         painter = QtGui.QPainter(self.viewport())
+        # The heading's own wash is translucent, so the list's ground goes under it first: the
+        # pinned band reads as the heading does in its place, not as the rows sliding under it.
+        painter.fillRect(rect, theme_of(self).color("background"))
         self.itemDelegate().paint(painter, option, heading)
         painter.end()
 
