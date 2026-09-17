@@ -37,6 +37,16 @@ TEXT_SIZE = 14
 #: The vertical inset of a textarea, which has no ladder height to centre one line in.
 TEXTAREA_PAD_Y = 8
 
+#: `bg-input/30` of `input.tsx`: the wash a field wears at rest on a dark page.
+REST_WASH_DARK = 0.3
+
+#: `disabled:bg-input/50` and `dark:disabled:bg-input/80`: the wash an inert field wears.
+DISABLED_WASH = 0.5
+DISABLED_WASH_DARK = 0.8
+
+#: `disabled:opacity-50`, on the ink Qt draws itself, which no painter opacity reaches.
+DISABLED_INK = 0.5
+
 
 class _Field(ThemedMixin):
     """The chrome both fields wear: the surface, the border, the states and the focus ring."""
@@ -121,7 +131,11 @@ class _Field(ThemedMixin):
         palette.setColor(role.HighlightedText, theme.color("accent_foreground"))
         placeholder = getattr(role, "PlaceholderText", None)
         if placeholder is not None:
-            palette.setColor(placeholder, theme.color("muted_foreground"))
+            # The painter's opacity never reaches Qt's own text, so the inert step is on the ink.
+            ink = theme.color("muted_foreground")
+            palette.setColor(
+                placeholder, ink if self.isEnabled() else with_alpha(ink, DISABLED_INK)
+            )
         self.setPalette(palette)
         self.setFont(theme.font(TEXT_SIZE))
 
@@ -129,6 +143,12 @@ class _Field(ThemedMixin):
         self.apply_theme_to_palette()
         self.layout_slots()
         super()._on_theme(theme)
+
+    def changeEvent(self, event: QtCore.QEvent) -> None:  # noqa: N802
+        super().changeEvent(event)
+        if event.type() == QtCore.QEvent.Type.EnabledChange:
+            self.apply_theme_to_palette()
+            self.update()
 
     # --- chrome ---
 
@@ -139,6 +159,9 @@ class _Field(ThemedMixin):
         painter.setOpacity(self.disabled_opacity())
 
         surface = mix(theme.background, theme.muted, 0.3 * self._hover.value)
+        wash = self._wash(theme)
+        if wash is not None:
+            surface = mix(surface, QtGui.QColor(wash.rgb()), wash.alphaF())
         border = theme.color("destructive") if self._invalid else theme.color("input")
         fill_round_rect(painter, rect, radius, surface, border)
 
@@ -158,6 +181,17 @@ class _Field(ThemedMixin):
         if self.keyboard_focus:
             self.paint_focus_ring(painter, rect, radius)
         painter.end()
+
+    def _wash(self, theme: object) -> QtGui.QColor | None:
+        """The `bg-input/…` of `input.tsx`, or nothing where the field is a plain box.
+
+        A field is transparent at rest on a light page and wears the `input` token at 30% on a
+        dark one; inert, it wears that token at 50% light and 80% dark. The `input` token carries
+        its own alpha, so the fraction is of that.
+        """
+        if not self.isEnabled():
+            return with_alpha(theme.input, DISABLED_WASH_DARK if theme.dark else DISABLED_WASH)
+        return with_alpha(theme.input, REST_WASH_DARK) if theme.dark else None
 
     def _glyph_centre(self, rect: QtCore.QRect) -> int:
         return rect.center().y()

@@ -49,6 +49,7 @@ __all__ = [
     "painter_for",
     "paint_focus_ring",
     "paint_shadow",
+    "retheme",
 ]
 
 # --- the ladders -----------------------------------------------------------------------------
@@ -427,11 +428,18 @@ class ThemedMixin:
 
     def changeEvent(self, event: QtCore.QEvent) -> None:  # noqa: N802
         super().changeEvent(event)
-        if event.type() == QtCore.QEvent.Type.EnabledChange:
+        kind = event.type()
+        if kind == QtCore.QEvent.Type.EnabledChange:
             if not self.isEnabled():
                 self._hovered = False
                 self._pressed = False
             self.update()
+        elif kind == QtCore.QEvent.Type.ParentChange:
+            retheme(self)
+
+    def apply_current_theme(self) -> None:
+        """Read the nearest theme again, as though one had just landed here."""
+        self._on_theme(self.theme)
 
     # --- chrome ---
 
@@ -469,6 +477,19 @@ class ThemedMixin:
 
 class ThemedWidget(ThemedMixin, QtWidgets.QWidget):
     """A painted leaf: a `QWidget` that reads the nearest theme and tracks its own states."""
+
+
+def retheme(root: QtWidgets.QWidget) -> None:
+    """Read the theme again on every themed widget at or under `root`.
+
+    `watch_theme` only hears a theme that lands while the widget is already under the root it
+    landed on. A widget built before it joined that tree read the host's theme instead and kept it:
+    a stale palette, a stale ink. Joining a tree is the other moment a theme reaches a widget, so
+    every parent change re-reads it, for the whole subtree that came along.
+    """
+    for widget in [root, *root.findChildren(QtWidgets.QWidget)]:
+        if isinstance(widget, ThemedMixin):
+            widget.apply_current_theme()
 
 
 def painter_for(widget: QtWidgets.QWidget) -> QtGui.QPainter:

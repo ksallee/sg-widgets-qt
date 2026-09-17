@@ -46,6 +46,7 @@ from sg_widgets_core.search import match_runs
 from sg_widgets_core.status import status_paint
 
 from ..images import ImageLoader, image_loader
+from ..workers import default_pool
 from ..primitives.roles import Roles
 from ..primitives.row_delegate import CODE_TEXT, LEAD, RowDelegate
 from ..theme import theme_of, watch_theme
@@ -583,7 +584,7 @@ class PickerRowModel(QAbstractListModel):
         self._plan_pending = True
         context = self._context
         declared = getattr(spec, "data_type", None) if not isinstance(spec, str) else None
-        self._pool.submit(
+        default_pool().submit(
             _read_plan,
             context,
             entity_type,

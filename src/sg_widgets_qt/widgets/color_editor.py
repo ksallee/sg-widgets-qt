@@ -37,7 +37,10 @@ from ..primitives.popover import Popover
 from ..theme import with_alpha
 from .value_editor import VALUE_EDITOR_GAP, EditorNote, ValueEditor, ValueSession, fade_disabled
 
-__all__ = ["SENTINEL_NOTE", "ColorEditor", "ColorPicker", "ColorSwatch"]
+__all__ = ["SENTINEL_NOTE", "SWATCH_SIZE", "ColorEditor", "ColorPicker", "ColorSwatch"]
+
+#: `SWATCH` of `color-editor.tsx`: the square beside the input, one step over the control ladder.
+SWATCH_SIZE: dict[str, int] = {"sm": 32, "md": 36, "lg": 40}
 
 #: What the line under the control says about the pipeline-step token.
 SENTINEL_NOTE = "Takes the colour of the linked pipeline step."
@@ -109,7 +112,7 @@ class ColorSwatch(ThemedWidget):
         self.update()
 
     def sizeHint(self) -> QSize:  # noqa: N802
-        side = CONTROL_HEIGHT[self.size_step]
+        side = SWATCH_SIZE[self.size_step]
         return QSize(side, side)
 
     def on_hover_changed(self, value: bool) -> None:
@@ -121,7 +124,7 @@ class ColorSwatch(ThemedWidget):
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
         painter.setOpacity(self.disabled_opacity())
         radius = float(theme.radius_px("lg"))
-        box = self.rect().adjusted(2, 2, -2, -2)
+        box = self.rect()
         # Colour that is data is painted as it is; every other pixel is a token.
         fill = self._color if self._color is not None else theme.color("muted")
         fill_round_rect(painter, box, radius, fill, theme.color("input"))
@@ -130,7 +133,7 @@ class ColorSwatch(ThemedWidget):
                 painter, box, radius, with_alpha(theme.foreground, 0.08 * self._hover.value)
             )
         if self.keyboard_focus:
-            self.paint_focus_ring(painter, self.rect(), radius + 2)
+            self.paint_focus_ring(painter, box, radius)
         painter.end()
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802

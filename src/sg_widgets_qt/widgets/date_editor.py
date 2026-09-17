@@ -147,9 +147,11 @@ class DateTrigger(ThemedWidget):
         painter.setRenderHint(QtGui.QPainter.RenderHint.TextAntialiasing, True)
         painter.setOpacity(self.disabled_opacity())
 
+        # The trigger stands on the control ladder, so its box is the widget's own rect: the
+        # border rides the rim and the focus ring is painted inward, as every field does.
         radius = float(theme.radius_px("lg"))
         box = QRect(0, 0, self.width(), self.height())
-        inner = box.adjusted(2, 2, -2, -2)
+        inner = box
         border = theme.color("destructive") if self._invalid else theme.color("input")
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(with_alpha(theme.muted, 0.3 * self._hover.value))
@@ -160,12 +162,13 @@ class DateTrigger(ThemedWidget):
             QtCore.QRectF(inner).adjusted(0.5, 0.5, -0.5, -0.5), radius - 0.5, radius - 0.5
         )
         if self._invalid:
-            painter.setPen(QtGui.QPen(with_alpha(theme.destructive, 0.2), 2.0))
+            ring = with_alpha(theme.destructive, 0.4 if theme.dark else 0.2)
+            painter.setPen(QtGui.QPen(ring, 2.0))
             painter.drawRoundedRect(
-                QtCore.QRectF(box).adjusted(1, 1, -1, -1), radius + 1, radius + 1
+                QtCore.QRectF(box).adjusted(2, 2, -2, -2), radius - 2.0, radius - 2.0
             )
         elif self.keyboard_focus:
-            self.paint_focus_ring(painter, box, radius + 2)
+            self.paint_focus_ring(painter, box, radius)
 
         pad = CONTROL_PAD[self.size_step]
         glyph = CONTROL_GLYPH[self.size_step]

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from qtpy import QtCore, QtWidgets
+from qtpy import QtCore, QtGui, QtWidgets
 
 from sg_widgets_core.schema import FieldSchema
 
@@ -60,7 +60,12 @@ class CheckboxEditor(ValueEditor):
         self._switch.setObjectName("checkbox-editor-switch")
         self._switch.toggled.connect(self._on_toggled)
         line.addWidget(self._switch, 0, QtCore.Qt.AlignmentFlag.AlignVCenter)
-        self._label = Label(self._labels[0 if self._value else 1], parent=row)
+        # The word beside the switch is the value, not a name: plain `text-sm`.
+        self._label = Label(
+            self._labels[0 if self._value else 1],
+            weight=QtGui.QFont.Weight.Normal,
+            parent=row,
+        )
         self._label.setObjectName("checkbox-editor-label")
         line.addWidget(self._label, 1)
         row.setMinimumHeight(CONTROL_HEIGHT[self.size])

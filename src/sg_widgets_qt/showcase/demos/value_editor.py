@@ -144,7 +144,7 @@ class ValueEditorDemo(QtWidgets.QWidget):
         stack = QtWidgets.QVBoxLayout(holder)
         stack.setContentsMargins(0, 0, 0, 0)
         stack.setSpacing(VALUE_EDITOR_GAP)
-        stack.addWidget(_editors.Mono(caption, holder))
+        stack.addWidget(_editors.Caption(caption, holder))
         editor.setParent(holder)
         stack.addWidget(editor)
         readout = _editors.Readout("", holder)

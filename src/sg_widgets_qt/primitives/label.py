@@ -31,11 +31,15 @@ class Label(ThemedWidget):
         self,
         text: str = "",
         muted: bool = False,
+        weight: QtGui.QFont.Weight = QtGui.QFont.Weight.Medium,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._text = text
         self._muted = bool(muted)
+        # `label.tsx` is `font-medium`; a line that is a value rather than a name is plain
+        # `text-sm`, which is what the caller asks for with the normal weight.
+        self._weight = weight
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed
         )
@@ -59,7 +63,7 @@ class Label(ThemedWidget):
         self.update()
 
     def _font(self) -> QtGui.QFont:
-        return self.theme.font(LABEL_SIZE, QtGui.QFont.Weight.Medium)
+        return self.theme.font(LABEL_SIZE, self._weight)
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
         metrics = QtGui.QFontMetrics(self._font())

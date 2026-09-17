@@ -5,9 +5,14 @@
 """
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
+
+#: This suite. A `conftest` hook is handed every item pytest collected, not only the ones under
+#: it, so the ones this file speaks for are the ones inside this directory.
+HERE = Path(__file__).resolve().parent
 
 
 def pytest_collection_modifyitems(config: Any, items: list[Any]) -> None:
@@ -15,4 +20,5 @@ def pytest_collection_modifyitems(config: Any, items: list[Any]) -> None:
         return
     held_back = pytest.mark.skip(reason="a live read runs only under -m live")
     for item in items:
-        item.add_marker(held_back)
+        if HERE in Path(str(item.fspath)).resolve().parents:
+            item.add_marker(held_back)

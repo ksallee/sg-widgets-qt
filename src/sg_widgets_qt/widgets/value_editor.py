@@ -27,7 +27,7 @@ from qtpy.QtCore import QEvent, QObject, Qt, Signal
 from sg_widgets_core.edit import ParseResult, ParseValue, is_parse_error
 from sg_widgets_core.schema import FieldSchema
 
-from ..primitives.base import CONTROL_HEIGHT, ThemedWidget
+from ..primitives.base import CONTROL_HEIGHT, ThemedWidget, retheme
 from ..theme import theme_of, watch_theme, with_alpha
 from .field_error import FieldError
 
@@ -672,5 +672,11 @@ class ValueEditor(QtWidgets.QWidget):
 
     def changeEvent(self, event: QtCore.QEvent) -> None:  # noqa: N802
         super().changeEvent(event)
-        if event.type() == QtCore.QEvent.Type.EnabledChange:
+        kind = event.type()
+        if kind == QtCore.QEvent.Type.EnabledChange:
+            self._apply_state()
+        elif kind == QtCore.QEvent.Type.ParentChange:
+            # An editor built before it joined a themed tree read the host's theme; joining one is
+            # the other moment a theme reaches it, so the box and its controls read it again.
+            retheme(self)
             self._apply_state()

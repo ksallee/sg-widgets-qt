@@ -14,7 +14,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 from ...primitives.base import ThemedWidget
 from ...primitives.label import Separator
 
-__all__ = ["CASE_WIDTH", "Case", "Mono", "Readout", "bind", "json_text", "rows"]
+__all__ = ["CASE_WIDTH", "Caption", "Case", "Mono", "Readout", "bind", "json_text", "rows"]
 
 #: The width the case name takes, `w-28` of the upstream table.
 CASE_WIDTH = 112
@@ -40,7 +40,82 @@ def _plain(value: Any) -> Any:
 
 
 class Mono(ThemedWidget):
-    """One 12px line in the monospace family, muted, elided at the end, rule 6."""
+    """One 12px line in the monospace family, muted, elided at the end, rule 6.
+
+    `wrap` is the name cell of the upstream table, which is a fixed column the name runs on to a
+    second line in rather than being cut.
+    """
+
+    def __init__(
+        self,
+        text: str = "",
+        wrap: bool = False,
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._text = text
+        self._wrap = bool(wrap)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Minimum
+            if wrap
+            else QtWidgets.QSizePolicy.Policy.Fixed,
+        )
+        self.setMinimumWidth(0)
+
+    @property
+    def text(self) -> str:
+        return self._text
+
+    def set_text(self, value: str) -> None:
+        self._text = value
+        self.setToolTip(value)
+        self.updateGeometry()
+        self.update()
+
+    def _font(self) -> QtGui.QFont:
+        return self.theme.font(12, mono=True, tabular=True)
+
+    def _flags(self) -> int:
+        if self._wrap:
+            return int(
+                QtCore.Qt.AlignmentFlag.AlignTop
+                | QtCore.Qt.AlignmentFlag.AlignLeft
+                | QtCore.Qt.TextFlag.TextWordWrap
+            )
+        return int(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignLeft)
+
+    def sizeHint(self) -> QtCore.QSize:  # noqa: N802
+        metrics = QtGui.QFontMetrics(self._font())
+        if not self._wrap:
+            return QtCore.QSize(0, metrics.height())
+        box = metrics.boundingRect(
+            QtCore.QRect(0, 0, max(40, self.width()), 10000), self._flags(), self._text
+        )
+        return QtCore.QSize(0, max(metrics.height(), box.height()))
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        if self._wrap:
+            self.updateGeometry()
+
+    def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.TextAntialiasing, True)
+        painter.setFont(self._font())
+        painter.setPen(self.theme.color("muted_foreground"))
+        metrics = QtGui.QFontMetrics(painter.font())
+        label = (
+            self._text
+            if self._wrap
+            else metrics.elidedText(self._text, QtCore.Qt.TextElideMode.ElideRight, self.width())
+        )
+        painter.drawText(self.rect(), self._flags(), label)
+        painter.end()
+
+
+class Caption(ThemedWidget):
+    """One 12px line in the theme's own family, muted: the caption over a demo's control."""
 
     def __init__(self, text: str = "", parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
@@ -56,11 +131,11 @@ class Mono(ThemedWidget):
 
     def set_text(self, value: str) -> None:
         self._text = value
-        self.setToolTip(value)
+        self.updateGeometry()
         self.update()
 
     def _font(self) -> QtGui.QFont:
-        return self.theme.font(12, mono=True, tabular=True)
+        return self.theme.font(12)
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
         return QtCore.QSize(0, QtGui.QFontMetrics(self._font()).height())
@@ -109,7 +184,7 @@ def rows(parent: QtWidgets.QWidget, cases: list[Case]) -> QtWidgets.QWidget:
         line.setContentsMargins(0, 0, 0, 0)
         line.setSpacing(CELL_GAP)
 
-        label = Mono(case.name, row)
+        label = Mono(case.name, wrap=True, parent=row)
         label.setFixedWidth(CASE_WIDTH)
         line.addWidget(label, 0, QtCore.Qt.AlignmentFlag.AlignTop)
 
