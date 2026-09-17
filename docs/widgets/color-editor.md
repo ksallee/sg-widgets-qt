@@ -34,6 +34,9 @@ dragged, and the arrows and Page Up and Page Down walk them. The surface opens o
 swatch and on Enter or Space, and closes on Escape and on a press outside it; Escape there closes
 the surface and leaves the value alone, which is the one key the browser picker has no equal for.
 
+The swatch keeps the colour it shows at full strength while the control is disabled, as the
+upstream `<label>` does: only the control around it fades, so the value stays readable.
+
 ## Props
 
 ::props{name="color-editor" kind="props"}

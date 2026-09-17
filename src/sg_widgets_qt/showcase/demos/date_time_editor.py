@@ -102,7 +102,7 @@ class DateTimeEditorDemo(QtWidgets.QWidget):
         column = QtWidgets.QVBoxLayout(self)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(0)
-        column.addWidget(_editors.rows(self, self.cases))
+        column.addWidget(_editors.stack(self, self.cases))
 
     def set_size(self, size: str) -> None:
         """Wear the size step the toolbar holds. The three ladder cases name their own."""

@@ -76,6 +76,7 @@ __all__ = [
     "field_value_size_hint",
     "paint_field_value",
     "plan_field_value",
+    "warm_status_glyph",
 ]
 
 #: The density of the collection around the value.
@@ -606,6 +607,25 @@ def _paint_checkbox(
         paint_icon(painter, box, CHECK_ICON, _ink(theme, options))
     else:
         paint_icon(painter, box, UNCHECK_ICON, _ink(theme, options, "muted_foreground"))
+
+
+def warm_status_glyph(code: str, options: FieldValueOptions) -> None:
+    """Draw the badge of one status once, off screen, before anything paints it for real.
+
+    Building the glyph source and painting a badge for the first time both cost a few
+    milliseconds a status, and a list of them would pay all of it inside one repaint. A caller
+    that knows its codes ahead of the frame warms them here, one at a time, so the cost falls
+    between frames rather than inside one.
+    """
+    _status_source(
+        (options.statuses or {}).get(code), options.site_url, options.loader, options.on_ready
+    )
+    scratch = QtGui.QPixmap(1, 1)
+    painter = QtGui.QPainter(scratch)
+    try:
+        _paint_status(painter, QtCore.QRect(0, 0, 1, 1), plan_field_value(code, "status_list", options), options)
+    finally:
+        painter.end()
 
 
 def paint_field_value(

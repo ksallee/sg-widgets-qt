@@ -1,0 +1,21 @@
+"""entity-type-multi-picker: the list open while the one schema read is out, so the skeletons stand.
+
+One state of the shot matrix. `tools/drives/upstream/entity-type-multi-picker-loading.js` drives the upstream page
+into the same state, and the pair of shots is what the QA pass reads. The walk is
+`tools/drives/_entity_type_states.py`, shared by both pages.
+
+    .venv/bin/python tools/qa.py --page entity-type-multi-picker \\
+        --drive tools/drives/entity-type-multi-picker-loading.py --shot shots/entity-type-multi-picker-loading.png
+"""
+from __future__ import annotations
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from _entity_type_states import loading  # noqa: E402
+
+
+def drive(page, wait, find, prefs) -> dict:
+    return loading(page, wait, find, prefs)

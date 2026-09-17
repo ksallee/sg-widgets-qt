@@ -117,12 +117,12 @@ class ColorSwatch(ThemedWidget):
         theme = self.theme
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
-        painter.setOpacity(self.disabled_opacity())
         radius = float(theme.radius_px("lg"))
         box = self.rect()
-        # Colour that is data is painted as it is; every other pixel is a token.
-        # The swatch is a `<label>` upstream and carries no hover class: the colour it shows is
-        # the value, and a wash over it would be a wash over the value.
+        # Colour that is data is painted as it is, at full strength even while the control is
+        # inert: upstream the swatch is a `<label>` and only the control inside it is disabled,
+        # so the value stays readable. It carries no hover class either, and a wash over it
+        # would be a wash over the value.
         fill = self._color if self._color is not None else theme.color("muted")
         fill_round_rect(painter, box, radius, fill, theme.color("input"))
         if self.keyboard_focus:

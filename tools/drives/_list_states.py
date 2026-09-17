@@ -18,6 +18,7 @@ from qtpy.QtCore import Qt
 from sg_widgets_qt.theme import with_alpha
 from sg_widgets_qt.primitives.roles import Roles
 from sg_widgets_qt.widgets.list_picker import ListOption, ListPicker
+from sg_widgets_qt.widgets.picker_control import over
 
 __all__ = [
     "demo_of",
@@ -37,8 +38,10 @@ __all__ = [
     "rows_of",
 ]
 
-#: The query the shot picker's vocabulary answers two rows for, with the runs bold.
+#: The query the shot picker's vocabulary answers rows for, with the matched runs bold.
 QUERY = "d"
+#: A query the vocabulary answers nothing for, so the empty line stands.
+NO_MATCH = "zzzqqq"
 
 
 def demo_of(picker: Any) -> str:
@@ -181,15 +184,14 @@ def list_loading(page, wait, find, prefs) -> dict:
 
 
 def list_no_rows(page, wait, find, prefs) -> dict:
-    """The list open over a set that offers nothing, so the empty line stands."""
+    """The searchable demo open over a query nothing answers, so the empty line stands."""
     wait(500)
-    picker = picker_named(find, "labels")
+    picker = picker_named(find, "searchable")
     if picker is None:
-        return {"verdict": "FAIL no list picker on the page"}
-    picker.set_value(None if not picker.MULTIPLE else [])
-    picker.set_options([])
-    wait(100)
+        return {"verdict": "FAIL no searchable list picker on the page"}
     picker.set_open(True)
+    wait(200)
+    picker.control.set_query(NO_MATCH)
     wait(400)
     line = picker.control.state_line()
     seen = {
@@ -236,15 +238,18 @@ def list_hover(page, wait, find, prefs) -> dict:
     control.set_hovered(True)
     wait(400)
     theme = control.theme
+    # `bg-background hover:bg-muted/30`: the wash is laid over the surface, not blended in.
     wash = with_alpha(theme.muted, 0.3)
+    surface = over(theme.color("background"), wash)
     return _answer(
         "PASS hover",
         picker,
         {
             "hovered": control.hovered,
             "background": theme.color("background").name(),
-            "muted": theme.color("muted").name(),
-            "wash_alpha": round(wash.alphaF(), 3),
+            "muted": str(theme.muted),
+            "wash_alpha": round(wash.alphaF(), 4),
+            "surface": surface.name(),
         },
     )
 
@@ -316,11 +321,11 @@ def list_overflow(page, wait, find, prefs) -> dict:
         return {"verdict": "FAIL no list multi picker on the page"}
     if not picker.MULTIPLE:
         return {"verdict": "FAIL the overflow state is the multi picker's"}
-    picker.set_summary("chips")
+    # `ellipsis` is the summary the page draws: the chips that fit, then a `+n` pill.
     picker.set_options(
-        [ListOption(code=f"Value {n}", label=f"Value number {n}") for n in range(1, 9)]
+        [ListOption(code=f"Value {n}", label=f"Value number {n}") for n in range(1, 13)]
     )
-    picker.set_value([f"Value {n}" for n in range(1, 9)])
+    picker.set_value([f"Value {n}" for n in range(1, 13)])
     wait(400)
     control = picker.control
     pill = control.overflow_pill()

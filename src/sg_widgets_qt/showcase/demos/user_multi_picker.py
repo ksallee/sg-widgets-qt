@@ -42,6 +42,9 @@ BARE = [EntityRef(type="HumanUser", id=22), EntityRef(type="HumanUser", id=25)]
 SUMMARIES = ("chips", "ellipsis", "count")
 SIZES = ("sm", "md", "lg")
 
+#: The three inert states, with the caption upstream's demo writes over each.
+STATES = (("disabled", "Disabled"), ("readonly", "Read-only"), ("invalid", "Invalid"))
+
 
 class UserMultiPickerDemo(QtWidgets.QWidget):
     """Every example, one under the other."""
@@ -139,8 +142,8 @@ class UserMultiPickerDemo(QtWidgets.QWidget):
             for size in SIZES
         ]
         states.extend(
-            field(flag.capitalize(), self._picker(value=PRESET, **{flag: True}), parent=self)
-            for flag in ("disabled", "readonly", "invalid")
+            field(caption, self._picker(value=PRESET, **{flag: True}), parent=self)
+            for flag, caption in STATES
         )
         body.addWidget(
             section(

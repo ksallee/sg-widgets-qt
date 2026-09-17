@@ -112,6 +112,7 @@ class RowDelegate(QStyledItemDelegate):
         round_thumbnail: bool = False,
         indicator: str = "none",
         density: str = "default",
+        load_more_text: int | None = None,
     ) -> None:
         super().__init__(parent)
         self._size = size
@@ -119,6 +120,7 @@ class RowDelegate(QStyledItemDelegate):
         self._round = round_thumbnail
         self._indicator = indicator
         self._density = density
+        self._load_more_text = load_more_text
         self._bare_glyph = False
         self._elided: set[int] = set()
 
@@ -177,6 +179,18 @@ class RowDelegate(QStyledItemDelegate):
     def set_density(self, value: str) -> None:
         self._density = value
 
+    @property
+    def load_more_text(self) -> int:
+        """The step the load-more row's label stands on.
+
+        A search widget's row is `text-sm`, the body step; a picker's is `text-xs`, the
+        metadata one, so the two are told apart here rather than each drawing its own row.
+        """
+        return self._load_more_text if self._load_more_text else ROW_TEXT[self._size]
+
+    def set_load_more_text(self, value: int | None) -> None:
+        self._load_more_text = value
+
     # --- metrics -------------------------------------------------------------------------
 
     def _theme(self, option: QStyleOptionViewItem) -> Theme:
@@ -200,8 +214,7 @@ class RowDelegate(QStyledItemDelegate):
             metrics = QFontMetrics(theme.font(CODE_TEXT, QFont.Weight.Medium))
             return QSize(width, metrics.height() + 2 * ROW_PAD_Y)
         if kind == "load_more":
-            # Upstream's row is `text-sm`, the body step, not the metadata one.
-            metrics = QFontMetrics(theme.font(ROW_TEXT[self._size]))
+            metrics = QFontMetrics(theme.font(self.load_more_text))
             return QSize(width, metrics.height() + 2 * ROW_PAD_Y)
 
         if callable(index.data(Roles.ROW_PAINTER)):
@@ -251,7 +264,7 @@ class RowDelegate(QStyledItemDelegate):
         self._paint_background(painter, option, theme, rect)
 
         if kind == "load_more":
-            painter.setFont(theme.font(ROW_TEXT[self._size]))
+            painter.setFont(theme.font(self.load_more_text))
             painter.setPen(theme.color("muted_foreground"))
             painter.drawText(
                 rect,

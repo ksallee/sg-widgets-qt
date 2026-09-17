@@ -48,9 +48,14 @@ from ..images import ImageLoader, image_loader
 from ..primitives.roles import Roles
 from ..primitives.row_delegate import LEAD, RowDelegate
 from ..theme import theme_of, watch_theme
-from ..workers import default_pool
+from ..workers import default_pool, run_later
 from .entity_glyphs import entity_glyph
-from .field_value import FieldValueOptions, field_value_size_hint, paint_field_value
+from .field_value import (
+    FieldValueOptions,
+    field_value_size_hint,
+    paint_field_value,
+    warm_status_glyph,
+)
 
 __all__ = [
     "PEOPLE_TYPES",
@@ -162,6 +167,7 @@ class PickerRowModel(QAbstractListModel):
         self._crumbs_of: Callable[[RowLike], Sequence[str]] | None = None
         self._row_painter_of: Callable[[RowLike], Callable[..., None] | None] | None = None
         self._drillable_of: Callable[[RowLike], bool] | None = None
+        self._status_redraw = False
         self._glyph_of: Callable[[RowLike], str] | None = None
         self._kind_of: Callable[[RowLike], str] | None = None
         self._pictures: dict[str, QPixmap] = {}
@@ -535,8 +541,47 @@ class PickerRowModel(QAbstractListModel):
             on_ready=self._status_ready,
         )
 
+    def _warm_statuses(self) -> None:
+        """Read the sprite of every status on show, between frames rather than inside one.
+
+        Building a source is what asks for its sprite, and a list of badges would build every
+        one of them inside the first repaint, which is a stall on the GUI thread.
+        """
+        if not self._statuses or not self._rows:
+            return
+        anatomy = self.anatomy()
+        if not path_of(anatomy.secondary_field):
+            return
+        data_type = secondary_type(anatomy, getattr(self._field, "data_type", None))
+        if render_kind_for(data_type) != "status":
+            return
+        options = FieldValueOptions(
+            statuses=self._statuses, site_url=self.site_url, on_ready=self._status_ready
+        )
+        seen: set[str] = set()
+        for row in self._rows:
+            raw = self._raw_secondary(row, anatomy)
+            if is_empty_value(raw):
+                continue
+            code = str(raw)
+            if code not in seen:
+                seen.add(code)
+                warm_status_glyph(code, options)
+
     def _status_ready(self) -> None:
-        """A status sprite landed. The model may be gone by then, and a late answer is dropped."""
+        """A status sprite landed.
+
+        A list of badges lands its sprites one after another, so the redraws are coalesced into
+        one turn of the loop rather than one repaint a sprite. The model may be gone by then,
+        and a late answer is dropped.
+        """
+        if self._status_redraw:
+            return
+        self._status_redraw = True
+        run_later(self._status_redrawn)
+
+    def _status_redrawn(self) -> None:
+        self._status_redraw = False
         try:
             self._redraw()
         except RuntimeError:
@@ -625,6 +670,8 @@ class PickerRowModel(QAbstractListModel):
         spec = self._secondary_field
         if spec is not None and not isinstance(spec, str):
             self._field = getattr(spec, "field", None)
+        # A page that landed after the plan did brings codes of its own to warm.
+        self._warm_statuses()
         path = path_of(spec)
         if self._context is None or not path or path == "id" or not self._rows:
             return
@@ -653,6 +700,7 @@ class PickerRowModel(QAbstractListModel):
             self._field = field
         self._statuses = statuses
         self._plan_pending = False
+        self._warm_statuses()
         try:
             self._redraw()
         except RuntimeError:

@@ -155,3 +155,14 @@ def test_the_swatch_wears_no_hover_wash(root):
     QtWidgets.QApplication.processEvents()
     after = swatch.grab().toImage().pixelColor(swatch.width() // 2, swatch.height() // 2)
     assert after == before
+
+
+def test_a_disabled_swatch_keeps_the_colour_it_shows(root):
+    # Upstream the swatch is a `<label>` and only the `<input type="color">` inside it is
+    # disabled, so the value stays at full strength while the control around it fades.
+    live = place(root, ColorEditor(value="45,45,45"))
+    inert = place(root, ColorEditor(value="45,45,45", disabled=True))
+    middle = (live.swatch.width() // 2, live.swatch.height() // 2)
+    assert inert.swatch.grab().toImage().pixelColor(*middle) == QtGui.QColor(45, 45, 45)
+    assert live.swatch.grab().toImage().pixelColor(*middle) == QtGui.QColor(45, 45, 45)
+    assert inert.isEnabled() is False

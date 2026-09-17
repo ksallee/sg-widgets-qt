@@ -37,6 +37,14 @@ from .status_picker import StatusPicker
 __all__ = ["StatusMultiPicker"]
 
 
+class _StatusList(ListMultiPicker):
+    """The fixed-set multi picker under this one, saying `statuses` where it says `values`."""
+
+    def _refresh(self) -> None:
+        super()._refresh()
+        self._control.set_overflow_label(f"Show all {len(self._keys())} statuses")
+
+
 class StatusMultiPicker(StatusPicker):
     """Several statuses, picked from the codes a project offers.
 
@@ -77,7 +85,7 @@ class StatusMultiPicker(StatusPicker):
         )
 
     def _build_list(self, **props: Any) -> ListPicker:
-        return ListMultiPicker(
+        return _StatusList(
             slot=self.SLOT,
             picker="status",
             size=self._size,

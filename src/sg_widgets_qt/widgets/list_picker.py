@@ -515,9 +515,24 @@ class ListPicker(QtWidgets.QWidget):
         self._refresh()
 
     def _on_open_changed(self, is_open: bool) -> None:
+        if is_open:
+            self._highlight_held()
         if self._on_open_change is not None:
             self._on_open_change(is_open)
         self.open_changed.emit(is_open)
+
+    def _highlight_held(self) -> None:
+        """Open with the cursor on the value the picker holds, the way upstream's does.
+
+        A picker holding a value opens with that row under the cursor; the multi picker uses the
+        first of its values. One holding nothing opens with nothing highlighted, and the first
+        `Down` takes the first row, which is the base's own rule.
+        """
+        codes = [one.code for one in self._shown]
+        for code in self._keys():
+            if code in codes:
+                self._control.list_surface().set_highlight(codes.index(code))
+                return
 
     def _chip_for(self, index: int) -> QtWidgets.QWidget | None:
         keys = self._keys()

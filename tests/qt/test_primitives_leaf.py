@@ -356,18 +356,71 @@ def test_an_inert_field_wears_the_input_wash(root):
     assert inert.grab().toImage().pixelColor(*middle) != live.grab().toImage().pixelColor(*middle)
 
 
-def test_an_inert_field_fades_the_ink_qt_draws_itself(root):
-    # `disabled:opacity-50` reaches the placeholder too, and no painter opacity does, so the
-    # inert step is on the colour the palette carries.
+def _ink_of(page: QtGui.QImage, field: QtWidgets.QWidget, background: str) -> str:
+    """The colour a field's text is drawn in, read off a shot of the page it stands on.
+
+    The run of pixels the glyphs cover is a minority of the band, so the reading is the commonest
+    colour in it that is neither the page nor the field's own surface.
+    """
+    import collections
+
+    box = field.geometry()
+    counted: collections.Counter = collections.Counter()
+    for y in range(box.top() + 6, box.top() + 26):
+        for x in range(box.left() + 14, box.left() + 130):
+            counted[page.pixelColor(x, y).name()] += 1
+    surface = counted.most_common(1)[0][0]
+    return next(name for name, _ in counted.most_common() if name not in (background, surface))
+
+
+def test_the_ink_qt_draws_itself_is_the_theme_s_on_both_bindings(qtbot):
+    # No stylesheet names the ink any more: a stylesheet beats every palette under it, and Qt 5
+    # then derives the placeholder from its `color`, which put the typed ink under the
+    # placeholder on that binding. `input.tsx` has `placeholder:text-muted-foreground` and
+    # `disabled:opacity-50`, and both are colours in the palette here.
     theme = theme_for("default")
-    role = QtGui.QPalette.ColorRole
-    field = Input(placeholder="https://example.com/plate.mov", parent=root)
-    field.apply_theme_to_palette()
-    assert field.palette().color(role.PlaceholderText).name() == theme.color("muted_foreground").name()
-    assert field.palette().color(role.PlaceholderText).alpha() == 255
-    field.setEnabled(False)
-    field.apply_theme_to_palette()
-    assert field.palette().color(role.PlaceholderText).alpha() == 128
+    root = QtWidgets.QWidget()
+    apply_theme(root, theme)
+    root.setAutoFillBackground(True)
+    palette = root.palette()
+    palette.setColor(root.backgroundRole(), theme.color("background"))
+    root.setPalette(palette)
+    qtbot.addWidget(root)
+
+    column = QtWidgets.QVBoxLayout(root)
+    column.setSpacing(8)
+    empty = Input(placeholder="Placeholder")
+    typed = Input()
+    inert = Input()
+    inert_empty = Input(placeholder="Placeholder")
+    area = Textarea()
+    for field in (empty, typed, inert, inert_empty, area):
+        column.addWidget(field)
+    typed.setText("Value")
+    inert.setText("Value")
+    inert.setEnabled(False)
+    inert_empty.setEnabled(False)
+    area.setPlainText("Value")
+    root.resize(300, 340)
+    root.show()
+    QtWidgets.QApplication.processEvents()
+
+    page = root.grab().toImage()
+    background = theme.color("background").name()
+    assert _ink_of(page, empty, background) == theme.color("muted_foreground").name()
+    assert _ink_of(page, typed, background) == theme.color("foreground").name()
+    assert _ink_of(page, area, background) == theme.color("foreground").name()
+    # The inert pair is the same two inks at half strength over the inert wash, so what is read
+    # is that they are neither the full ink nor the page.
+    faded = _ink_of(page, inert, background)
+    faded_empty = _ink_of(page, inert_empty, background)
+    assert faded not in (theme.color("foreground").name(), background)
+    assert faded_empty not in (theme.color("muted_foreground").name(), background)
+    assert QtGui.QColor(faded).lightness() > QtGui.QColor(theme.color("foreground")).lightness()
+    assert (
+        QtGui.QColor(faded_empty).lightness()
+        > QtGui.QColor(theme.color("muted_foreground")).lightness()
+    )
 
 
 def test_the_switch_thumb_is_the_glyph_step(root):

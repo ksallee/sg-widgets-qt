@@ -27,6 +27,9 @@ BARE = EntityRef(type="HumanUser", id=22)
 
 SIZES = (("sm", "Small"), ("md", "Medium, the default"), ("lg", "Large"))
 
+#: The three inert states, with the caption upstream's demo writes over each.
+STATES = (("disabled", "Disabled"), ("readonly", "Read-only"), ("invalid", "Invalid"))
+
 
 class UserPickerDemo(QtWidgets.QWidget):
     """Every example, one under the other."""
@@ -98,8 +101,8 @@ class UserPickerDemo(QtWidgets.QWidget):
             for size, caption in SIZES
         ]
         states.extend(
-            field(flag.capitalize(), self._picker(value=PRESET, **{flag: True}), parent=self)
-            for flag in ("disabled", "readonly", "invalid")
+            field(caption, self._picker(value=PRESET, **{flag: True}), parent=self)
+            for flag, caption in STATES
         )
         body.addWidget(
             section(

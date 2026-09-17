@@ -23,6 +23,9 @@ OTHER_PROJECT = 71
 SUMMARIES = ("chips", "ellipsis", "count")
 SIZES = ("sm", "md", "lg")
 
+#: The three inert states, with the captions the upstream demo writes over them.
+STATES = (("disabled", "Disabled"), ("readonly", "Read-only"), ("invalid", "Invalid"))
+
 
 class ProjectMultiPickerDemo(QtWidgets.QWidget):
     """Every example, one under the other."""
@@ -33,15 +36,15 @@ class ProjectMultiPickerDemo(QtWidgets.QWidget):
         self._context = context
         self._pickers: list = []
         self.demo_ready = True
-        # A live site holds its own projects, so the preset arrives bare and the picker
-        # resolves its name.
+        # The names are the mock's. A live site holds its own projects, so the picker is
+        # handed the one the page is scoped to and resolves its name.
         preset = (
             [EntityRef(type="Project", id=context.project_id)]
             if context.live
             else [
-                EntityRef(type="Project", id=70),
-                EntityRef(type="Project", id=71),
-                EntityRef(type="Project", id=72),
+                EntityRef(type="Project", id=70, name="Blue Moon Rising"),
+                EntityRef(type="Project", id=71, name="Harbour Lights"),
+                EntityRef(type="Project", id=72, name="Night Ferry"),
             ]
         )
 
@@ -133,8 +136,8 @@ class ProjectMultiPickerDemo(QtWidgets.QWidget):
             for size in SIZES
         ]
         states.extend(
-            field(flag.capitalize(), self._picker(value=preset, **{flag: True}), parent=self)
-            for flag in ("disabled", "readonly", "invalid")
+            field(caption, self._picker(value=preset, **{flag: True}), parent=self)
+            for flag, caption in STATES
         )
         body.addWidget(
             section(

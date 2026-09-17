@@ -103,7 +103,11 @@ One picker, walked from the keyboard:
    search box when it is a summary trigger. A fixed set has no search row and holds one caret out
    of sight, so the keys still land somewhere. Every focus call passes `preventScroll`.
 3. `ArrowDown` and `ArrowUp` move the highlight and the list scrolls it into view, through a
-   load-more page and back to the top.
+   load-more page and back to the top. A list opens with nothing highlighted, as the upstream
+   combobox does, so the first `ArrowDown` takes the first row; `highlight_on_open` asks for the
+   first row to be taken as the list opens instead.
+   A page landing under the rows already read is an insert, not a reset, so the list keeps the
+   place a reader scrolled it to and the cursor takes the seat the load-more row was in.
 4. `Enter` takes the highlighted row. A multi picker stays open for the next one; a single picker
    closes.
 5. `Backspace` and `ArrowLeft` in an empty query belong to the value: on a multi picker they take

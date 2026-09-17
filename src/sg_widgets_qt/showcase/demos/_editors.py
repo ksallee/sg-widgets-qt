@@ -14,7 +14,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 from ...primitives.base import ThemedWidget
 from ...primitives.label import Separator
 
-__all__ = ["CASE_WIDTH", "Caption", "Case", "Mono", "Readout", "bind", "json_text", "rows"]
+__all__ = ["CASE_WIDTH", "Caption", "Case", "Mono", "Readout", "bind", "json_text", "rows", "stack"]
 
 #: The width the case name takes, `w-28` of the upstream table.
 CASE_WIDTH = 112
@@ -201,6 +201,33 @@ def rows(parent: QtWidgets.QWidget, cases: list[Case]) -> QtWidgets.QWidget:
         column.addWidget(row)
         if index < len(cases) - 1:
             column.addWidget(Separator(parent=holder))
+    return holder
+
+
+def stack(parent: QtWidgets.QWidget, cases: list[Case]) -> QtWidgets.QWidget:
+    """The column the two date demos draw: the name over the editor over its value.
+
+    `apps/site/src/demos/date-editor/Demo.tsx` and its date-time twin are not the table the other
+    editor demos are; they are a column of `flex flex-col gap-2` items, 16 apart.
+    """
+    holder = QtWidgets.QWidget(parent)
+    column = QtWidgets.QVBoxLayout(holder)
+    column.setContentsMargins(0, 0, 0, 0)
+    column.setSpacing(ROW_GAP)
+    for case in cases:
+        item = QtWidgets.QWidget(holder)
+        item.setObjectName("demo-case")
+        item.setProperty("data_case", case.name)
+        lines = QtWidgets.QVBoxLayout(item)
+        lines.setContentsMargins(0, 0, 0, 0)
+        lines.setSpacing(CELL_GAP)
+        lines.addWidget(Mono(case.name, parent=item))
+        case.editor.setParent(item)
+        lines.addWidget(case.editor)
+        if case.readout is not None:
+            case.readout.setParent(item)
+            lines.addWidget(case.readout)
+        column.addWidget(item)
     return holder
 
 

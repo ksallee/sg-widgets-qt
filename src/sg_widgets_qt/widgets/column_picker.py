@@ -45,17 +45,17 @@ from ..primitives.base import CONTROL_HEIGHT, THUMB_SIZE, ThemedWidget, painter_
 from ..primitives.command import Command
 from ..primitives.list_view import LIST_PAD, ListSurface
 from ..primitives.roles import Roles
-from ..primitives.row_delegate import GAP, ROW_PAD_X, RowDelegate
+from ..primitives.row_delegate import GAP, LEAD_GLYPH, ROW_PAD_X, RowDelegate
 from ..primitives.skeleton import Skeleton
 from ..theme import theme_of
 from ..workers import Ticket, default_pool
 from .field_picker import (
     CRUMB_SEPARATOR,
-    DESCEND_ZONE,
     Breadcrumb,
     FieldLevels,
     FieldOptionModel,
     FieldPicker,
+    descend_hit,
     extra_fields_of,
     schema_of,
 )
@@ -102,14 +102,14 @@ GRIP_GLYPH = "grip-vertical"
 EMPTY_GLYPH = "columns-3"
 
 
-def _remove_painter() -> Callable[..., None]:
-    """The cross a chosen row carries at its trailing edge."""
+def _remove_painter(size: str = "md") -> Callable[..., None]:
+    """The cross a chosen row carries at its trailing edge, on the row's own glyph ladder."""
 
     def paint(painter: QtGui.QPainter, rect: QtCore.QRect, option: Any) -> None:
         widget = getattr(option, "widget", None)
         theme = theme_of(widget) if widget is not None else None
         ink = theme.color("muted_foreground") if theme is not None else QtGui.QColor(128, 128, 128)
-        side = 16
+        side = LEAD_GLYPH.get(size, LEAD_GLYPH["md"])
         box = QtCore.QRect(rect.right() + 1 - side, rect.center().y() - side // 2, side, side)
         painter.setOpacity(0.7)
         icons.paint_icon(painter, box, "x", ink)
@@ -124,11 +124,17 @@ class ColumnRowModel(QtCore.QAbstractListModel):
     never blank while the schema of every type it travels is read.
     """
 
-    def __init__(self, parent: QtCore.QObject | None = None) -> None:
+    def __init__(self, parent: QtCore.QObject | None = None, size: str = "md") -> None:
         super().__init__(parent)
         self._paths: list[str] = []
         self._labels: dict[str, list[str]] = {}
         self._readonly = False
+        self._size = size if size in PICKER_SIZE_VALUES else "md"
+
+    def set_size(self, value: str) -> None:
+        """The step the cross is drawn on, so it rides the ladder the row does."""
+        self._size = value if value in PICKER_SIZE_VALUES else "md"
+        self._redraw()
 
     @property
     def paths(self) -> list[str]:
@@ -185,7 +191,7 @@ class ColumnRowModel(QtCore.QAbstractListModel):
         if role == Roles.GLYPH:
             return "" if self._readonly else GRIP_GLYPH
         if role == Roles.PAINTER:
-            return None if self._readonly else _remove_painter()
+            return None if self._readonly else _remove_painter(self._size)
         if role == Roles.ENTITY:
             return path
         if role == Qt.ItemDataRole.ToolTipRole:
@@ -221,9 +227,12 @@ class ChosenColumns(ListSurface):
         label_of: Callable[[str], str] | None = None,
     ) -> None:
         delegate = RowDelegate(None, size=size, thumbnail=True, indicator="none")
+        # The grip stands on its own: upstream draws a ghost icon button, not the picture
+        # plate a row with a thumbnail would fall back to.
+        delegate.set_bare_glyph(True)
         super().__init__(parent, max_height=CHOSEN_MAX_HEIGHT, size=size, delegate=delegate)
         delegate.setParent(self)
-        self._rows = ColumnRowModel(self)
+        self._rows = ColumnRowModel(self, size=size)
         self.setModel(self._rows)
         self._label_of = label_of
         self._editable = True
@@ -265,6 +274,9 @@ class ChosenColumns(ListSurface):
         """A read-only or disabled list neither reorders nor removes."""
         self._editable = bool(value)
         self._rows.set_readonly(not self._editable)
+        # Upstream's read-only row is the label alone: no grip, and none of its inset.
+        self.row_delegate().set_thumbnail(self._editable)
+        self.viewport().update()
 
     def sortable(self) -> SortableModel:
         """A frozen view of the order, with the labels a live region announces."""
@@ -276,16 +288,31 @@ class ChosenColumns(ListSurface):
         self.setAccessibleDescription(line)
         self.announced.emit(line)
 
-    def _apply(self, order: Sequence[str]) -> None:
+    def _apply(self, order: Sequence[str], quiet: bool = False) -> None:
+        """Take a new order. `quiet` moves the rows without telling the caller.
+
+        A keyboard move emits per step, as upstream's `onKeyDown` does. A pointer drag moves
+        the rows as the pointer crosses each midpoint but emits once, on release, which is
+        what upstream's `endDrag` does (`packages/core/src/sortable.ts:492-508`), so a caller
+        writing the order away sees one change per gesture and none at all from a cancel.
+        """
         if list(order) == self._rows.paths:
             return
         self._rows.set_paths(order)
-        self.reordered.emit(list(order))
+        if not quiet:
+            self.reordered.emit(list(order))
 
     # --- the keyboard ----------------------------------------------------------------------
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:  # noqa: N802, C901
         key = event.key()
+        if self._dragging:
+            if key == Qt.Key.Key_Escape:
+                self._end_drag(cancel=True)
+                event.accept()
+                return
+            super().keyPressEvent(event)
+            return
         row = self.highlighted()
         paths = self._rows.paths
         model = self.sortable()
@@ -357,6 +384,9 @@ class ChosenColumns(ListSurface):
                 self._press_at = QtCore.QPoint(point)
                 self._press_row = index.row()
                 self.set_highlight(index.row())
+                # Upstream listens for Escape on the window; the list takes the keyboard here
+                # so the key reaches `keyPressEvent` while the pointer holds a row.
+                self.setFocus(Qt.FocusReason.MouseFocusReason)
                 event.accept()
                 return
         super().mousePressEvent(event)
@@ -412,9 +442,11 @@ class ChosenColumns(ListSurface):
             self._rects, from_index, SortablePoint(x=float(point.x()), y=float(point.y()))
         )
         if landing != from_index:
-            self._apply(move_field_path(paths, from_index, landing))
+            # The rows give way as the pointer passes them; the caller hears about it once,
+            # on release. Nothing is announced mid-drag either, as upstream announces only
+            # from `endDrag`.
+            self._apply(move_field_path(paths, from_index, landing), quiet=True)
             self.set_highlight(landing)
-            self._announce(self.sortable().moved_to(self._carrying, landing))
 
     def _auto_scroll(self) -> None:
         if not self._dragging:
@@ -435,12 +467,21 @@ class ChosenColumns(ListSurface):
             bar.setValue(bar.value() + int(step))
 
     def _end_drag(self, cancel: bool) -> None:
+        carried = self._carrying
         if cancel and self._before:
-            self._apply(self._before)
-        if self._carrying is not None:
-            self._announce(
-                self.sortable().cancelled() if cancel else self.sortable().dropped(self._carrying)
-            )
+            self._apply(self._before, quiet=True)
+        order = self._rows.paths
+        moved = not cancel and order != self._before
+        if carried is not None:
+            model = self.sortable()
+            if cancel:
+                self._announce(model.cancelled())
+            elif moved:
+                self._announce(model.moved_to(carried, order.index(carried)))
+            else:
+                self._announce(model.dropped(carried))
+        if moved:
+            self.reordered.emit(list(order))
         self._scroll.stop()
         self._dragging = False
         self._carrying = None
@@ -448,12 +489,7 @@ class ChosenColumns(ListSurface):
         self._press_row = -1
         self._rects = []
 
-    def keyReleaseEvent(self, event: QtGui.QKeyEvent) -> None:  # noqa: N802
-        if self._dragging and event.key() == Qt.Key.Key_Escape:
-            self._end_drag(cancel=True)
-            event.accept()
-            return
-        super().keyReleaseEvent(event)
+
 
 
 class _Pane(ThemedWidget):
@@ -1063,6 +1099,7 @@ class ColumnPicker(QtWidgets.QWidget):
         self._size = value if value in PICKER_SIZE_VALUES else "md"
         self._picker.set_size(self._size)
         self._chosen.row_delegate().set_size(self._size)
+        self._chosen.rows_model.set_size(self._size)
         self._chosen.viewport().update()
 
     # --- the layout -----------------------------------------------------------------------
@@ -1287,8 +1324,7 @@ class ColumnPicker(QtWidgets.QWidget):
         option = self._available_model.option_at(index.row())
         if option is None or not option.traversable:
             return False
-        rect = surface.visualRect(index)
-        if point.x() >= rect.right() + 1 - DESCEND_ZONE:
+        if descend_hit(surface, index, point):
             self._command.set_query("")
             self._levels.descend_into(option)
             return True

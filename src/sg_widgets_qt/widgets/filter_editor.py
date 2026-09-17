@@ -22,14 +22,9 @@ from typing import Any
 from qtpy import QtCore, QtGui, QtWidgets
 from qtpy.QtCore import Qt, Signal
 
-from sg_widgets_core.filter import (
-    FilterCondition,
-    FilterGroup,
-    FilterNode,
-    condition as make_condition,
-    empty_filter,
-    group as make_group,
-)
+from sg_widgets_core.filter import FilterCondition, FilterGroup, FilterNode, empty_filter
+from sg_widgets_core.filter import condition as make_condition
+from sg_widgets_core.filter import group as make_group
 from sg_widgets_core.filter_ux import (
     NO_SCHEMA,
     append_at,
@@ -103,9 +98,8 @@ NUMERIC_EDITORS: tuple[str, ...] = (
 FIELD_MIN_WIDTH = 96
 FIELD_MAX_WIDTH = 224
 
-#: `w-40` of the operator select, and the room the value keeps whatever it draws.
+#: `w-40` of the operator select.
 OPERATOR_WIDTH = 160
-VALUE_MIN_WIDTH = 160
 
 #: `border-l pl-3`: the rail a level of nesting hangs off, and the indent it costs.
 RAIL_INDENT = 12
@@ -183,16 +177,6 @@ def _dotted_paths(node: FilterNode, out: list[str] | None = None) -> list[str]:
     for child in node.conditions:
         _dotted_paths(child, found)
     return found
-
-
-class _EditorContext:
-    """Everything a row needs that does not come from its own node."""
-
-    def __init__(self, owner: FilterEditor) -> None:
-        self.owner = owner
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self.owner, name)
 
 
 class FilterEditor(QtWidgets.QWidget):

@@ -23,6 +23,9 @@ OTHER_PROJECT = 71
 
 SIZES = (("sm", "Small"), ("md", "Medium, the default"), ("lg", "Large"))
 
+#: The three inert states, with the captions the upstream demo writes over them.
+STATES = (("disabled", "Disabled"), ("readonly", "Read-only"), ("invalid", "Invalid"))
+
 
 class ProjectPickerDemo(QtWidgets.QWidget):
     """Every example, one under the other."""
@@ -33,9 +36,13 @@ class ProjectPickerDemo(QtWidgets.QWidget):
         self._context = context
         self._pickers: list = []
         self.demo_ready = True
-        # A live site holds its own projects, so the preset arrives bare and the picker
-        # resolves its name.
-        preset = EntityRef(type="Project", id=context.project_id)
+        # The name is the mock's. A live site holds its own projects, so there the preset
+        # arrives bare and the picker resolves it.
+        preset = (
+            EntityRef(type="Project", id=context.project_id)
+            if context.live
+            else EntityRef(type="Project", id=context.project_id, name="Blue Moon Rising")
+        )
 
         body = column(self)
         body.addWidget(
@@ -78,8 +85,8 @@ class ProjectPickerDemo(QtWidgets.QWidget):
             for size, caption in SIZES
         ]
         states.extend(
-            field(flag.capitalize(), self._picker(value=preset, **{flag: True}), parent=self)
-            for flag in ("disabled", "readonly", "invalid")
+            field(caption, self._picker(value=preset, **{flag: True}), parent=self)
+            for flag, caption in STATES
         )
         body.addWidget(
             section(

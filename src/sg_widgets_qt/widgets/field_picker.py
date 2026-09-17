@@ -37,17 +37,16 @@ from sg_widgets_core.schema import FieldSchema
 from sg_widgets_core.search import match_runs
 from sg_widgets_core.state import NO_MATCH_LABEL
 
-from .. import icons
 from ..primitives.base import CONTROL_HEIGHT, ThemedWidget, elide, painter_for
 from ..primitives.button import Button
 from ..primitives.roles import Roles
 from ..primitives.row_delegate import RowDelegate
 from ..primitives.skeleton import Skeleton
-from ..theme import theme_of
 from ..workers import Ticket, default_pool
 from .picker_control import PICKER_SIZE_VALUES, PickerControl
 
 __all__ = [
+    "CHOOSING_PLACEHOLDER",
     "CRUMB_SEPARATOR",
     "DESCEND_ZONE",
     "Breadcrumb",
@@ -55,7 +54,7 @@ __all__ = [
     "FieldOptionModel",
     "FieldPicker",
     "PathLabel",
-    "chevron_painter",
+    "descend_hit",
     "extra_fields_of",
     "schema_of",
 ]
@@ -64,7 +63,9 @@ __all__ = [
 CRUMB_SEPARATOR = " › "
 
 #: The trailing strip of a row that descends where a press descends rather than chooses.
-DESCEND_ZONE = 28
+#: The mark itself is the delegate's drill column, which `drill_rect` measures; this is the
+#: fallback for a delegate that draws none.
+DESCEND_ZONE = 24
 
 #: The breadcrumb bar: `py-1.5` over the 1px rule under it, inset `px-2`, `gap-1.5`.
 CRUMB_BAR_HEIGHT = 29
@@ -79,6 +80,9 @@ VALUE_TEXT = 14
 
 #: The mark a target type carries in its leading slot.
 LINK_GLYPH = "link"
+
+#: The search box asks this while a link's target types have replaced the fields.
+CHOOSING_PLACEHOLDER = "Which type?"
 
 #: The skeleton a control shows while a path is being resolved.
 LABEL_SKELETON_WIDTH = 128
@@ -105,19 +109,20 @@ def schema_of(context: Any) -> Any:
     return found if found is not None else context
 
 
-def chevron_painter() -> Callable[..., None]:
-    """The mark a row that descends carries at its trailing edge."""
+def descend_hit(surface: Any, index: QModelIndex, point: QtCore.QPoint) -> bool:
+    """True when a press landed on a row's descend chevron rather than on the row.
 
-    def paint(painter: QtGui.QPainter, rect: QtCore.QRect, option: Any) -> None:
-        widget = getattr(option, "widget", None)
-        theme = theme_of(widget) if widget is not None else None
-        ink = theme.color("muted_foreground") if theme is not None else QtGui.QColor(128, 128, 128)
-        side = 16
-        box = QtCore.QRect(rect.right() + 1 - side, rect.center().y() - side // 2, side, side)
-        painter.setOpacity(0.7)
-        icons.paint_icon(painter, box, "chevron-right", ink)
-
-    return paint
+    Upstream's chevron is a button inside the row that stops the press reaching it, so the
+    mark's own box is the hit box. The delegate draws it in its drill column and measures it
+    with `drill_rect`; a delegate that draws none falls back to the trailing `DESCEND_ZONE`.
+    """
+    rect = surface.visualRect(index)
+    delegate = getattr(surface, "row_delegate", None)
+    if callable(delegate):
+        found = delegate().drill_rect(rect, index)
+        if not found.isNull():
+            return found.contains(point)
+    return point.x() >= rect.right() + 1 - DESCEND_ZONE
 
 
 class FieldLevels(QtCore.QObject):
@@ -424,8 +429,8 @@ class FieldOptionModel(QtCore.QAbstractListModel):
             return True if option.path in self._chosen else None
         if role == Roles.DISABLED:
             return self._checkable and not option.selectable
-        if role == Roles.PAINTER:
-            return chevron_painter() if option.traversable else None
+        if role == Roles.DRILLABLE:
+            return option.traversable
         if role == Roles.ENTITY:
             return option
         if role == Qt.ItemDataRole.ToolTipRole:
@@ -443,8 +448,8 @@ class FieldOptionModel(QtCore.QAbstractListModel):
             return LINK_GLYPH
         if role == Roles.CHECKED:
             return False if self._checkable else None
-        if role == Roles.PAINTER:
-            return chevron_painter()
+        if role == Roles.DRILLABLE:
+            return True
         if role == Roles.ENTITY:
             return target
         return None
@@ -668,6 +673,8 @@ class FieldPicker(QtWidgets.QWidget):
         self._value = str(value or "")
         self._close_on_select = bool(close_on_select)
         self._size = size if size in PICKER_SIZE_VALUES else "md"
+        #: The caller's own search placeholder, which the choosing level borrows the box from.
+        self._search_placeholder = str(search_placeholder)
         self._label_parts: list[str] | None = None
         self._label_ticket = Ticket()
 
@@ -709,6 +716,7 @@ class FieldPicker(QtWidgets.QWidget):
             error_label=error_label,
             row_model=self._model,
             row_delegate=delegate,
+            highlight_on_open=True,
             parent=self,
         )
         delegate.setParent(self._control.list_surface())
@@ -720,8 +728,8 @@ class FieldPicker(QtWidgets.QWidget):
         self._control.cleared.connect(lambda: self.set_value(""))
 
         self._breadcrumb = Breadcrumb("field-picker", self._control.popup())
-        self._breadcrumb.back_requested.connect(self._levels.back)
-        self._breadcrumb.reset_requested.connect(self._levels.reset)
+        self._breadcrumb.back_requested.connect(self._go_back)
+        self._breadcrumb.reset_requested.connect(self._go_root)
         self._breadcrumb.hide()
         layout = self._control.popup().layout()
         if layout is not None:
@@ -939,10 +947,12 @@ class FieldPicker(QtWidgets.QWidget):
 
     @property
     def search_placeholder(self) -> str:
-        return self._control.search_placeholder
+        """What the search box asks. The level replaces it while a type is being chosen."""
+        return self._search_placeholder
 
     def set_search_placeholder(self, value: str) -> None:
-        self._control.set_search_placeholder(value)
+        self._search_placeholder = str(value)
+        self._refresh()
 
     @property
     def empty_label(self) -> str:
@@ -1067,6 +1077,9 @@ class FieldPicker(QtWidgets.QWidget):
         else:
             self._control.set_keys([])
             self._control.set_labels([])
+        self._control.set_search_placeholder(
+            CHOOSING_PLACEHOLDER if self._levels.choosing is not None else self._search_placeholder
+        )
         self._breadcrumb.set_path(
             self._levels.entity_type,
             self._levels.crumbs(),
@@ -1102,6 +1115,16 @@ class FieldPicker(QtWidgets.QWidget):
     def _descend_into(self, row: FieldOption) -> None:
         self._control.set_query("")
         self._levels.descend_into(row)
+
+    def _go_back(self) -> None:
+        """The bar's Back, which clears the query the way the Left key does."""
+        self._control.set_query("")
+        self._levels.back()
+
+    def _go_root(self) -> None:
+        """The bar's Reset, which clears the query too (field-picker.tsx:335-339)."""
+        self._control.set_query("")
+        self._levels.reset()
 
     def _on_open_changed(self, is_open: bool) -> None:
         if not is_open:
@@ -1188,8 +1211,7 @@ class FieldPicker(QtWidgets.QWidget):
         option = self._model.option_at(index.row())
         if option is None or not option.traversable:
             return False
-        rect = surface.visualRect(index)
-        if point.x() >= rect.right() + 1 - DESCEND_ZONE or not option.selectable:
+        if descend_hit(surface, index, point) or not option.selectable:
             self._descend_into(option)
             return True
         return False

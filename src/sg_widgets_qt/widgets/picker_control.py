@@ -669,6 +669,9 @@ class PickerControl(ThemedWidget):
             self._popup, size=self.size_step, delegate=row_delegate
         )
         self._list.setObjectName(f"{self._slot}-list")
+        # A picker's load-more row is `text-xs`, the metadata step, where a search widget's is
+        # the body one; the shared delegate is told which this is.
+        self._list.row_delegate().set_load_more_text(PILL_TEXT)
         self._list.activated.connect(self._on_activated)
         self._list.load_more_requested.connect(self._on_load_more_row)
         self._popup.add_widget(self._list)
@@ -1049,6 +1052,7 @@ class PickerControl(ThemedWidget):
 
     def set_row_delegate(self, delegate: RowDelegate) -> None:
         """The delegate that draws a row."""
+        delegate.set_load_more_text(PILL_TEXT)
         self._list.setItemDelegate(delegate)
 
     def row_delegate(self) -> RowDelegate:
