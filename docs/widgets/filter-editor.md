@@ -75,9 +75,13 @@ A row stands on a skeleton while the type's fields, or the leaf of a dotted path
 read, so a control is never built on a guess and replaced a moment later, and again while it waits
 its turn to be built: a row is a field picker, an operator menu and a value control, each with a
 popup of its own, so the rows past the first build one to a turn of the event loop rather than all
-at once. A redraw keeps every row whose condition did not change exactly where it stands, so typing
-into one row never rebuilds its neighbours. Under each row the editor draws what is still wrong with
-it: no field yet, an operator the field does not take, or a value left blank.
+at once, and one row anywhere on the page builds per turn however many trees the page carries. A
+new entity type hands every row its skeleton back and builds the cells again a row to a turn; the
+groups, the order and the rows themselves stay where they stand. A redraw keeps every row whose
+condition did not change exactly where it stands, so typing into one row never rebuilds its
+neighbours and changing one row's operator builds that row alone. Under each row the editor draws
+what is still wrong with it: no field yet, an operator the field does not take, or a value left
+blank.
 
 ## Slots
 

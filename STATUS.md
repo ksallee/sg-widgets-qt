@@ -228,7 +228,7 @@ Last synced upstream commit: `356391d7354a`.
 
 | where | what |
 |---|---|
-| filter-editor page | A rebuild of the demo editors is over the 50ms budget of the thread drive: 58ms on the five-row tree, 143ms now the first tree is the forty-row catalogue. The cost is the row layout, built in one pass when the entity type changes. |
+| a showcase page opening | The turn that builds a page runs past the 50ms budget of the thread drive on every page: 74ms on entity-picker, 127ms on filter-editor, of which the five filter editors the demo builds are 33ms. The cost is the stage, the prose and the tables, all built in the turn the page is asked for. The drives measure what a page does once it is up, so none of them reads it. |
 | text search on the Python API | The endpoint refuses a term under three characters, so the client answers one itself with a name read per type; such a row carries no linked name. Documented on both search pages. |
 | `tests/qt/test_primitives_leaf.py::test_a_filled_button_paints_primary_at_its_centre` | Flaked once under a random test order during concurrent edits; passes alone, in file order and in every final run on either binding. Watch it. |
 | `pytest -q` | `addopts` already carries `-q`; a second `-q` hides the summary line. Run `pytest` bare. |
