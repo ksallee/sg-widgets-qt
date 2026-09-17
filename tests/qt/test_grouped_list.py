@@ -46,7 +46,8 @@ def _listing(context, qtbot, **options) -> GroupedList:
     )
     if "group_by" not in options and "group_key" not in options:
         options["group_by"] = resolve_columns(context.schema, "Task", [GROUP])[0]
-    listing = GroupedList(source=source, context=context, label_field="content", **options)
+    options.setdefault("label_field", "content")
+    listing = GroupedList(source=source, context=context, **options)
     apply_theme(listing, theme_for("default"))
     qtbot.addWidget(listing)
     listing.resize(700, 520)

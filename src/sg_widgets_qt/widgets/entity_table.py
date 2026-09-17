@@ -976,7 +976,7 @@ class EntityTable(QtWidgets.QWidget):
         wanted = list(keys)
         if self._group_by and (not wanted or wanted[0].path != self._group_by):
             wanted = [SortSpec(path=self._group_by, descending=False), *wanted]
-        self.control.set_sort(wanted)
+        self.control.apply_sort(wanted)
 
     def _lead_sort(self) -> None:
         """A group is only whole when the server put its rows together, so the path leads the sort."""
@@ -985,7 +985,7 @@ class EntityTable(QtWidgets.QWidget):
         keys = self.control.sort
         if keys and keys[0].path == self._group_by:
             return
-        self.control.set_sort(
+        self.control.apply_sort(
             [
                 SortSpec(path=self._group_by, descending=False),
                 *[key for key in keys if key.path != self._group_by],

@@ -450,14 +450,24 @@ class CollectionControl(QObject):
         return self.binding.sort
 
     def set_sort(self, value: Sequence[SortSpec] | None) -> None:
+        """Take a sort from the `sort` prop. Nothing is reported back out."""
         self.binding.set_sort(value)
+
+    def apply_sort(self, value: Sequence[SortSpec]) -> None:
+        """Sort from the widget's own control, so `sort_changed` reports it."""
+        self.binding.apply_sort(value)
 
     @property
     def filters(self) -> SourceFilters:
         return self.binding.filters
 
     def set_filters(self, value: SourceFilters) -> None:
+        """Take a filter from the `filters` prop. Nothing is reported back out."""
         self.binding.set_filters(value)
+
+    def apply_filters(self, value: SourceFilters) -> None:
+        """Filter from the widget's own control, so `filters_changed` reports it."""
+        self.binding.apply_filters(value)
 
     def snapshot(self) -> EntitySourceState:
         return self.binding.snapshot()

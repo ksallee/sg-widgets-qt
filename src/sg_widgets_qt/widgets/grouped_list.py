@@ -889,7 +889,7 @@ class GroupedList(QtWidgets.QWidget):
         keys = self.control.sort
         if keys and keys[0].path == path:
             return
-        self.control.set_sort(
+        self.control.apply_sort(
             [SortSpec(path=path, descending=False), *[key for key in keys if key.path != path]]
         )
 

@@ -10,8 +10,7 @@ from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QKeyEvent
 
-from sg_widgets_core.collection import SortSpec, cell_value, create_entity_source
-from sg_widgets_core.collection import EntitySourceOptions
+from sg_widgets_core.collection import EntitySourceOptions, SortSpec, cell_value, create_entity_source
 from sg_widgets_core.collection_state import collapse_all
 from sg_widgets_core.filter import condition
 from sg_widgets_qt.theme import apply_theme, theme_for

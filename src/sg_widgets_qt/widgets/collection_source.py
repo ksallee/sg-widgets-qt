@@ -109,11 +109,27 @@ class CollectionSource(QObject):
         return list(self._source.sort)
 
     def set_sort(self, value: Sequence[SortSpec] | None) -> None:
-        """Push a sort into the source. A sort it already holds is a no-op."""
+        """Take a sort from the `sort` prop. A sort the source already holds is a no-op.
+
+        The prop is recorded, so the snapshot that comes back says what the caller already
+        knows and nothing is reported: a change travels once, and the two never write to each
+        other. A sort the widget itself makes goes through `apply_sort` instead.
+        """
         if value is None:
             return
         keys = list(value)
         self._sort = keys
+        if same_sort(keys, self._source.sort):
+            return
+        self._run(self._source.set_sort, keys)
+
+    def apply_sort(self, value: Sequence[SortSpec]) -> None:
+        """Sort from the widget's own control: a header click, or a sort picker.
+
+        The prop is not recorded, so the snapshot that comes back is reported through
+        `sort_changed` and a `sort` prop follows it.
+        """
+        keys = list(value)
         if same_sort(keys, self._source.sort):
             return
         self._run(self._source.set_sort, keys)
@@ -124,8 +140,14 @@ class CollectionSource(QObject):
         return self._source.filters
 
     def set_filters(self, value: SourceFilters) -> None:
-        """Push a filter into the source. One it already holds is a no-op."""
+        """Take a filter from the `filters` prop. One the source already holds is a no-op."""
         self._filters = value
+        if same_filters(value, self._source.filters):
+            return
+        self._run(self._source.set_filters, value)
+
+    def apply_filters(self, value: SourceFilters) -> None:
+        """Filter from the widget's own control, so the change is reported back out."""
         if same_filters(value, self._source.filters):
             return
         self._run(self._source.set_filters, value)

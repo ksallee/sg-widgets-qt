@@ -155,6 +155,20 @@ class _TreeBinding(QObject):
         self._pool.cancel_all()
 
 
+class _Handle:
+    """What an index points at: one path, held by the model so the pointer stays alive.
+
+    A `QModelIndex` carries a pointer, and a Python object handed to `createIndex` is only
+    valid while something else holds a reference to it. Handles are therefore kept for every
+    path the tree has ever shown, so an index made before a reset never dangles.
+    """
+
+    __slots__ = ("path",)
+
+    def __init__(self, path: str) -> None:
+        self.path = path
+
+
 class TreeModel(QAbstractItemModel):
     """The engine's visible rows as a hierarchy, keyed by path.
 
@@ -167,18 +181,21 @@ class TreeModel(QAbstractItemModel):
         self._tree = tree
         self._rows: dict[str, TreeRow] = {}
         self._children: dict[str, list[str]] = {}
-        self._paths: list[str] = []
         self._roots: list[str] = []
+        self._handles: dict[str, _Handle] = {}
 
     # --- what it holds --------------------------------------------------------------------
 
     def set_rows(self, rows: Sequence[TreeRow]) -> None:
         self.beginResetModel()
         self._rows = {row.node.path: row for row in rows}
-        self._paths = [row.node.path for row in rows]
-        self._children = {path: [] for path in self._paths}
+        paths = [row.node.path for row in rows]
+        self._children = {path: [] for path in paths}
         self._roots = []
-        held = set(self._paths)
+        held = set(paths)
+        for path in paths:
+            if path not in self._handles:
+                self._handles[path] = _Handle(path)
         for row in rows:
             parent = row.node.parent_path
             if parent is not None and parent in held:
@@ -191,18 +208,21 @@ class TreeModel(QAbstractItemModel):
         return self._rows.get(path)
 
     def path_of(self, index: QModelIndex) -> str:
-        at = int(index.internalId())
-        return self._paths[at] if 0 <= at < len(self._paths) else ""
+        handle = index.internalPointer()
+        return handle.path if isinstance(handle, _Handle) else ""
 
     def index_of(self, path: str) -> QModelIndex:
         row = self._rows.get(path)
-        if row is None:
+        handle = self._handles.get(path)
+        if row is None or handle is None:
             return QModelIndex()
         parent = row.node.parent_path
-        siblings = self._children.get(parent, self._roots) if parent in self._children else self._roots
+        siblings = self._children.get(parent, []) if parent is not None else self._roots
+        if path not in siblings:
+            siblings = self._roots
         if path not in siblings:
             return QModelIndex()
-        return self.createIndex(siblings.index(path), 0, self._paths.index(path))
+        return self.createIndex(siblings.index(path), 0, handle)
 
     # --- the model ------------------------------------------------------------------------
 
@@ -210,7 +230,10 @@ class TreeModel(QAbstractItemModel):
         siblings = self._children.get(self.path_of(parent), []) if parent.isValid() else self._roots
         if row < 0 or row >= len(siblings) or column != 0:
             return QModelIndex()
-        return self.createIndex(row, column, self._paths.index(siblings[row]))
+        handle = self._handles.get(siblings[row])
+        if handle is None:
+            return QModelIndex()
+        return self.createIndex(row, column, handle)
 
     def parent(self, child: QModelIndex = _ROOT) -> QModelIndex:  # noqa: A003
         if not child.isValid():
@@ -879,7 +902,7 @@ class EntityTree(QtWidgets.QWidget):
         muted = dimming and node.path not in state.matches
         if not state.search.strip():
             return [(label, False, False)]
-        return [(text, matched, muted) for text, matched in match_runs(label, state.search)]
+        return [(run.text, run.match, muted) for run in match_runs(label, state.search)]
 
     def _code_of(self, node: TreeNode) -> str:
         """The schema name a folder stands for, which is the only code a tree row has."""

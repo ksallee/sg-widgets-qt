@@ -185,13 +185,22 @@ def test_the_empty_value_is_a_marker_and_never_a_dash(root):
     assert place(root, FieldValue(value=False, data_type="checkbox")).kind == "checkbox"
 
 
-def test_a_number_is_right_aligned_with_tabular_figures(root):
-    value_widget = place(root, FieldValue(value=1001, data_type="number"))
-    assert value_widget.plan.align == "right"
-    assert value_widget.plan.tabular is True
-    # An id or a uuid is a code, so it takes the monospace family instead (rule 6).
-    assert place(root, FieldValue(value="8f14e45f", data_type="uuid")).plan.mono is True
-    assert place(root, FieldValue(value="Sequence", data_type="text")).plan.align == "left"
+def test_a_number_is_tabular_and_takes_its_alignment_from_the_collection(root):
+    """The web widget draws a number `tabular-nums` and leaves it in the flow of the line.
+
+    Right-aligning a column is the table's decision, and a table hands it down through
+    `FieldValueOptions.align`; a value on its own has no column and reads left to right.
+    """
+    number = place(root, FieldValue(value=1001, data_type="number"))
+    assert number.plan.tabular is True
+    assert number.plan.align == "left"
+    assert plan_field_value(1001, "number", options(align="right")).align == "right"
+    # A uuid is text, in the same face as the rest (field-value.tsx draws no code face).
+    uuid = place(root, FieldValue(value="8f14e45f", data_type="uuid"))
+    assert uuid.plan.mono is False
+    assert uuid.plan.tabular is False
+    # A colour keeps the mono face, which the web widget gives it and nothing else.
+    assert place(root, FieldValue(value="253,94,99", data_type="color")).plan.mono is True
 
 
 def test_the_site_preferences_reach_every_formatter(root):
@@ -236,19 +245,25 @@ def test_a_linked_row_is_a_chip_and_a_status_is_a_badge(root, loader):
     assert len(picture.findChildren(Thumbnail)) == 1
 
 
-def test_a_multi_entity_row_hides_the_chips_it_has_no_room_for(root, loader):
-    value_widget = place(
-        root, FieldValue(value=ASSETS, data_type="multi_entity", loader=loader), width=600
-    )
-    row = value_widget.child
-    assert [chip.isVisible() for chip in row.chips] == [True, True, True]
-    assert row.hidden == 0
+def test_a_multi_entity_row_wraps_the_chips_it_has_no_room_for(root, loader):
+    """The web widget lays its chips out with `flex-wrap`, so a chip that does not fit drops.
 
-    # A chip is never cut: one that does not fit whole is hidden, and so is every chip after it.
-    value_widget.resize(120, value_widget.height())
+    Nothing is hidden and nothing is counted: a cell only one line high shows the first line,
+    the way the web table's own cell clips what runs past it.
+    """
+    value = FieldValue(value=ASSETS, data_type="multi_entity", loader=loader)
+    place(root, value, width=1000)
+    row = value.child
+    assert len(row.chips) == len(ASSETS)
+    assert row.lines == 1
+
+    place(root, value, width=150)
+    value.resize(150, value.heightForWidth(150))
     QtWidgets.QApplication.processEvents()
-    assert row.hidden > 0
-    assert row.chips[-1].isVisible() is False
+    assert len(row.chips) == len(ASSETS)
+    assert row.lines > 1
+    # The block is as tall as the lines it took, so nothing is cut off the bottom.
+    assert value.heightForWidth(150) >= row.lines * CHIP_HEIGHT["sm"]
 
 
 def test_a_compact_collection_draws_the_chip_a_step_smaller(root, loader):

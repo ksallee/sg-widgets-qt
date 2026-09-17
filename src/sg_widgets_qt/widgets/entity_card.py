@@ -118,9 +118,6 @@ GRID_GAP = 12
 #: The glyph beside the type label.
 TYPE_GLYPH = 16
 
-#: The mark on a link that opens outside this application.
-LINK_GLYPH = 12
-
 #: The skeleton lines the header stands behind, and the two the grid gives a row.
 SKELETON_NAME = 16
 SKELETON_META = 12
@@ -563,13 +560,8 @@ class _CardValue(ThemedWidget):
         link = url_link(column.value) if column is not None else None
         if link is None:
             return
+        # A link is its underline and nothing else, as the web widget's anchor is.
         self._paint_runs(painter, theme, [(link.label, link.href or "")])
-        if not link.href or link.local is not None or not self._links:
-            return
-        box = self._links[0].rect
-        slot = QtCore.QRect(box.right() + 1 + 4, 0, LINK_GLYPH, LINK_GLYPH)
-        slot.moveTop(box.center().y() - LINK_GLYPH // 2)
-        paint_icon(painter, slot, "external-link", with_alpha(theme.color("foreground"), 0.7))
 
 
 class _CardName(ThemedWidget):

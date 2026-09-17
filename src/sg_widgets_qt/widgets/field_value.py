@@ -29,7 +29,6 @@ from qtpy import QtCore, QtGui, QtWidgets
 from sg_widgets_core.collection import CollectionColumn
 from sg_widgets_core.context import SgContext, context_from_client, preferences_of
 from sg_widgets_core.filter import EntityRef
-from sg_widgets_core.picker import fit_chips
 from sg_widgets_core.render import (
     COLOR_SENTINEL,
     FieldTextOptions,
@@ -57,6 +56,14 @@ from ..primitives.base import (
     painter_for,
     text_width,
 )
+from ..primitives.checkbox import (
+    RING_ROOM,
+    SWITCH_HEIGHT,
+    SWITCH_INSET,
+    SWITCH_THUMB,
+    SWITCH_WIDTH,
+    Switch,
+)
 from ..theme import Theme, theme_for, with_alpha
 from .entity_chip import ENTITY_CHIP_VARIANT_VALUES, EntityChip
 from .entity_glyphs import entity_glyph
@@ -65,10 +72,9 @@ from .status_glyph import StatusGlyphSource
 from .thumbnail import Thumbnail
 
 __all__ = [
-    "CHECK_GLYPH",
+    "CHIP_GAP",
     "FIELD_VALUE_CHIP",
     "FIELD_VALUE_DENSITY_VALUES",
-    "OVERFLOW_RESERVE",
     "SWATCH",
     "FieldValue",
     "FieldValueOptions",
@@ -93,24 +99,14 @@ META_TEXT = 12
 SWATCH = 16
 GLYPH_GAP = 6
 
-#: Between the chips of a multi-entity value, and the room the `+n` pill keeps beside them.
-CHIP_GAP = 6
-OVERFLOW_RESERVE = 40
+#: Between the chips of a multi-entity value, across and down, which is rule 2's item gap.
+CHIP_GAP = 8
 
-#: The tick a true checkbox draws, and the cross a false one takes.
-CHECK_GLYPH = 16
-CHECK_ICON = "check"
-UNCHECK_ICON = "x"
-
-#: The mark on a link that leaves the application.
-LINK_GLYPH = 14
-LINK_ICON = "external-link"
+#: The glyph the placeholder of a picture that has not landed draws at.
+PLACEHOLDER_GLYPH = 16
 
 #: The picture an `image` value draws at, the bottom of the thumbnail ladder.
 IMAGE_STEP = "sm"
-
-#: Data types drawn in the monospace family with tabular figures (rule 6).
-MONO_TYPES: tuple[str, ...] = ("uuid",)
 
 ColumnLike = Union[CollectionColumn, str]
 """What names the type of a value: a resolved column, or a bare `data_type`."""
@@ -235,9 +231,10 @@ def plan_field_value(
     plan = FieldValuePlan(
         kind=kind,
         data_type=data_type,
-        align=o.align if o.align is not None else (align or ("right" if kind == "number" else "left")),
-        mono=data_type in MONO_TYPES,
-        tabular=kind == "number" or data_type in MONO_TYPES,
+        # A value reads left to right on its own. Alignment is the collection's business: a
+        # table hands its column's through `align`, as the web widget's cell class does.
+        align=o.align if o.align is not None else (align or "left"),
+        tabular=kind == "number",
     )
     if kind == "checkbox":
         plan.checked = value is True
@@ -312,6 +309,14 @@ def _chip_label(ref: EntityRef) -> str:
     return str(ref.name) if ref.name else f"{ref.type} #{ref.id}"
 
 
+def _chip_font(theme: Theme, step: str, named: bool) -> QtGui.QFont:
+    """A chip's label: medium at its type step, and the mono face for a bare id (rule 6).
+
+    `EntityChip._font` makes the same call, which is what keeps the two faces in step.
+    """
+    return theme.font(CHIP_TEXT[step], QtGui.QFont.Weight.Medium, mono=not named, tabular=not named)
+
+
 def _glyph_slot(box: QtCore.QRect, left: int, glyph: int) -> QtCore.QRect:
     """The leading slot of a chip, where the badge primitive puts it.
 
@@ -334,13 +339,12 @@ def _centre_top(rect: QtCore.QRect, height: int) -> int:
     return rect.top() + max(0, rect.height() - height) // 2
 
 
-def _chip_width(theme: Theme, label: str, step: str, glyph: bool = True) -> int:
+def _chip_width(theme: Theme, label: str, step: str, glyph: bool = True, named: bool = True) -> int:
     pad = CHIP_PAD[step]
     width = (pad.lead if glyph else pad.text) + pad.text
     if glyph:
         width += CHIP_GLYPH[step] + CHIP_SPACING[step].glyph
-    font = theme.font(CHIP_TEXT[step], QtGui.QFont.Weight.Medium)
-    return width + text_width(QtGui.QFontMetrics(font), label)
+    return width + text_width(QtGui.QFontMetrics(_chip_font(theme, step, named)), label)
 
 
 def _status_source(
@@ -404,13 +408,34 @@ def _draw_line(
     painter.drawText(rect, _align_flags(plan), elide(QtGui.QFontMetrics(font), one_line, rect.width()))
 
 
+def chip_layout(widths: list[int], room: int, step: str) -> tuple[list[QtCore.QPoint], int]:
+    """Where each chip of a linked value goes, and how tall the block is.
+
+    The chips wrap onto a new line when the one they are on has no more room, which is the
+    `flex-wrap` of the web widget; a chip too wide for the line keeps the line and elides. Both
+    faces lay out through this, so a widget and a cell put every chip on the same pixel. A cell
+    that is one line high simply shows the first line, the way the web table's own cell clips.
+    """
+    height = CHIP_HEIGHT[step]
+    spots: list[QtCore.QPoint] = []
+    x = 0
+    y = 0
+    for width in widths:
+        if x > 0 and x + width > room:
+            x = 0
+            y += height + CHIP_GAP
+        spots.append(QtCore.QPoint(x, y))
+        x += width + CHIP_GAP
+    return spots, (y + height if widths else 0)
+
+
 def _paint_chips(
     painter: QtGui.QPainter,
     rect: QtCore.QRect,
     plan: FieldValuePlan,
     options: FieldValueOptions,
 ) -> None:
-    """The linked rows, as many whole chips as fit and `+n` for the rest."""
+    """The linked rows, as chips wrapping across the room the value has."""
     theme = _theme_of(options)
     step = _chip_step(options.density)
     if options.entity_variant != "chip":
@@ -420,24 +445,18 @@ def _paint_chips(
         _draw_line(painter, rect, font, _ink(theme, options), labels, plan)
         return
 
-    widths = [float(_chip_width(theme, _chip_label(ref), step) + CHIP_GAP) for ref in plan.refs]
-    fit = fit_chips(widths, float(rect.width() + CHIP_GAP), float(OVERFLOW_RESERVE))
-    height = min(CHIP_HEIGHT[step], rect.height())
-    x = rect.left()
-    for index in range(fit.visible):
-        box = QtCore.QRect(x, 0, int(widths[index]) - CHIP_GAP, height)
-        box.moveTop(_centre_top(rect, height))
-        _paint_one_chip(painter, box, plan.refs[index], theme, step, options)
-        x += int(widths[index])
-    if fit.hidden > 0:
-        font = theme.font(META_TEXT, tabular=True)
-        painter.setFont(font)
-        painter.setPen(_ink(theme, options, "muted_foreground"))
-        painter.drawText(
-            QtCore.QRect(x, rect.top(), max(0, rect.right() + 1 - x), rect.height()),
-            int(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter),
-            f"+{fit.hidden}",
+    widths = [_chip_width(theme, _chip_label(ref), step, named=bool(ref.name)) for ref in plan.refs]
+    spots, block = chip_layout(widths, rect.width(), step)
+    height = CHIP_HEIGHT[step]
+    top = _centre_top(rect, block)
+    for index, spot in enumerate(spots):
+        box = QtCore.QRect(
+            rect.left() + spot.x(),
+            top + spot.y(),
+            min(widths[index], rect.width()),
+            height,
         )
+        _paint_one_chip(painter, box, plan.refs[index], theme, step, options)
 
 
 def _paint_one_chip(
@@ -458,7 +477,7 @@ def _paint_one_chip(
     # The badge walks its own cursor past the slot rather than reading the slot's right edge,
     # which `QRect.moveCenter` shifts by a pixel on an even glyph. The two must agree.
     left = box.left() + pad.lead + glyph + CHIP_SPACING[step].glyph
-    font = theme.font(CHIP_TEXT[step], QtGui.QFont.Weight.Medium)
+    font = _chip_font(theme, step, bool(ref.name))
     painter.setFont(font)
     painter.setPen(ink)
     room = max(0, box.right() + 1 - pad.text - left)
@@ -477,7 +496,7 @@ def _status_glyph_source(plan: FieldValuePlan, options: FieldValueOptions) -> St
 def _status_width(theme: Theme, plan: FieldValuePlan, options: FieldValueOptions) -> int:
     step = _chip_step(options.density)
     pad = CHIP_PAD[step]
-    font = theme.font(CHIP_TEXT[step], QtGui.QFont.Weight.Medium)
+    font = _chip_font(theme, step, named=True)
     # A status the site draws nothing for is a bordered label, which is what StatusBadge draws:
     # no glyph, and the bare text inset in its place.
     glyph = _status_glyph_source(plan, options).draws()
@@ -512,7 +531,7 @@ def _paint_status(
         slot = _glyph_slot(box, box.left() + pad.lead, glyph)
         source.paint(painter, slot, theme)
         left = box.left() + pad.lead + glyph + CHIP_SPACING[step].glyph
-    font = theme.font(CHIP_TEXT[step], QtGui.QFont.Weight.Medium)
+    font = _chip_font(theme, step, named=True)
     painter.setFont(font)
     painter.setPen(ink)
     room = max(0, box.right() + 1 - pad.text - left)
@@ -547,7 +566,7 @@ def _paint_image(
     if picture is None and not loader.has(url):
         loader.load(url, lambda _pixmap: options.on_ready() if options.on_ready else None, size=size)
     if picture is None or picture.isNull():
-        side = min(CHECK_GLYPH, box.width(), box.height())
+        side = min(PLACEHOLDER_GLYPH, box.width(), box.height())
         slot = QtCore.QRect(0, 0, side, side)
         slot.moveCenter(box.center())
         paint_icon(painter, slot, "image", theme.color("muted_foreground"))
@@ -607,22 +626,14 @@ def _paint_url(
     if link is None or not link.href:
         _draw_line(painter, rect, font, ink, plan.text, plan)
         return
+    # A link is its underline and nothing else, as the web widget's anchor is.
     font.setUnderline(True)
-    external = link.local is None
-    room = rect.width() - (LINK_GLYPH + GLYPH_GAP if external else 0)
-    shown = elide(QtGui.QFontMetrics(font), plan.text, max(0, room))
-    painter.setFont(font)
-    painter.setPen(ink)
-    painter.drawText(
-        QtCore.QRect(rect.left(), rect.top(), max(0, room), rect.height()),
-        _align_flags(plan),
-        shown,
-    )
-    if external:
-        left = rect.left() + min(text_width(QtGui.QFontMetrics(font), shown), max(0, room)) + GLYPH_GAP
-        slot = QtCore.QRect(left, 0, LINK_GLYPH, LINK_GLYPH)
-        slot.moveTop(_centre_top(rect, LINK_GLYPH))
-        paint_icon(painter, slot, LINK_ICON, with_alpha(ink, 0.7))
+    _draw_line(painter, rect, font, ink, plan.text, plan)
+
+
+def _switch_size() -> QtCore.QSize:
+    """The room the switch primitive asks for, its focus ring's included."""
+    return QtCore.QSize(SWITCH_WIDTH + RING_ROOM * 2, SWITCH_HEIGHT + RING_ROOM * 2)
 
 
 def _paint_checkbox(
@@ -631,13 +642,32 @@ def _paint_checkbox(
     plan: FieldValuePlan,
     options: FieldValueOptions,
 ) -> None:
+    """The switch a checkbox is, inert and at full contrast.
+
+    The two states of a checkbox are what a switch shows, and the web widget draws exactly that:
+    a `Switch` that is disabled, out of the tab order and kept at full opacity. The widget face
+    holds the primitive; this redraws it the way `_paint_one_chip` redraws a chip, on the
+    primitive's own ladder so the two faces land on one pixel.
+    """
     theme = _theme_of(options)
-    box = QtCore.QRect(rect.left(), 0, CHECK_GLYPH, CHECK_GLYPH)
-    box.moveTop(_centre_top(rect, CHECK_GLYPH))
-    if plan.checked:
-        paint_icon(painter, box, CHECK_ICON, _ink(theme, options))
+    size = _switch_size()
+    box = QtCore.QRect(rect.left(), _centre_top(rect, size.height()), size.width(), size.height())
+    track = QtCore.QRect(0, 0, SWITCH_WIDTH, SWITCH_HEIGHT)
+    track.moveCenter(box.center())
+    radius = track.height() / 2.0
+    off = with_alpha(theme.input, 0.8) if theme.dark else theme.color("input")
+    fill_round_rect(painter, track, radius, theme.primary if plan.checked else off)
+
+    travel = track.width() - SWITCH_THUMB - SWITCH_INSET * 2
+    x = track.x() + SWITCH_INSET + (travel if plan.checked else 0)
+    thumb = QtCore.QRectF(x, track.y() + SWITCH_INSET, SWITCH_THUMB, SWITCH_THUMB)
+    if theme.dark:
+        ink = theme.primary_foreground if plan.checked else theme.foreground
     else:
-        paint_icon(painter, box, UNCHECK_ICON, _ink(theme, options, "muted_foreground"))
+        ink = theme.color("background")
+    painter.setPen(QtCore.Qt.PenStyle.NoPen)
+    painter.setBrush(ink)
+    painter.drawEllipse(thumb)
 
 
 def warm_status_glyph(code: str, options: FieldValueOptions) -> None:
@@ -718,15 +748,21 @@ def field_value_size_hint(
     theme = _theme_of(o)
     step = _chip_step(o.density)
     if plan.kind in ("entity", "multi_entity") and o.entity_variant == "chip":
-        widths = [_chip_width(theme, _chip_label(ref), step) for ref in plan.refs]
+        widths = [
+            _chip_width(theme, _chip_label(ref), step, named=bool(ref.name)) for ref in plan.refs
+        ]
         total = sum(widths) + CHIP_GAP * max(0, len(widths) - 1)
-        return QtCore.QSize(total, CHIP_HEIGHT[step])
+        if width is None:
+            return QtCore.QSize(total, CHIP_HEIGHT[step])
+        # Given a width, the chips wrap into it, and the block is as tall as the lines they take.
+        _spots, block = chip_layout(widths, int(width), step)
+        return QtCore.QSize(min(total, int(width)), max(CHIP_HEIGHT[step], block))
     if plan.kind == "status":
         return QtCore.QSize(_status_width(theme, plan, o), CHIP_HEIGHT[step])
     if plan.kind == "image":
         return _image_size()
     if plan.kind == "checkbox":
-        return QtCore.QSize(CHECK_GLYPH, max(CHECK_GLYPH, QtGui.QFontMetrics(theme.font(VALUE_TEXT)).height()))
+        return _switch_size()
 
     font = theme.font(META_TEXT) if plan.kind == "empty" else _value_font(theme, plan)
     metrics = QtGui.QFontMetrics(font)
@@ -737,11 +773,7 @@ def field_value_size_hint(
             plan.text,
         )
         return QtCore.QSize(int(width), max(metrics.height(), box.height()))
-    extra = 0
-    if plan.kind == "color" and plan.rgb is not None:
-        extra = SWATCH + GLYPH_GAP
-    elif plan.kind == "url" and plan.link is not None and plan.link.href and plan.link.local is None:
-        extra = LINK_GLYPH + GLYPH_GAP
+    extra = SWATCH + GLYPH_GAP if plan.kind == "color" and plan.rgb is not None else 0
     widest = max(
         (text_width(metrics, line) for line in plan.text.splitlines() or [""]),
         default=0,
@@ -753,10 +785,11 @@ def field_value_size_hint(
 
 
 class _ChipRow(ThemedWidget):
-    """The chips of a linked value, and the `+n` the row overflows into.
+    """The chips of a linked value, wrapping across the room they are given.
 
-    A chip is never cut: one that does not fit whole is hidden, and so is every chip after it,
-    which is core's `fit_chips`, the rule a picker's token field already draws by.
+    The web widget lays them out with `flex-wrap` and rule 2's item gap, so a chip that does not
+    fit the line takes the next one; a cell only one line high shows the first line. The layout
+    is `chip_layout`, which the delegate face draws by too.
     """
 
     def __init__(self, step: str = "sm", parent: QtWidgets.QWidget | None = None) -> None:
@@ -764,22 +797,23 @@ class _ChipRow(ThemedWidget):
         self.setObjectName("field-value-chips")
         self._step = step
         self._chips: list[EntityChip] = []
-        self._hidden = 0
-        self._pill_left = 0
         self.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed
+            QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred
         )
         self.setMinimumWidth(0)
 
     @property
     def chips(self) -> list[EntityChip]:
-        """The chips, in order. Those past the fit are hidden."""
+        """The chips, in order."""
         return list(self._chips)
 
     @property
-    def hidden(self) -> int:
-        """How many chips the row had no room for."""
-        return self._hidden
+    def lines(self) -> int:
+        """How many lines the chips take at the width the row has."""
+        if not self._chips:
+            return 0
+        _spots, block = self._layout(self.width())
+        return 1 + (block - CHIP_HEIGHT[self._step]) // (CHIP_HEIGHT[self._step] + CHIP_GAP)
 
     def set_chips(self, chips: list[EntityChip]) -> None:
         for chip in self._chips:
@@ -799,50 +833,59 @@ class _ChipRow(ThemedWidget):
         self.updateGeometry()
         self._lay()
 
+    def _widths(self) -> list[int]:
+        return [chip.sizeHint().width() for chip in self._chips]
+
+    def _layout(self, room: int) -> tuple[list[QtCore.QPoint], int]:
+        return chip_layout(self._widths(), room, self._step)
+
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
-        widths = [chip.sizeHint().width() for chip in self._chips]
+        widths = self._widths()
         total = sum(widths) + CHIP_GAP * max(0, len(widths) - 1)
         return QtCore.QSize(total, CHIP_HEIGHT[self._step])
 
     def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802
         return QtCore.QSize(0, CHIP_HEIGHT[self._step])
 
+    def hasHeightForWidth(self) -> bool:  # noqa: N802
+        return True
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802
+        _spots, block = self._layout(width)
+        return max(CHIP_HEIGHT[self._step], block)
+
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # noqa: N802
         super().resizeEvent(event)
         self._lay()
 
     def _lay(self) -> None:
-        widths = [float(chip.sizeHint().width() + CHIP_GAP) for chip in self._chips]
-        fit = fit_chips(widths, float(self.width() + CHIP_GAP), float(OVERFLOW_RESERVE))
-        self._hidden = fit.hidden
-        x = 0
+        """Every chip where `chip_layout` puts it, with the block centred in the room."""
+        widths = self._widths()
+        spots, block = self._layout(self.width())
         height = CHIP_HEIGHT[self._step]
-        top = max(0, (self.height() - height) // 2)
+        top = max(0, (self.height() - block) // 2)
         for index, chip in enumerate(self._chips):
-            if index < fit.visible:
-                chip.setGeometry(QtCore.QRect(x, top, int(widths[index]) - CHIP_GAP, height))
-                chip.show()
-                x += int(widths[index])
-            else:
-                chip.hide()
-        self._pill_left = x
+            spot = spots[index]
+            chip.setGeometry(
+                QtCore.QRect(spot.x(), top + spot.y(), min(widths[index], self.width()), height)
+            )
+            chip.show()
         self.update()
 
-    def paintEvent(self, event: QtGui.QPaintEvent) -> None:  # noqa: N802
-        if self._hidden <= 0:
-            return
-        theme = self.theme
-        painter = painter_for(self)
-        painter.setOpacity(self.disabled_opacity())
-        painter.setFont(theme.font(META_TEXT, tabular=True))
-        painter.setPen(theme.color("muted_foreground"))
-        left = self._pill_left
-        painter.drawText(
-            QtCore.QRect(left, 0, max(0, self.width() - left), self.height()),
-            int(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter),
-            f"+{self._hidden}",
-        )
-        painter.end()
+
+class _ValueSwitch(Switch):
+    """The switch a checkbox value shows: the two states, and no way to change them.
+
+    The web widget draws the same primitive `disabled`, out of the tab order and with the
+    disabled dimming turned off, so the value keeps full contrast and reads as a state rather
+    than as a control.
+    """
+
+    def __init__(self, checked: bool = False, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(checked, parent)
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
 
 class FieldValue(ThemedWidget):
@@ -1169,6 +1212,11 @@ class FieldValue(ThemedWidget):
             )
         if plan.kind == "image":
             return Thumbnail(src=plan.image, size=IMAGE_STEP, loader=self._loader, parent=self)
+        if plan.kind == "checkbox":
+            # The two states of a checkbox are a switch, which is what the web widget draws.
+            switch = _ValueSwitch(plan.checked, self)
+            switch.setAccessibleName(plan.text)
+            return switch
         return None
 
     def _chip(self, ref: EntityRef, step: str) -> EntityChip:
@@ -1199,9 +1247,13 @@ class FieldValue(ThemedWidget):
         return QtCore.QSize(0, self.sizeHint().height())
 
     def hasHeightForWidth(self) -> bool:  # noqa: N802
+        if isinstance(self._child, _ChipRow):
+            return True
         return self._child is None and self._plan.wrap
 
     def heightForWidth(self, width: int) -> int:  # noqa: N802
+        if isinstance(self._child, _ChipRow):
+            return self._child.heightForWidth(width)
         return field_value_size_hint(self._value, self._data_type, self.options(), width=width).height()
 
     def _place_child(self) -> None:
@@ -1213,6 +1265,11 @@ class FieldValue(ThemedWidget):
         child = self._child
         if child is None:
             return
+        if isinstance(child, _ChipRow):
+            # A chip row wraps into the room it is given and centres its block inside it, which
+            # is what the delegate face does with the same rectangle.
+            child.setGeometry(0, 0, max(0, self.width()), max(0, self.height()))
+            return
         hint = child.sizeHint()
         expands = child.sizePolicy().horizontalPolicy() == QtWidgets.QSizePolicy.Policy.Expanding
         width = self.width() if expands else min(hint.width(), self.width())
@@ -1222,7 +1279,7 @@ class FieldValue(ThemedWidget):
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # noqa: N802
         super().resizeEvent(event)
         self._place_child()
-        if self._plan.wrap:
+        if self._plan.wrap or isinstance(self._child, _ChipRow):
             self.updateGeometry()
 
     def _on_theme(self, theme: Theme) -> None:
