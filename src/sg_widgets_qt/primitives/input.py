@@ -9,6 +9,8 @@ frame is off and every pixel of chrome is painted here from the tokens.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ..icons import paint_icon
@@ -277,8 +279,18 @@ class Input(_Field, QtWidgets.QLineEdit):
         super().paintEvent(event)
 
 
+#: The corner a textarea is dragged taller by, in pixels of its bottom-right.
+TEXTAREA_GRIP = 12
+
+
 class Textarea(_Field, QtWidgets.QPlainTextEdit):
-    """Several lines of text in the same box, at least 64 high."""
+    """Several lines of text in the same box, at least 64 high.
+
+    The box grows with its text, which is `field-sizing-content` on the upstream textarea, and
+    a drag on its bottom-right corner sets its height by hand, which is the resize handle a
+    browser gives every textarea; a height set by hand holds, as a browser's does, until
+    `set_dragged_height(None)`.
+    """
 
     def __init__(
         self,
@@ -301,7 +313,43 @@ class Textarea(_Field, QtWidgets.QPlainTextEdit):
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred
         )
         self.setMinimumHeight(TEXTAREA_MIN_HEIGHT)
+        #: A height the reader dragged the box to, or None while it follows its text.
+        self._dragged_height: int | None = None
+        self._drag_from: tuple[int, int] | None = None
+        self.viewport().setMouseTracking(True)
+        self.document().documentLayout().documentSizeChanged.connect(self._on_text_grew)
         self.layout_slots()
+
+    # --- the height -----------------------------------------------------------------------
+
+    def content_height(self) -> int:
+        """The height its text asks for: every wrapped line, the document margin above and below."""
+        lines = 0
+        block = self.document().firstBlock()
+        while block.isValid():
+            layout = block.layout()
+            lines += max(1, layout.lineCount() if layout is not None else 1)
+            block = block.next()
+        margin = int(self.document().documentMargin())
+        return max(1, lines) * self.fontMetrics().lineSpacing() + 2 * margin + 2
+
+    @property
+    def dragged_height(self) -> int | None:
+        """The height set by a drag on the corner, or None while the box follows its text."""
+        return self._dragged_height
+
+    def set_dragged_height(self, value: int | None) -> None:
+        self._dragged_height = max(self.minimumHeight(), int(value)) if value is not None else None
+        self.updateGeometry()
+
+    def _on_text_grew(self, *_args: Any) -> None:
+        self.updateGeometry()
+
+    def _grip_rect(self) -> QtCore.QRect:
+        view = self.viewport().rect()
+        return QtCore.QRect(
+            view.right() - TEXTAREA_GRIP + 1, view.bottom() - TEXTAREA_GRIP + 1, TEXTAREA_GRIP, TEXTAREA_GRIP
+        )
 
     def layout_slots(self) -> None:
         # The viewport covers the whole field, because `QPlainTextEdit` paints on it and the
@@ -322,7 +370,8 @@ class Textarea(_Field, QtWidgets.QPlainTextEdit):
         return rect.y() + TEXTAREA_PAD_Y + self._glyph() // 2
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
-        return QtCore.QSize(240, TEXTAREA_MIN_HEIGHT)
+        height = self._dragged_height if self._dragged_height is not None else self.content_height()
+        return QtCore.QSize(240, max(self.minimumHeight(), TEXTAREA_MIN_HEIGHT, height))
 
     def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802
         return QtCore.QSize(0, TEXTAREA_MIN_HEIGHT)
@@ -331,6 +380,47 @@ class Textarea(_Field, QtWidgets.QPlainTextEdit):
         super().resizeEvent(event)
         self.layout_slots()
 
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
+        if (
+            event.button() == QtCore.Qt.MouseButton.LeftButton
+            and self._grip_rect().contains(event.pos())
+            and not self.isReadOnly()
+        ):
+            self._drag_from = (int(event.globalPos().y()), self.height())
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
+        if self._drag_from is not None:
+            start_y, start_height = self._drag_from
+            self.set_dragged_height(start_height + int(event.globalPos().y()) - start_y)
+            event.accept()
+            return
+        over = self._grip_rect().contains(event.pos()) and not self.isReadOnly()
+        self.viewport().setCursor(
+            QtCore.Qt.CursorShape.SizeVerCursor if over else QtCore.Qt.CursorShape.IBeamCursor
+        )
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
+        if self._drag_from is not None:
+            self._drag_from = None
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
     def paintEvent(self, event: QtGui.QPaintEvent) -> None:  # noqa: N802
         self.paint_chrome(self.viewport(), self.viewport().rect())
         super().paintEvent(event)
+        if self.isReadOnly():
+            return
+        # The corner grip a browser draws on a textarea: two short diagonals in the muted ink.
+        painter = QtGui.QPainter(self.viewport())
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        painter.setPen(QtGui.QPen(self.theme.color("muted_foreground"), 1.0))
+        grip = self._grip_rect()
+        right, bottom = grip.right() - 2, grip.bottom() - 2
+        painter.drawLine(right - 7, bottom, right, bottom - 7)
+        painter.drawLine(right - 3, bottom, right, bottom - 3)
+        painter.end()

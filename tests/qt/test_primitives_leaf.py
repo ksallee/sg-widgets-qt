@@ -430,3 +430,41 @@ def test_the_switch_thumb_is_the_glyph_step(root):
     assert (SWITCH_WIDTH, SWITCH_HEIGHT, SWITCH_THUMB) == (32, 18, 16)
     switch = place(root, Switch(True))
     assert not switch.grab().isNull()
+
+
+def test_textarea_grows_with_its_text_and_holds_a_dragged_height(root):
+    """`field-sizing-content` and the browser's corner handle, on one box.
+
+    The box asks for the height of its lines above the 64px floor, and a drag on its corner
+    sets the height by hand and holds it, as a browser's handle does, until it is let go.
+    """
+    from qtpy.QtCore import QEvent, QPoint, QPointF, Qt
+    from qtpy.QtGui import QMouseEvent
+    from qtpy.QtTest import QTest
+    from qtpy.QtWidgets import QApplication
+
+    area = place(root, Textarea(placeholder="A note"))
+    assert area.sizeHint().height() == 64
+    area.setPlainText("\n".join(f"line {i}" for i in range(12)))
+    grown = area.sizeHint().height()
+    assert grown > 64 and grown == area.content_height()
+    # A drag on the corner: forty pixels down makes the box forty pixels taller.
+    area.resize(area.width(), grown)
+    grip = area._grip_rect().center()
+    QTest.mousePress(area.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, grip)
+    # Qt 5's QTest.mouseMove moves the cursor rather than sending an event, so the drag is
+    # posted as the events a pointer sends.
+    for kind, held in ((QEvent.Type.MouseMove, Qt.MouseButton.LeftButton), (QEvent.Type.MouseButtonRelease, Qt.MouseButton.NoButton)):
+        point = grip + QPoint(0, 40)
+        QApplication.sendEvent(
+            area.viewport(),
+            QMouseEvent(kind, QPointF(point), QPointF(area.viewport().mapToGlobal(point)), Qt.MouseButton.LeftButton, held, Qt.KeyboardModifier.NoModifier),
+        )
+    assert area.dragged_height == grown + 40
+    assert area.sizeHint().height() == grown + 40
+    # A hand-set height holds while text comes and goes.
+    area.setPlainText("one line")
+    assert area.sizeHint().height() == grown + 40
+    area.set_dragged_height(None)
+    assert area.content_height() < 64 < grown
+    assert area.sizeHint().height() == 64, "back on the floor once the hand-set height is let go"
