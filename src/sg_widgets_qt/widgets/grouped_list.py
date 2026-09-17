@@ -262,8 +262,69 @@ class _ListView(QtWidgets.QListView):
             event.accept()
             return
         super().wheelEvent(event)
+    # --- the pinned heading ----------------------------------------------------------------
+
+    def pinned_heading(self) -> tuple[QModelIndex, QRect] | None:
+        """The heading held at the top of the viewport, and where it is drawn.
+
+        Upstream's heading is `sticky top-0` inside its group, so the heading of the group
+        the reader is scrolled into stays at the top until the next group's heading pushes
+        it up and takes its place. None while the heading at the top sits in its own place.
+        """
+        model = self._listing.model
+        top = self.indexAt(QtCore.QPoint(0, 0))
+        if not top.isValid():
+            return None
+        at = top.row()
+        line = model.line_at(at)
+        while line is not None and line.kind != "heading" and at > 0:
+            at -= 1
+            line = model.line_at(at)
+        if line is None or line.kind != "heading":
+            return None
+        heading = model.index(at, 0)
+        own = self.visualRect(heading)
+        if own.top() >= 0:
+            return None
+        height = own.height()
+        y = 0
+        after = at + 1
+        while after < model.rowCount():
+            other = model.line_at(after)
+            if other is not None and other.kind == "heading":
+                y = min(0, self.visualRect(model.index(after, 0)).top() - height)
+                break
+            after += 1
+        return heading, QRect(0, y, self.viewport().width(), height)
+
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:  # noqa: N802
+        super().paintEvent(event)
+        pinned = self.pinned_heading()
+        if pinned is None:
+            return
+        heading, rect = pinned
+        option = QtWidgets.QStyleOptionViewItem()
+        if hasattr(self, "initViewItemOption"):
+            self.initViewItemOption(option)
+        else:  # Qt 5
+            option = self.viewOptions()
+        option.rect = rect
+        painter = QtGui.QPainter(self.viewport())
+        self.itemDelegate().paint(painter, option, heading)
+        painter.end()
+
+    def scrollContentsBy(self, dx: int, dy: int) -> None:  # noqa: N802
+        super().scrollContentsBy(dx, dy)
+        # The scrolled band is copied, so the pinned heading is redrawn by hand.
+        self.viewport().update()
+
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        pinned = self.pinned_heading()
+        if pinned is not None and pinned[1].contains(point):
+            self.setCurrentIndex(pinned[0])
+            self._listing.on_line_pressed(pinned[0], point)
+            return
         index = self.indexAt(point)
         if index.isValid():
             self.setCurrentIndex(index)

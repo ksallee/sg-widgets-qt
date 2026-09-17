@@ -207,3 +207,46 @@ def test_the_count_follows_the_heading_label_in_the_same_line(context, qtbot):
     tail = whole.copy(QtCore.QRect(450, 0, 150, 28))
     ink = {tail.pixel(x, y) for x in range(0, 150, 3) for y in range(2, 26, 3)}
     assert len(ink) == 1
+
+
+def test_the_heading_of_the_group_scrolled_into_stays_at_the_top(context, qtbot):
+    """Upstream's heading is `sticky top-0`: it holds the top of the viewport while its rows
+    scroll under it, the next heading pushes it up as it arrives, and a press on the pinned
+    band is a press on the heading."""
+    from qtpy.QtTest import QTest
+
+    listing = _listing(context, qtbot)
+    settle(listing, listing.control.binding)
+    view = listing.view
+    model = listing.model
+    groups = model.groups
+    assert len(groups) >= 2 and len(groups[0].rows) >= 2
+    assert view.pinned_heading() is None, "at the top the first heading sits in its own place"
+
+    first = view.visualRect(model.index(0, 0))
+    bar = view.verticalScrollBar()
+    bar.setValue(first.height() + 2)
+    qtbot.wait(20)
+    pinned = view.pinned_heading()
+    assert pinned is not None
+    heading, band = pinned
+    assert heading.row() == 0 and band.top() == 0 and band.height() == first.height()
+
+    # Scrolled to a few pixels short of the second heading, the first is pushed up by that much.
+    second_at = next(i for i in range(1, model.rowCount()) if model.line_at(i).kind == "heading")
+    bar.setValue(bar.value() + view.visualRect(model.index(second_at, 0)).top() - first.height() + 5)
+    qtbot.wait(20)
+    heading, band = view.pinned_heading()
+    assert heading.row() == 0 and band.top() == -5
+
+    # Once the second heading has passed the top, it is the one pinned.
+    bar.setValue(bar.value() + first.height() + 2)
+    qtbot.wait(20)
+    heading, band = view.pinned_heading()
+    assert heading.row() == second_at and band.top() == 0
+
+    # A press on the pinned band collapses that group.
+    whole = model.rowCount()
+    QTest.mouseClick(view.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, band.center())
+    qtbot.wait(20)
+    assert model.rowCount() == whole - len(groups[1].rows)
