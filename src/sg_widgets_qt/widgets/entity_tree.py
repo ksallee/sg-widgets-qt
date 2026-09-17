@@ -61,9 +61,9 @@ from ..primitives.row_delegate import LEAD_GLYPH, ROW_PAD_X, ROW_PAD_Y, RowDeleg
 from ..primitives.scrollbar import install_overlay_scrollbars
 from ..primitives.skeleton import Skeleton
 from ..theme import theme_of
-from ..workers import DEFAULT_DEBOUNCE_MS, Debounce, JobPool
+from ..workers import DEFAULT_DEBOUNCE_MS, Debounce
 from .collection_control import COLLECTION_GAP
-from .collection_source import Alive, Retirement, publisher
+from .collection_source import Alive, SerialRunner, publisher, quietly
 from .entity_glyphs import entity_glyph
 from .entity_table import SkeletonBlock, fit_body
 from .picker_row import status_painter
@@ -134,42 +134,40 @@ class _TreeBinding(QObject):
     def __init__(self, engine: Any, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self.engine = engine
-        self._pool = JobPool(1, self)
+        # One call at a time: a level, a seed walk and a search all mutate the same engine.
+        self._runner = SerialRunner(on_error=quietly(self.failed.emit))
         self._alive = Alive()
-        self._retirement = Retirement(self._pool, self._alive)
-        retirement = self._retirement
-        self.destroyed.connect(lambda *_args: retirement.run())
         self._published.connect(self.changed.emit, Qt.ConnectionType.QueuedConnection)
-        self._retirement.unsubscribe = engine.subscribe(
-            publisher(self._published.emit, self._alive)
-        )
+        self._unsubscribe = engine.subscribe(publisher(self._published.emit, self._alive))
 
     def snapshot(self) -> TreeState:
         return self.engine.snapshot()
 
     @property
-    def pool(self) -> JobPool:
-        """The one thread the engine is read on. A schema lookup beside it submits here too."""
-        return self._pool
+    def runner(self) -> SerialRunner:
+        """The queue the engine is read through. A schema lookup beside it submits here too."""
+        return self._runner
 
     @property
     def busy(self) -> bool:
         """True while a level, a seed walk or a search is still being read."""
-        return self._pool.running > 0
+        return self._runner.running
 
     def run(self, name: str, *args: Any) -> None:
-        """Call one of the engine's methods on the pool."""
-        self._pool.submit(getattr(self.engine, name), *args, on_error=self.failed.emit)
+        """Call one of the engine's methods off the GUI thread, after the ones before it."""
+        self._runner.submit(getattr(self.engine, name), *args)
 
     def wait(self, timeout_ms: int = 5000) -> bool:
         """Block until every call is answered, then deliver what they published. For a test."""
-        done = self._pool.wait(timeout_ms)
-        QtCore.QCoreApplication.processEvents()
-        return done
+        return self._runner.wait(timeout_ms)
 
     def close(self) -> None:
         """Stop following the engine and drop what is in flight."""
-        self._retirement.run()
+        self._alive.stop()
+        if self._unsubscribe is not None:
+            self._unsubscribe()
+            self._unsubscribe = None
+        self._runner.cancel_all()
 
 
 class TreeModel(QAbstractItemModel):
@@ -1067,6 +1065,16 @@ class EntityTree(QtWidgets.QWidget):
             return
         super().keyPressEvent(event)
 
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:  # noqa: N802
+        """Stop reading when the tree is closed.
+
+        A level takes a worker and the engine keeps the listener it was handed, so a tree taken
+        off the screen stops following it here rather than at deletion: Qt runs a deletion
+        while it is walking the children it is freeing, which is no place for a read to end.
+        """
+        self.binding.close()
+        super().closeEvent(event)
+
     # --- drawing --------------------------------------------------------------------------
 
     def _restart(self) -> None:
@@ -1091,7 +1099,7 @@ class EntityTree(QtWidgets.QWidget):
             return
         self._types = key
         path = path_of(self._secondary_field)
-        self.binding.pool.submit(
+        self.binding.runner.submit(
             resolve_tree_fields,
             self._context.schema,
             self._context.statuses,
@@ -1102,8 +1110,13 @@ class EntityTree(QtWidgets.QWidget):
         )
 
     def _plan_read(self, plan: TreeFieldPlan) -> None:
+        # The schema read outlives the tree that asked for it; a deleted wrapper raises and the
+        # answer is dropped.
         self._plan = plan
-        self.view.viewport().update()
+        try:
+            self.view.viewport().update()
+        except RuntimeError:
+            return
 
     def _sync(self) -> None:
         state = self.snapshot()

@@ -51,7 +51,6 @@ from ..primitives.roles import Roles
 from ..primitives.scrollbar import install_overlay_scrollbars
 from ..primitives.skeleton import Skeleton
 from ..theme import theme_of
-from ..workers import Ticket
 from .collection_control import COLLECTION_GAP, CollectionControl, CollectionModel
 from .collection_footer import DEFAULT_PAGE_SIZES, CollectionFooter
 from .entity_card import (
@@ -256,7 +255,6 @@ class EntityGrid(QtWidgets.QWidget):
         self._site_url = site_url
         self._status_field: Any = None
         self._resolved: dict[str, CollectionColumn] = {}
-        self._ticket = Ticket()
 
         self.control = CollectionControl(
             source,
@@ -645,23 +643,24 @@ class EntityGrid(QtWidgets.QWidget):
             for path in (path_of(self._sub_label_field), path_of(self._secondary_field))
             if path and isinstance(path, str)
         ]
-        n = self._ticket.next()
-
         def read() -> Any:
             found = status_field_for(entity_type, context.schema.fields(entity_type))
             status = None if isinstance(found, str) or found.data_type != "status_list" else found
             columns = resolve_columns(context.schema, entity_type, paths) if paths else []
             return status, columns
 
-        self.control.binding.pool.submit(
-            read, on_result=self._schema_read, ticket=(self._ticket, n)
-        )
+        self.control.binding.runner.submit(read, on_result=self._schema_read)
 
     def _schema_read(self, answer: Any) -> None:
+        # The schema read outlives the grid that asked for it; a deleted wrapper raises and the
+        # answer is dropped.
         status, columns = answer
         self._status_field = status
         self._resolved = {column.path: column for column in columns}
-        self.view.viewport().update()
+        try:
+            self.view.viewport().update()
+        except RuntimeError:
+            return
 
     # --- interaction ----------------------------------------------------------------------
 

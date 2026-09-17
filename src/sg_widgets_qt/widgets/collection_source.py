@@ -17,11 +17,13 @@ later read replaced, and `begin_count` is what drops a count whose filter has mo
 """
 from __future__ import annotations
 
+import time
+from collections import deque
 from collections.abc import Sequence
 from typing import Any
 
 from qtpy import QtCore
-from qtpy.QtCore import QObject, Qt, QTimer, Signal
+from qtpy.QtCore import QObject, Qt, Signal
 
 from sg_widgets_core.collection import (
     EntitySource,
@@ -33,29 +35,29 @@ from sg_widgets_core.collection_state import same_filters, same_sort
 from sg_widgets_core.filter import EntityRef
 from sg_widgets_core.paging import PAGING_MODE_VALUES, source_mode_for
 
-from ..workers import JobPool
+from ..workers import Job, JobPool, default_pool
 
 __all__ = [
     "COLLECTION_PAGING_VALUES",
     "Alive",
     "CollectionSource",
-    "Retirement",
+    "SerialRunner",
     "publisher",
-    "retire_pool",
-    "stop_with",
 ]
 
-#: How often a retiring pool is asked whether its thread has finished.
-POOL_SWEEP_MS = 50
+#: How long a `wait` sleeps on the pool between turns of the event loop.
+WAIT_STEP_MS = 20
+
+#: How a collection walks a set. Core's `PagingMode`.
+COLLECTION_PAGING_VALUES: tuple[str, ...] = PAGING_MODE_VALUES
 
 
 class Alive:
-    """A flag a listener reads before it touches the object that made it.
+    """A flag a store's listener reads before it touches the binding that made it.
 
     A core store keeps the listener it was handed, and a widget can be deleted while a read is
-    still running on a worker: the listener then fires into a wrapper Qt has already freed,
-    which is a crash rather than an exception. The flag is held by the closure, not by the
-    QObject, so it survives the deletion that turns it off.
+    still running on a worker. The flag is held by the closure, not by the QObject, so it
+    outlives the deletion that turns it off.
     """
 
     __slots__ = ("on",)
@@ -67,69 +69,99 @@ class Alive:
         self.on = False
 
 
-def stop_with(owner: QObject, alive: Alive) -> None:
-    """Turn `alive` off when `owner` is deleted.
+def publisher(emit: Any, alive: Alive) -> Any:
+    """The listener a store is handed: it emits while the binding is there and drops after.
 
-    A closure rather than the flag's own method: one binding keeps a weak reference to a
-    bound method's object and a slotted class cannot be weakly referenced, so the connection
-    would be refused.
+    Nothing here holds the binding, only its `emit` and the flag. A binding torn down without
+    `close` leaves a deleted wrapper behind, which raises rather than delivering, and the
+    listener stops itself the first time it meets one.
+
+    Teardown is never hung on `destroyed`: that signal is emitted from inside a parent's own
+    destruction, and the Python called from there runs while Qt is walking the children it is
+    freeing.
     """
-    owner.destroyed.connect(lambda *_args: alive.stop())
 
-
-#: Pools whose owner has gone and whose thread has not finished. Held until it has.
-_RETIRING: set[Any] = set()
-
-
-def retire_pool(pool: Any) -> None:
-    """Keep a pool alive until its thread is idle, then let it go.
-
-    A job is held by its pool and by nothing else, so a pool collected while a read is still
-    running frees the job under the thread that is running it. Cancelling marks the answer as
-    unwanted; this holds the pool until the call it cancelled has actually returned.
-    """
-    pool.cancel_all()
-    if pool.running == 0:
-        return
-    _RETIRING.add(pool)
-
-    def sweep() -> None:
-        if pool.running == 0:
-            _RETIRING.discard(pool)
+    def publish() -> None:
+        if not alive.on:
             return
-        QTimer.singleShot(POOL_SWEEP_MS, sweep)
+        try:
+            emit()
+        except RuntimeError:
+            alive.stop()
 
-    QTimer.singleShot(POOL_SWEEP_MS, sweep)
+    return publish
 
 
-class Retirement:
-    """What a binding leaves behind so its reads die quietly after it does.
+def quietly(emit: Any) -> Any:
+    """A callback that drops its answer once the object it would reach has gone."""
 
-    Nothing here holds the binding, so it runs from the binding's own `destroyed`: the flag
-    stops the store's listener, the subscription is dropped, and the pool is taken off the
-    object being deleted and held until its thread is idle.
+    def deliver(value: object) -> None:
+        try:
+            emit(value)
+        except RuntimeError:
+            return
+
+    return deliver
+
+
+class SerialRunner:
+    """One call at a time on the shared pool, in the order they were asked for.
+
+    A store is mutated by the call that reads it, so two reads running at once would interleave
+    and the state would be neither. A pool of one thread would do it, but a pool owned by a
+    widget is deleted with that widget, and a job is only held by its pool: the shared pool and
+    a queue give the same order without tying a thread's life to a widget's.
     """
 
-    __slots__ = ("alive", "pool", "unsubscribe")
+    def __init__(self, pool: JobPool | None = None, on_error: Any = None) -> None:
+        self._pool = pool if pool is not None else default_pool()
+        self._on_error = on_error
+        self._queue: deque = deque()
+        self._live: Job | None = None
 
-    def __init__(self, pool: Any, alive: Alive) -> None:
-        self.pool = pool
-        self.alive = alive
-        self.unsubscribe: Any = None
+    @property
+    def pool(self) -> JobPool:
+        """The pool the calls run on."""
+        return self._pool
 
-    def run(self) -> None:
-        self.alive.stop()
-        if self.unsubscribe is not None:
-            self.unsubscribe()
-            self.unsubscribe = None
-        pool, self.pool = self.pool, None
-        if pool is None:
+    @property
+    def running(self) -> bool:
+        """True while a call is in flight or waiting its turn."""
+        return self._live is not None or bool(self._queue)
+
+    def submit(self, fn: Any, *args: Any, on_result: Any = None, on_error: Any = None) -> None:
+        """Run `fn(*args)` once every call asked for before it has answered."""
+        self._queue.append((fn, args, on_result, on_error))
+        self._pump()
+
+    def cancel_all(self) -> None:
+        """Drop what is waiting and mark what is running, whose answer is then unwanted."""
+        self._queue.clear()
+        if self._live is not None:
+            self._live.cancel()
+
+    def wait(self, timeout_ms: int = 5000) -> bool:
+        """Block until the queue is empty, delivering each answer. For a test and for teardown."""
+        end = time.monotonic() + timeout_ms / 1000.0
+        while self.running and time.monotonic() < end:
+            self._pool.wait(WAIT_STEP_MS)
+            QtCore.QCoreApplication.processEvents()
+        QtCore.QCoreApplication.processEvents()
+        return not self.running
+
+    def _pump(self) -> None:
+        if self._live is not None or not self._queue:
             return
-        pool.setParent(None)
-        retire_pool(pool)
+        fn, args, on_result, on_error = self._queue.popleft()
+        job = self._pool.submit(
+            fn, *args, on_result=on_result, on_error=on_error or self._on_error
+        )
+        self._live = job
+        job.finished.connect(self._done)
 
-#: How a collection walks a set. Core's `PagingMode`.
-COLLECTION_PAGING_VALUES: tuple[str, ...] = PAGING_MODE_VALUES
+    def _done(self) -> None:
+        self._live = None
+        self._pump()
 
 
 class CollectionSource(QObject):
@@ -158,21 +190,16 @@ class CollectionSource(QObject):
         super().__init__(parent)
         self._source = source
         self._paging = paging if paging in COLLECTION_PAGING_VALUES else "pages"
-        # One thread, so the source is never mutated by two reads at once.
-        self._pool = JobPool(1, self)
+        # One call at a time, so the source is never mutated by two reads at once.
+        self._runner = SerialRunner(on_error=quietly(self.failed.emit))
         self._sort: list[SortSpec] | None = None if sort is None else list(sort)
         self._filters: SourceFilters = filters
         self._sort_seen = list(source.sort)
         self._filters_seen = source.filters
 
         self._alive = Alive()
-        self._retirement = Retirement(self._pool, self._alive)
-        retirement = self._retirement
-        self.destroyed.connect(lambda *_args: retirement.run())
         self._published.connect(self._on_published, Qt.ConnectionType.QueuedConnection)
-        self._retirement.unsubscribe = source.subscribe(
-            publisher(self._published.emit, self._alive)
-        )
+        self._unsubscribe = source.subscribe(publisher(self._published.emit, self._alive))
         self._apply_mode()
         if self._sort is not None and not same_sort(self._sort, source.sort):
             self.set_sort(self._sort)
@@ -262,17 +289,17 @@ class CollectionSource(QObject):
     @property
     def busy(self) -> bool:
         """True while a call to the source is in flight."""
-        return self._pool.running > 0
+        return self._runner.running
 
     @property
-    def pool(self) -> JobPool:
-        """The one thread the source is read on.
+    def runner(self) -> SerialRunner:
+        """The queue the source is read through.
 
         A widget reading beside it, a schema lookup for a column or a status field, submits
-        here rather than to the shared pool: the answer is then dropped with the rest when the
-        widget goes, and the reads stay in the order they were asked for.
+        here rather than straight to the pool, so the reads stay in the order they were asked
+        for and a teardown drops them together.
         """
-        return self._pool
+        return self._runner
 
     # --- the calls ------------------------------------------------------------------------
 
@@ -330,7 +357,7 @@ class CollectionSource(QObject):
             if on_done is not None:
                 on_done(error)
 
-        self._pool.submit(
+        self._runner.submit(
             self._source.update_row, ref, patch, on_result=done, on_error=failed
         )
 
@@ -343,9 +370,7 @@ class CollectionSource(QObject):
 
         For a test and for teardown. Never on a GUI thread that has a reader waiting.
         """
-        done = self._pool.wait(timeout_ms)
-        QtCore.QCoreApplication.processEvents()
-        return done
+        return self._runner.wait(timeout_ms)
 
     # --- internals ------------------------------------------------------------------------
 
@@ -355,7 +380,7 @@ class CollectionSource(QObject):
             self._run(self._source.set_mode, mode)
 
     def _run(self, fn: Any, *args: Any) -> None:
-        self._pool.submit(fn, *args, on_error=self.failed.emit)
+        self._runner.submit(fn, *args)
 
     def _on_published(self) -> None:
         """The source moved. Mirror the sort and the filter out, then tell the view."""
@@ -374,18 +399,8 @@ class CollectionSource(QObject):
 
     def close(self) -> None:
         """Stop following the source and drop what is in flight."""
-        self._retirement.run()
-
-
-def publisher(emit: Any, alive: Alive) -> Any:
-    """The listener a source is handed: it emits while the binding is there, and drops after.
-
-    The read runs on a worker, so the source can publish after the widget has gone. Nothing
-    here holds the binding, only its `emit` and the flag its deletion turns off.
-    """
-
-    def publish() -> None:
-        if alive.on:
-            emit()
-
-    return publish
+        self._alive.stop()
+        if self._unsubscribe is not None:
+            self._unsubscribe()
+            self._unsubscribe = None
+        self._runner.cancel_all()

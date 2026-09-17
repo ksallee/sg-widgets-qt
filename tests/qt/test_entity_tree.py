@@ -5,8 +5,11 @@ the mock client's hierarchy.
 """
 from __future__ import annotations
 
+import gc
+import time
+
 import pytest
-from qtpy import QtCore
+from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QKeyEvent
 
@@ -170,3 +173,30 @@ def test_the_expanded_and_selected_props_travel_both_ways(context, qtbot):
     tree.set_expanded(tree.expanded)
     settle(tree, tree.binding)
     assert len(opened) == seen
+
+
+def test_a_tree_deleted_mid_read_leaves_nothing_behind(context, qtbot):
+    """A tree taken off the page while a level is in flight must not take Qt with it.
+
+    A level runs on a worker and the engine keeps the listener it was handed, so a widget
+    deleted before the answer lands is where a stale callback would fire. Two are built and
+    dropped, because a deferred delete lands on a later turn of the loop than the one that
+    asked for it.
+    """
+    for _ in range(2):
+        tree = EntityTree(context=context, root_path=ROOT, checkable=True, searchable=True)
+        apply_theme(tree, theme_for("default"))
+        tree.resize(520, 420)
+        tree.show()
+        tree.binding.run("search", "sh0")
+        qtbot.wait(5)
+        tree.close()
+        tree.deleteLater()
+        del tree
+
+    gc.collect()
+    end = time.monotonic() + 0.5
+    while time.monotonic() < end:
+        QtWidgets.QApplication.processEvents()
+        qtbot.wait(5)
+    QtWidgets.QApplication.processEvents()

@@ -325,16 +325,21 @@ def test_the_popup_follows_the_row_count_down_as_well_as_up(qtbot):
     tall = control.list_surface().height()
     assert tall == control.list_surface().content_height()
 
+    model = control.row_model()
+    model.beginResetModel()
+    model.codes = ["layout"]
+    model.endResetModel()
     control.set_items(["layout"])
-    control.row_model().set_codes(["layout"])
     spin(qtbot, 80)
     short = control.list_surface().height()
     assert short < tall
     assert short == control.list_surface().content_height()
     assert control.popover().height() <= tall
 
+    model.beginResetModel()
+    model.codes = [code for code, _ in DEPARTMENTS]
+    model.endResetModel()
     control.set_items([code for code, _ in DEPARTMENTS])
-    control.row_model().set_codes([code for code, _ in DEPARTMENTS])
     spin(qtbot, 80)
     assert control.list_surface().height() == tall
     control.set_open(False)

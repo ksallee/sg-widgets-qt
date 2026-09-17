@@ -285,8 +285,17 @@ def test_the_sub_label_marks_its_matched_runs_too(host):
 def test_a_bare_glyph_row_takes_the_glyphs_own_slot(qtbot):
     # Rule 9: the leading slot is as big as what it holds. A row that draws its own glyph and
     # never expected a picture stands on the row pitch, not on the thumbnail one.
+    from qtpy.QtGui import QFontMetrics
+
     from sg_widgets_qt.primitives.list_view import ListSurface
-    from sg_widgets_qt.primitives.row_delegate import LEAD, LEAD_GLYPH, RowDelegate
+    from sg_widgets_qt.primitives.row_delegate import (
+        LEAD,
+        LEAD_GLYPH,
+        ROW_PAD_Y,
+        ROW_TEXT,
+        RowDelegate,
+    )
+    from sg_widgets_qt.theme import theme_of
 
     root = QWidget()
     apply_theme(root, theme_for("default"))
@@ -300,8 +309,13 @@ def test_a_bare_glyph_row_takes_the_glyphs_own_slot(qtbot):
     option.widget = view
 
     picture = delegate.sizeHint(option, view.model().index(0, 0)).height()
+    assert delegate._lead_size() == LEAD["md"]
+    assert picture == LEAD["md"] + 2 * ROW_PAD_Y
+
     delegate.set_bare_glyph(True)
     glyph = delegate.sizeHint(option, view.model().index(0, 0)).height()
     assert delegate._lead_size() == LEAD_GLYPH["md"]
-    assert glyph < picture
-    assert picture - glyph == LEAD["md"] - LEAD_GLYPH["md"]
+    assert glyph < picture, "a bare glyph row is not on the thumbnail pitch"
+    # Nothing in the row is taller than its own label any more, so the label sets the pitch.
+    label = QFontMetrics(theme_of(view).font(ROW_TEXT["md"])).height()
+    assert glyph == max(label, LEAD_GLYPH["md"]) + 2 * ROW_PAD_Y
