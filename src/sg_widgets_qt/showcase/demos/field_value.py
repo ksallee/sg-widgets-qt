@@ -140,6 +140,7 @@ class _DelegateList(QtWidgets.QWidget):
         rows: list[tuple[str, str, Any, dict]],
         statuses: dict,
         field: Any,
+        density: str = "default",
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -147,6 +148,7 @@ class _DelegateList(QtWidgets.QWidget):
         self._rows = rows
         self._statuses = statuses
         self._field = field
+        self._density = density
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed
         )
@@ -165,9 +167,16 @@ class _DelegateList(QtWidgets.QWidget):
             theme=theme_of(self),
             field=self._field,
             statuses=self._statuses,
+            density=self._density,
             text=text,
             on_ready=self.update,
         )
+
+    def set_density(self, value: str) -> None:
+        """The density of the collection around the cell: compact draws it a step smaller."""
+        self._density = value
+        self.updateGeometry()
+        self.update()
 
     def _row_height(self, row: tuple[str, str, Any, dict]) -> int:
         hint = field_value_size_hint(row[2], row[1], self._options(row[3]))
@@ -213,6 +222,8 @@ class FieldValueDemo(QtWidgets.QWidget):
         self.setObjectName("field-value-demo")
         self._context = context
         self._values: list[FieldValue] = []
+        self._cells: _DelegateList | None = None
+        self._density = "default"
         self._read_done = False
 
         self._body = lay.column(self)
@@ -227,6 +238,14 @@ class FieldValueDemo(QtWidgets.QWidget):
 
     def set_size(self, size: str) -> None:
         """The value has no size of its own: a collection's density is what moves it."""
+
+    def set_density(self, density: str) -> None:
+        """The density the toolbar holds, which is the one step a value takes (rule 3)."""
+        self._density = density
+        for value in self._values:
+            value.set_density(density)
+        if self._cells is not None:
+            self._cells.set_density(density)
 
     # --- the read ---
 
@@ -253,13 +272,8 @@ class FieldValueDemo(QtWidgets.QWidget):
         rows = samples(shot, image)
         self._state.setParent(None)
         self._body.addWidget(lay.section("Every data type", self._table(rows, table, field), parent=self))
-        self._body.addWidget(
-            lay.section(
-                "Drawn by a delegate",
-                _DelegateList(rows, table, field, self),
-                parent=self,
-            )
-        )
+        self._cells = _DelegateList(rows, table, field, self._density, self)
+        self._body.addWidget(lay.section("Drawn by a delegate", self._cells, parent=self))
         self._read_done = True
 
     def _failed(self, error: BaseException) -> None:
@@ -285,6 +299,7 @@ class FieldValueDemo(QtWidgets.QWidget):
                 data_type=data_type,
                 field=field,
                 statuses=statuses,
+                density=self._density,
                 context=self._context.context,
                 parent=holder,
                 **extra,

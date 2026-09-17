@@ -117,3 +117,54 @@ def test_an_inactive_person_is_out_of_the_list_until_asked_for(qtbot):
     picker.control.set_query("bo")
     spin(qtbot, 700)
     assert any(row.id == BO for row in picker.state.rows)
+
+
+def search_spec(picker: UserPicker, query: str) -> list:
+    """The fields a query is matched on, as `(path, operator)`.
+
+    `picker.search_fields` answers the caller's own prop, as `fields` and `filters` do; the
+    composition the preset hands the search is what a query is actually matched on.
+    """
+    made = picker.search._opts.search_fields
+    return [
+        (one, None) if isinstance(one, str) else (one.path, one.operator) for one in made(query)
+    ]
+
+
+def test_the_login_is_matched_only_while_the_query_holds_no_whitespace(qtbot):
+    # `login` is the only unique field on HumanUser and never holds whitespace
+    # (entity_types/HumanUser).
+    picker = build(qtbot)
+    assert ("login", None) in search_spec(picker, "ada")
+    assert ("login", None) not in search_spec(picker, "ada lovelace")
+
+
+def test_the_address_is_matched_on_its_local_part_until_the_query_holds_an_at(qtbot):
+    # Everyone shares a domain, so `contains` on the whole address would match the site
+    # (017_filter_operators).
+    picker = build(qtbot)
+    assert ("email", "starts_with") in search_spec(picker, "ada")
+    assert ("email", "contains") in search_spec(picker, "ada.lovelace@")
+
+
+def test_the_caller_s_own_search_fields_are_added_to_the_preset(qtbot):
+    picker = build(qtbot, search_fields=["department"])
+    assert picker.search_fields == ["department"]
+    assert ("department", None) in search_spec(picker, "ada")
+    assert ("login", None) in search_spec(picker, "ada")
+
+
+def test_a_query_on_the_local_part_does_not_widen_to_the_shared_domain(qtbot):
+    # The port of `tools/drives/user-picker-address.js`: `le` is one person's local part, and
+    # `example.studio` is everyone's, so the domain must not answer it.
+    picker = build(qtbot)
+    picker.set_open(True)
+    settled(qtbot, picker)
+    picker.control.set_query("le")
+    spin(qtbot, 900)
+    assert [row.name for row in picker.state.rows] == ["Cleo Dias"]
+
+
+def test_a_person_s_picture_is_an_avatar_so_the_preset_rounds_it(qtbot):
+    picker = build(qtbot)
+    assert picker.round_thumbnail is True

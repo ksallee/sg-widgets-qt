@@ -94,3 +94,12 @@ def test_the_alias_module_re_exports_the_picker(qtbot):
     from sg_widgets_qt.widgets.list_multi_select import ListMultiSelect
 
     assert ListMultiSelect is ListMultiPicker
+
+
+def test_the_list_opens_with_the_cursor_on_the_first_value_it_holds(qtbot):
+    # Upstream's combobox highlights the first of the chosen values on open.
+    picker = build(qtbot, value=["Full CG", "VFX"])
+    picker.set_open(True)
+    spin(qtbot, 60)
+    surface = picker.control.list_surface()
+    assert [one.code for one in picker.shown][surface.highlighted()] == "Full CG"

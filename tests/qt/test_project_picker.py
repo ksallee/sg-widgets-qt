@@ -96,3 +96,34 @@ def test_a_thumbnail_field_is_kept_by_default(qtbot):
     picker = build(qtbot, thumbnail="image")
     assert picker.thumbnail == "image"
     assert picker.control.row_delegate().thumbnail
+
+
+def test_a_clear_sends_the_empty_pair_the_docs_promise(qtbot):
+    # `value_changed` carries `EntityRef, PickerRow`, and both are None once nothing is chosen.
+    picker = build(qtbot, value=EntityRef(type="Project", id=PROJECT, name="Blue Moon Rising"))
+    answers: list = []
+    picker.value_changed.connect(lambda ref, row: answers.append((ref, row)))
+    picker.control.cleared.emit()
+    spin(qtbot, 60)
+    assert answers[-1] == (None, None)
+    assert picker.value is None
+
+
+def test_the_caller_s_own_fields_are_asked_for_beside_the_preset_s(qtbot):
+    picker = build(qtbot)
+    picker.set_fields(["sg_description"])
+    assert picker.fields == ["sg_description"]
+    asked = list(picker.rows_model.fields)
+    assert asked[:2] == ["sg_status", "archived"]
+    assert "sg_description" in asked
+
+
+def test_a_row_carries_the_project_picture(qtbot):
+    from sg_widgets_core.row import row_thumbnail
+
+    picker = build(qtbot, thumbnail="image")
+    picker.set_open(True)
+    settled(qtbot, picker)
+    rows = picker.state.rows
+    assert rows
+    assert all(row_thumbnail(row.values, picker.rows_model.anatomy()) for row in rows)

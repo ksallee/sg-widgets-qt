@@ -37,9 +37,17 @@ const wash = getComputedStyle(probe).backgroundColor;
 probe.style.background = 'var(--background)';
 const base = getComputedStyle(probe).backgroundColor;
 probe.remove();
-const rgba = (s) => s.match(/[\d.]+/g).map(Number);
-const [wr, wg, wb, wa = 1] = rgba(wash);
-const [br, bg, bb] = rgba(base);
+// The tokens are `oklch`, which `getComputedStyle` keeps: a canvas converts them to sRGB.
+const srgb = (value) => {
+  const c = document.createElement('canvas').getContext('2d');
+  c.clearRect(0, 0, 1, 1);
+  c.fillStyle = value;
+  c.fillRect(0, 0, 1, 1);
+  return [...c.getImageData(0, 0, 1, 1).data];
+};
+const [wr, wg, wb, wAlpha] = srgb(wash);
+const [br, bg, bb] = srgb(base);
+const wa = wAlpha / 255;
 const mix = (w, b) => Math.round(w * wa + b * (1 - wa));
 const hex = (n) => n.toString(16).padStart(2, '0');
 return {

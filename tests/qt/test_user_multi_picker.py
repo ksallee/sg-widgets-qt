@@ -118,3 +118,29 @@ def test_max_bounds_the_chips_the_row_draws(qtbot):
     spin(qtbot, 60)
     assert picker.max == 2
     assert sum(1 for chip in picker.control.chips() if chip.isVisibleTo(picker.control)) <= 2
+
+
+def search_spec(picker: UserMultiPicker, query: str) -> list:
+    """The fields a query is matched on, as `(path, operator)`."""
+    made = picker.search._opts.search_fields
+    return [
+        (one, None) if isinstance(one, str) else (one.path, one.operator) for one in made(query)
+    ]
+
+
+def test_the_preset_search_is_the_one_the_single_picker_wears(qtbot):
+    picker = build(qtbot)
+    assert ("login", None) in search_spec(picker, "ada")
+    assert ("login", None) not in search_spec(picker, "ada lovelace")
+    assert ("email", "starts_with") in search_spec(picker, "ada")
+    assert ("email", "contains") in search_spec(picker, "ada.lovelace@")
+    assert picker.round_thumbnail is True
+
+
+def test_a_query_on_the_local_part_does_not_widen_to_the_shared_domain(qtbot):
+    picker = build(qtbot)
+    picker.set_open(True)
+    settled(qtbot, picker)
+    picker.control.set_query("le")
+    spin(qtbot, 900)
+    assert [row.name for row in picker.state.rows] == ["Cleo Dias"]

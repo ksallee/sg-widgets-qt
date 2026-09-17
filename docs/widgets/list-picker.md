@@ -29,6 +29,9 @@ from sg_widgets_qt.widgets.list_picker import ListPicker
 The offered set is the field's valid values, minus its hidden values when a project id is given. A
 row already holding a value outside that set keeps a row of its own, labelled with the value.
 
+The list opens with the cursor on the row the picker holds, so a reader sees where the value sits;
+one holding nothing opens with nothing highlighted, and the first <kbd>↓</kbd> takes the first row.
+
 ## Props
 
 ::props{name="list-picker" kind="props"}

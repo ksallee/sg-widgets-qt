@@ -67,8 +67,8 @@ class ListMultiPickerDemo(QtWidgets.QWidget):
 
 
 def _shown(value: Any) -> str:
-    """The chosen strings as a caller would read them back."""
-    return "[" + ", ".join(f'"{one}"' for one in value or []) + "]"
+    """The chosen strings as a caller would read them back, the way `JSON.stringify` writes them."""
+    return "[" + ",".join(f'"{one}"' for one in value or []) + "]"
 
 
 def build(context: DemoContext, parent: QtWidgets.QWidget | None = None) -> QtWidgets.QWidget:

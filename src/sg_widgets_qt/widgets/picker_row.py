@@ -168,6 +168,7 @@ class PickerRowModel(QAbstractListModel):
         self._row_painter_of: Callable[[RowLike], Callable[..., None] | None] | None = None
         self._drillable_of: Callable[[RowLike], bool] | None = None
         self._status_redraw = False
+        self._warmed: set[str] = set()
         self._glyph_of: Callable[[RowLike], str] | None = None
         self._kind_of: Callable[[RowLike], str] | None = None
         self._pictures: dict[str, QPixmap] = {}
@@ -243,7 +244,12 @@ class PickerRowModel(QAbstractListModel):
         return self._query
 
     def set_query(self, value: str) -> None:
-        self._query = value or ""
+        # A redraw invalidates every row's size hint, and a picker refreshes on every answer,
+        # so a query that reads the same is not one.
+        wanted = value or ""
+        if wanted == self._query:
+            return
+        self._query = wanted
         self._redraw()
 
     @property
@@ -365,7 +371,10 @@ class PickerRowModel(QAbstractListModel):
 
     def set_checked_keys(self, keys: Iterable[str]) -> None:
         """The `type:id` keys a multi picker holds, drawn in the indicator column."""
-        self._checked = set(keys)
+        wanted = set(keys)
+        if wanted == self._checked:
+            return
+        self._checked = wanted
         self._redraw()
 
     @property
@@ -558,15 +567,32 @@ class PickerRowModel(QAbstractListModel):
         options = FieldValueOptions(
             statuses=self._statuses, site_url=self.site_url, on_ready=self._status_ready
         )
-        seen: set[str] = set()
+        wanted: list[str] = []
         for row in self._rows:
             raw = self._raw_secondary(row, anatomy)
             if is_empty_value(raw):
                 continue
             code = str(raw)
-            if code not in seen:
-                seen.add(code)
+            if code not in self._warmed and code not in wanted:
+                wanted.append(code)
+        if not wanted:
+            return
+
+        def warm_one(rest: list[str] = wanted) -> None:
+            # One status a turn of the loop: warming costs a few milliseconds each, and a list
+            # of them warmed together would be one stall rather than none.
+            if not rest:
+                return
+            code = rest.pop(0)
+            self._warmed.add(code)
+            try:
                 warm_status_glyph(code, options)
+            except RuntimeError:
+                return
+            if rest:
+                run_later(warm_one)
+
+        run_later(warm_one)
 
     def _status_ready(self) -> None:
         """A status sprite landed.

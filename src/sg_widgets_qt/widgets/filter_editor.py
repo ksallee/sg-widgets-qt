@@ -22,7 +22,13 @@ from typing import Any
 from qtpy import QtCore, QtGui, QtWidgets
 from qtpy.QtCore import Qt, Signal
 
-from sg_widgets_core.filter import FilterCondition, FilterGroup, FilterNode, empty_filter
+from sg_widgets_core.filter import (
+    EntityRef,
+    FilterCondition,
+    FilterGroup,
+    FilterNode,
+    empty_filter,
+)
 from sg_widgets_core.filter import condition as make_condition
 from sg_widgets_core.filter import group as make_group
 from sg_widgets_core.filter_ux import (
@@ -34,6 +40,7 @@ from sg_widgets_core.filter_ux import (
     default_condition,
     field_operators,
     move_at,
+    node_at,
     operator_menu,
     preset_by_id,
     preset_id_of,
@@ -156,15 +163,20 @@ def _codes_of(value: Any) -> list[str]:
     return [one for one in value if isinstance(one, str)]
 
 
-def _entity_refs(value: Any) -> list[Any]:
+def _entity_ref(value: Any) -> EntityRef | None:
+    """One entity reference, however the tree spells it. A row may hold either shape."""
+    if isinstance(value, EntityRef):
+        return value
+    if isinstance(value, dict) and value.get("type") is not None and value.get("id") is not None:
+        return EntityRef(type=str(value["type"]), id=int(value["id"]), name=value.get("name"))
+    return None
+
+
+def _entity_refs(value: Any) -> list[EntityRef]:
     """`is` takes one entity hash and `in` a list of them; a list under `is` is a 400."""
-    if isinstance(value, list):
-        return [one for one in value if isinstance(one, dict)]
-    return [value] if isinstance(value, dict) else []
-
-
-def _entity_ref(value: Any) -> Any:
-    return value if isinstance(value, dict) else None
+    items = value if isinstance(value, list) else [value]
+    found = [_entity_ref(one) for one in items]
+    return [one for one in found if one is not None]
 
 
 def _dotted_paths(node: FilterNode, out: list[str] | None = None) -> list[str]:
@@ -226,12 +238,17 @@ class FilterEditor(QtWidgets.QWidget):
         self._entity_editor = entity_editor
 
         self._fields: dict[str, FieldSchema] = {}
+        self._fields_loaded = False
         self._leaves: dict[str, FieldSchema | None] = {}
         self._resolving: set[str] = set()
         self._fields_ticket = Ticket()
         self._error: str | None = None
         self._focus_at: tuple[tuple[int, ...], str] | None = None
         self._root_node: _GroupNode | None = None
+        # Reads answer one at a time, so the redraws they ask for are coalesced into one.
+        self._redraw = QtCore.QTimer(self)
+        self._redraw.setSingleShot(True)
+        self._redraw.timeout.connect(self._rebuild)
 
         column = QtWidgets.QVBoxLayout(self)
         column.setContentsMargins(0, 0, 0, 0)
@@ -243,6 +260,8 @@ class FilterEditor(QtWidgets.QWidget):
         self.setMinimumWidth(0)
 
         self._read_fields()
+        for path in _dotted_paths(self._value):
+            self._resolve_leaf(path)
         self._rebuild()
 
     # --- props ----------------------------------------------------------------------------
@@ -257,6 +276,7 @@ class FilterEditor(QtWidgets.QWidget):
             return
         self._entity_type = str(value or "")
         self._fields = {}
+        self._fields_loaded = False
         self._leaves = {}
         self._resolving = set()
         self._read_fields()
@@ -270,6 +290,7 @@ class FilterEditor(QtWidgets.QWidget):
     def set_context(self, value: Any) -> None:
         self._context = value
         self._fields = {}
+        self._fields_loaded = False
         self._leaves = {}
         self._resolving = set()
         self._read_fields()
@@ -381,7 +402,13 @@ class FilterEditor(QtWidgets.QWidget):
         return found.data_type if found is not None else ""
 
     def unresolved(self, path: str) -> bool:
-        """True while a dotted path is still being walked; its leaf decides the whole row."""
+        """True while the field behind a path is still being read; its leaf decides the row.
+
+        The type's own fields are read once, and a row drawn before they land would build a
+        control the answer replaces, so a row waits rather than guessing at a text editor.
+        """
+        if path and not self._fields_loaded:
+            return True
         return "." in path and path not in self._leaves
 
     def _read_fields(self) -> None:
@@ -399,7 +426,9 @@ class FilterEditor(QtWidgets.QWidget):
 
     def _fields_read(self, found: Any) -> None:
         self._fields = dict(found or {})
-        self._rebuild()
+        self._fields_loaded = True
+        if not self._resolving:
+            self._redraw.start(0)
 
     def _resolve_leaf(self, path: str) -> None:
         schema = schema_of(self._context) if self._context is not None else None
@@ -421,15 +450,35 @@ class FilterEditor(QtWidgets.QWidget):
         if segments:
             leaf = getattr(segments[-1], "field", None)
         self._leaves[path] = leaf
-        self._rebuild()
+        # A tree of several dotted paths answers one at a time; the rows are drawn once every
+        # answer is in, so a control is never built to be replaced a moment later.
+        if not self._resolving:
+            self._redraw.start(0)
 
     # --- edits ----------------------------------------------------------------------------
 
-    def _commit(self, next_value: FilterGroup) -> None:
+    def _commit(self, next_value: FilterGroup, rebuild: bool = True) -> None:
         self._value = next_value
-        self._rebuild()
+        if rebuild:
+            self._rebuild()
+        else:
+            # A value typed into a control the tree already holds changes no widget, so the
+            # tree is left standing and only the lines under the rows are read again.
+            self._refresh_issues()
         self.changed.emit(next_value)
         self.filters_changed.emit(next_value)
+
+    def node_at(self, path: Sequence[int]) -> FilterNode | None:
+        """The node the tree holds at a path, which is what a row edits."""
+        return node_at(self._value, list(path))
+
+    def set_condition_value(self, path: Sequence[int], value: Any) -> None:
+        """Write one row's value. The control already shows it, so the tree is not redrawn."""
+        node = self.node_at(path)
+        if node is None or node.kind != "condition":
+            return
+        next_node = FilterCondition(path=node.path, operator=node.operator, value=value)
+        self._commit(replace_at(self._value, list(path), next_node), rebuild=False)
 
     def edit(self, path: Sequence[int], node: FilterNode) -> None:
         """Replace the node at a path."""
@@ -494,7 +543,13 @@ class FilterEditor(QtWidgets.QWidget):
     def _issue_lines(self) -> list[FieldError]:
         return self.findChildren(FieldError, "filter-issue")
 
+    def _refresh_issues(self) -> None:
+        for row in self.findChildren(_ConditionRow):
+            row.refresh_issue()
+        self._refresh_error()
+
     def _rebuild(self) -> None:
+        self._redraw.stop()
         for path in _dotted_paths(self._value):
             self._resolve_leaf(path)
         pending = getattr(self, "_pending_field", None)
@@ -782,11 +837,12 @@ class _ConditionRow(ThemedWidget):
         line = QtWidgets.QHBoxLayout(self)
         line.setContentsMargins(0, 0, 0, 0)
         line.setSpacing(ROW_GAP)
-        line.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         self._grip = _grip(self, owner.size)
         self._grip.slot_path = (tuple(self._path), "grip")
-        line.addWidget(self._grip)
+        # The grip and the cross hold the row's own axis at every height, so a value that
+        # grows onto several lines never moves them off the first one.
+        line.addWidget(self._grip, 0, Qt.AlignmentFlag.AlignTop)
 
         content = QtWidgets.QWidget(self)
         content.setObjectName("filter-row-content")
@@ -798,9 +854,16 @@ class _ConditionRow(ThemedWidget):
         controls = QtWidgets.QHBoxLayout()
         controls.setContentsMargins(0, 0, 0, 0)
         controls.setSpacing(ROW_GAP)
-        controls.addWidget(self._field_slot(content), 1)
-        controls.addWidget(self._operator_slot(content))
-        controls.addWidget(self._value_slot(content), 2)
+        field = self._field_slot(content)
+        operator = self._operator_slot(content)
+        values = self._value_slot(content)
+        controls.addWidget(field, 1)
+        controls.addWidget(operator)
+        controls.addWidget(values, 2)
+        # The three cells keep their own height, so a value that grows onto several lines
+        # never stretches the field and the operator beside it.
+        for cell in (field, operator, values):
+            controls.setAlignment(cell, Qt.AlignmentFlag.AlignTop)
         stack.addLayout(controls)
 
         self._issue = FieldError(self._issue_message(), None, content)
@@ -812,22 +875,32 @@ class _ConditionRow(ThemedWidget):
         cross.slot_path = (tuple(self._path), "remove")
         cross.setEnabled(not owner.disabled)
         cross.clicked.connect(lambda: owner.remove(self._path))
-        line.addWidget(cross)
+        line.addWidget(cross, 0, Qt.AlignmentFlag.AlignTop)
 
     def grip(self) -> QtWidgets.QWidget:
         """The handle the row is dragged by."""
         return self._grip
 
+    def node(self) -> FilterCondition:
+        """The condition the tree holds now, which a control read a moment ago may pre-date."""
+        found = self._owner.node_at(self._path)
+        return found if found is not None and found.kind == "condition" else self._node
+
+    def refresh_issue(self) -> None:
+        """Read the line under the row again."""
+        self._issue.set_message(self._issue_message())
+
     def _issue_message(self) -> str | None:
         owner = self._owner
-        if owner.unresolved(self._node.path):
+        node = self.node()
+        if owner.unresolved(node.path):
             return None
         field: Any = NO_SCHEMA
-        if self._node.path:
-            field = owner.field_of(self._node.path)
-            if field is None and "." not in self._node.path and not owner.fields():
+        if node.path:
+            field = owner.field_of(node.path)
+            if field is None and "." not in node.path and not owner.fields():
                 field = NO_SCHEMA
-        found = validate_condition(self._node, field)
+        found = validate_condition(node, field)
         return found[0].message if found else None
 
     # --- the three cells ------------------------------------------------------------------
@@ -848,7 +921,7 @@ class _ConditionRow(ThemedWidget):
                 hide_paths=owner.hide_paths,
                 filterable_only=True,
                 disabled=owner.disabled,
-                on_select=lambda chosen: owner.pick_field(self._path, self._node, chosen),
+                on_select=lambda chosen: owner.pick_field(self._path, self.node(), chosen),
             )
         else:
             made = FieldPicker(
@@ -865,7 +938,7 @@ class _ConditionRow(ThemedWidget):
                 parent=holder,
             )
             made.value_changed.connect(
-                lambda chosen: owner.pick_field(self._path, self._node, chosen)
+                lambda chosen: owner.pick_field(self._path, self.node(), chosen)
             )
         made.slot_path = (tuple(self._path), "field")
         box.addWidget(made)
@@ -889,7 +962,7 @@ class _ConditionRow(ThemedWidget):
         select.set_placeholder(found.label if found is not None else current)
         select.setEnabled(not owner.disabled and len(menu) > 0)
         select.value_changed.connect(
-            lambda picked: owner.pick_preset(self._path, self._node, str(picked))
+            lambda picked: owner.pick_preset(self._path, self.node(), str(picked))
         )
         return select
 
@@ -901,19 +974,16 @@ class _ConditionRow(ThemedWidget):
         line = QtWidgets.QHBoxLayout(holder)
         line.setContentsMargins(0, 0, 0, 0)
         line.setSpacing(ROW_GAP)
-        made = _value_widget(owner, self._path, self._node, holder)
+        made = _value_widget(owner, self._path, self.node(), holder)
         if made is not None:
             made.slot_path = (tuple(self._path), "value")
-            line.addWidget(made, 1)
-        line.addStretch(0)
+            _place(line, made)
         return holder
 
 
 # --- the value editors ---------------------------------------------------------------------
 
 
-def _set_value(owner: FilterEditor, path: Sequence[int], node: FilterCondition, value: Any) -> None:
-    owner.edit(path, FilterCondition(path=node.path, operator=node.operator, value=value))
 
 
 def _value_widget(  # noqa: C901, PLR0911, PLR0912
@@ -930,7 +1000,7 @@ def _value_widget(  # noqa: C901, PLR0911, PLR0912
     disabled = owner.disabled
 
     def commit(value: Any) -> None:
-        _set_value(owner, path, node, value)
+        owner.set_condition_value(path, value)
 
     if owner.unresolved(node.path):
         skeleton = Skeleton(parent=parent)
@@ -1103,6 +1173,10 @@ def _scalar_editor(  # noqa: PLR0911
             disabled=disabled, parent=parent,
         )
         made.setFixedWidth(COLOR_WIDTH)
+        # A colour takes the width its two fields need, so the row's free width is not its.
+        made.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Fixed, made.sizePolicy().verticalPolicy()
+        )
     elif kind == "url":
         # The row compares the link itself, so the editor's name half is left out of the value.
         href = _text_value(value)
@@ -1151,7 +1225,8 @@ class _ListValues(QtWidgets.QWidget):
             row = QtWidgets.QHBoxLayout(line)
             row.setContentsMargins(0, 0, 0, 0)
             row.setSpacing(FOOT_GAP + 2)
-            row.addWidget(
+            _place(
+                row,
                 _scalar_editor(
                     owner,
                     kind,
@@ -1161,13 +1236,13 @@ class _ListValues(QtWidgets.QWidget):
                     lambda next_value, at=i: commit(with_list_value(value, at, next_value)),
                     line,
                 ),
-                1,
             )
             cross = _cross(line, owner.size, "Remove value")
             cross.setObjectName("filter-list-remove")
             cross.setEnabled(not owner.disabled)
             cross.clicked.connect(lambda at=i: commit(without_list_value(value, at)))
             row.addWidget(cross)
+            row.addStretch(1)
             column.addWidget(line)
         add = Button(
             "Value", icon="plus", variant="ghost", size=CONTROL_BUTTON[owner.size], parent=self
@@ -1299,6 +1374,22 @@ class _Caption(ThemedWidget):
             self._text,
         )
         painter.end()
+
+
+def _place(line: QtWidgets.QHBoxLayout, widget: QtWidgets.QWidget) -> None:
+    """Put a control in a row: one that expands takes the room, one that does not keeps its width.
+
+    A number, a date and a colour take the width their content needs, so the free width goes to
+    the controls that hold a name (`docs/design-rules.md` rule 2).
+    """
+    expands = widget.sizePolicy().horizontalPolicy() in (
+        QtWidgets.QSizePolicy.Policy.Expanding,
+        QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+    )
+    if expands:
+        line.addWidget(widget, 1)
+        return
+    line.addWidget(widget, 0, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
 
 def _grip(parent: QtWidgets.QWidget, size: str) -> Button:

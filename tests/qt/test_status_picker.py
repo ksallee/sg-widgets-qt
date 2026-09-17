@@ -5,7 +5,7 @@ from typing import Any
 
 from sg_widgets_qt.primitives.roles import Roles
 from sg_widgets_qt.widgets.status_badge import StatusBadge
-from sg_widgets_qt.widgets.status_picker import StatusPicker
+from sg_widgets_qt.widgets.status_picker import StatusLeadDelegate, StatusPicker
 
 from .pickers import OTHER_PROJECT, PROJECT, context_for, mount, spin, window
 from .test_picker_contract import PickerShape, check_contract
@@ -75,7 +75,27 @@ def test_a_row_is_the_glyph_the_name_and_the_code(qtbot):
     )
     index = model.index(at, 0)
     assert index.data(Roles.SECONDARY) == "ip", "the code is the row's secondary, never a badge"
-    assert picker.control.row_delegate().thumbnail, "the glyph keeps the leading slot"
+    # The delegate the list paints with, not the one the surface was built with: the base
+    # keeps answering that one, so the anatomy is read off the view.
+    delegate = picker.control.list_surface().itemDelegate()
+    assert isinstance(delegate, StatusLeadDelegate), "the rows are drawn with the status row"
+    assert delegate.thumbnail, "the glyph keeps the leading slot"
+    source = delegate._source_for(index)
+    assert source is not None and source.draws(True), "the row resolves a glyph of its own"
+
+
+def test_every_option_resolves_a_glyph_and_an_unknown_code_takes_the_dot(qtbot):
+    # The bundled sprite cells draw with no site access; a key with no cell and no site url
+    # falls back to the neutral dot rather than to nothing (010_status_icons).
+    picker = build(qtbot, project_id=PROJECT, value="zz_retired")
+    kinds = {code: source.kind for code, source in picker._sources.items()}
+    assert kinds["ip"] == "cell", "a shipped icon is a bundled sprite cell"
+    assert kinds["custom"] == "image", "a site's own icon is its data url"
+    assert kinds["vwd"] == "dot", "a shipped key with no bundled cell and no site takes the dot"
+    assert kinds["zz_retired"] == "none", "a code with no Status row behind it resolves to nothing"
+    assert all(picker._sources[code].draws(True) for code in kinds), (
+        "a row always draws a mark: the dot stands where there is no picture"
+    )
 
 
 def test_the_chosen_value_is_a_badge_in_the_control(qtbot):

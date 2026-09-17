@@ -1,56 +1,79 @@
-// The list open over `ada`, so the matched runs are bold in the name and in the address.
+// The list open over `ada`, so the matched runs are bold in the name and the address.
 //
 //   cd ~/dev/sg-widgets && node tools/qa.mjs --base http://127.0.0.1:4466 \
 //       --path /widgets/user-picker/ --framework react \
 //       --drive ~/dev/sg-widgets-qt/tools/drives/upstream/user-picker-query.js --shot out.png
 //
-// The Qt half is `QA_STATE=query tools/drives/states/user-picker.py`.
-
+// The Qt half is `tools/drives/user-picker-query.py`.
+// What the user picker state drives share. Concatenated into each drive by hand, since
+// qa.mjs runs one file as a function body and has no module loader: keep the copies in step.
 function press(el) {
-  for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup']) {
-    el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, button: 0, pointerType: 'mouse' }));
-  }
+  for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup'])
+    el.dispatchEvent(new PointerEvent(t, { bubbles: true, cancelable: true, button: 0, pointerType: 'mouse' }));
   el.click();
 }
-
 function typeInto(input, text) {
   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, text);
   input.dispatchEvent(new Event('input', { bubbles: true }));
 }
-
-async function until(read, timeoutMs = 8000) {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    const value = read();
-    if (value) return value;
-    if (Date.now() > deadline) return null;
-    await wait(100);
-  }
+async function until(read, t = 8000) {
+  const d = Date.now() + t;
+  for (;;) { const v = read(); if (v) return v; if (Date.now() > d) return null; await wait(50); }
 }
-
-const pane = $('[data-pane="react"]') ?? document;
-const input = $('[data-demo-case="by-address"] [data-slot="entity-picker-input"]', pane);
-if (!input) return { verdict: 'FAIL no query input in the by-address case' };
-window.scrollTo({ top: input.getBoundingClientRect().top + window.scrollY - 120, behavior: 'instant' });
-await wait(300);
-press(input);
-if (!(await until(() => $('[data-picker="entity"]')))) return { verdict: 'FAIL the list did not open' };
-typeInto(input, 'ada');
-await wait(700);
-const rows = await until(() => {
-  const found = $$('[data-picker="entity"] [data-slot="entity-picker-option"]');
-  return found.length > 0 ? found : null;
+const pane = $('[data-pane="react"]') ?? $$('[data-pane]').find((p) => p.offsetParent !== null) ?? document;
+const caseBox = (name) => $(`[data-demo-case="${name}"]`, pane);
+const summaryBox = (name) => $(`[data-demo-summary="${name}"]`, pane);
+const bring = (el, room = 120) => window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - room, behavior: 'instant' });
+// The single picker's popup is `entity`, the multi picker's `entity-multi`.
+const PICKER = '[data-picker="entity"], [data-picker="entity-multi"]';
+const popup = () => $(PICKER);
+const options = () => $$('[data-picker="entity"] [data-slot="entity-picker-option"], [data-picker="entity-multi"] [data-slot="entity-picker-option"]');
+const text = (row, slot) => $(`[data-slot="${slot}"]`, row)?.textContent.trim() ?? '';
+const bold = (row, slot) => [...($(`[data-slot="${slot}"]`, row)?.children ?? [])]
+  .filter((span) => span.className.includes('font-semibold')).map((span) => span.textContent).join('');
+const readRow = (row) => ({
+  label: text(row, 'picker-row-label'),
+  sub: text(row, 'picker-row-sub-label'),
+  secondary: text(row, 'picker-row-secondary'),
 });
+const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const tokens = () => ({
+  background: token('--background'), muted: token('--muted'), ring: token('--ring'),
+  destructive: token('--destructive'), accent: token('--accent'), border: token('--input'),
+});
+const controlIn = (box) => $('[data-slot$="-control"]', box) ?? $('[data-slot="entity-picker"]', box);
+const openControl = (box) => {
+  const control = controlIn(box);
+  const input = $('[data-slot$="-input"]', box);
+  // An inline picker opens on its own input; a summary trigger opens on the box or its chevron.
+  press(input ?? $('[data-slot$="-trigger"]', control) ?? control);
+  return input;
+};
+const caretOf = (fallback) => ($('[data-picker="entity"] [data-slot$="-input"]') ?? $('[data-picker="entity-multi"] [data-slot$="-input"]')) ?? fallback;
+const inertRead = (control) => ({
+  opacity: getComputedStyle(control).opacity,
+  chevron: Boolean($('[data-slot$="-trigger"]', control)),
+  clear: Boolean($('[data-slot$="-clear"]', control)),
+  invalid: control.getAttribute('aria-invalid'),
+  chips: $$('[data-chip]', control).length,
+});
+
+const box = await until(() => caseBox('by-address'), 15000);
+const input = $('[data-slot$="-input"]', box) ?? controlIn(box);
+if (!input) return { verdict: 'FAIL no query input in the by-address case' };
+bring(box);
+await wait(400);
+openControl(box);
+if (!(await until(popup))) return { verdict: 'FAIL the list did not open' };
+const caret = caretOf(input);
+typeInto(caret, 'ada');
+await wait(700);
+const found = await until(() => (options().length ? options() : null));
 await wait(900);
-const bold = (row, slot) =>
-  [...($(`[data-slot="${slot}"]`, row)?.children ?? [])]
-    .filter((span) => span.className.includes('font-semibold'))
-    .map((span) => span.textContent)
-    .join('');
 return {
-  verdict: rows ? 'PASS the query narrowed the list and the runs are bold' : 'FAIL no row answered `ada`',
-  rows: (rows ?? []).length,
-  labels: (rows ?? []).map((row) => $('[data-slot="picker-row-label"]', row)?.textContent.trim()),
-  boldLabel: (rows ?? []).map((row) => bold(row, 'picker-row-label')),
-  boldSub: (rows ?? []).map((row) => bold(row, 'picker-row-sub-label')),
+  verdict: found ? 'PASS the query narrowed the list and the runs are bold' : 'FAIL nothing answered `ada`',
+  rows: (found ?? []).length,
+  read: (found ?? []).map(readRow),
+  boldLabel: (found ?? []).map((row) => bold(row, 'picker-row-label')),
+  boldSub: (found ?? []).map((row) => bold(row, 'picker-row-sub-label')),
 };

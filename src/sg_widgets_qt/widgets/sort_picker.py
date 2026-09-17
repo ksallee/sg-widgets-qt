@@ -142,7 +142,7 @@ class SortPicker(QtWidgets.QWidget):
             deep_links=True,
             clearable=False,
             size=self._size,
-            filter=self._offers,
+            filter=self.offers,
             placeholder="Add a field",
             search_placeholder="Add a field…",
             empty_label="No field left to sort on",
@@ -219,7 +219,7 @@ class SortPicker(QtWidgets.QWidget):
 
     def set_paths(self, value: Sequence[str] | None) -> None:
         self._paths = list(value) if value is not None else None
-        self._field_picker.set_filter(self._offers)
+        self._field_picker.set_filter(self.offers)
 
     @property
     def size(self) -> str:
@@ -335,7 +335,7 @@ class SortPicker(QtWidgets.QWidget):
         self.add(path)
         self._field_picker.set_value("")
 
-    def _offers(self, field: FieldSchema, path: str) -> bool:
+    def offers(self, field: FieldSchema, path: str) -> bool:
         """A sortable field the caller offers, and never one already chosen."""
         if not is_sortable(field.data_type):
             return False
@@ -388,7 +388,7 @@ class SortPicker(QtWidgets.QWidget):
         self._count.set_size(COUNT_CHIP_SIZE[self._size])
         self._count.set_text(str(len(self._value)))
         self._count.setVisible(len(self._value) > 1)
-        self._field_picker.set_filter(self._offers)
+        self._field_picker.set_filter(self.offers)
         self._keys.rebuild()
 
 

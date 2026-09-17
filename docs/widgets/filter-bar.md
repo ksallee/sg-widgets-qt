@@ -96,6 +96,10 @@ that stores nothing.
 ## Reference
 
 The dashed add-a-filter pill and the value checklist follow ReUI's Filters 2.5.2, and the counts beside each value follow shadcn's data table faceted filter. Neither is installed.
-::qt-note
+
+In Qt the pill is painted from the theme's tokens and its checklist is the Command primitive in a
+popover: the tick sits in the row's indicator column, the count is right-aligned, and a status value
+carries its own colour as the row's leading mark. The field read and the tally both run on a worker,
+so the bar never blocks the GUI thread, and a stale tally is dropped by its ticket.
 
 The list is one engine in both frameworks: it is always open, always in place and always holds a highlight. It fades at whichever edge has more content past it, holds a gutter for its scrollbar, and carries a live region saying what it is doing. The pattern is coss.com/ui at e937bec, read as a reference and not installed.

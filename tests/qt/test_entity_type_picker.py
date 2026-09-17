@@ -111,3 +111,31 @@ def test_the_control_is_a_token_field_with_the_caret_in_it(qtbot):
     picker = build(qtbot, value="Shot")
     assert picker.control.inline, "typing narrows the list from the control itself"
     assert picker.control.labels == ["Shot"]
+
+
+def test_deny_wins_over_allow_where_both_name_a_type(qtbot):
+    # `filter_entity_types` applies allow first and deny second, so a type in both is withheld.
+    picker = build(qtbot, allow=PRODUCTION, deny=["Task", "HumanUser"])
+    names = [one.name for one in picker.types]
+    assert "Task" not in names, "deny wins over allow"
+    assert "Shot" in names and "HumanUser" not in names
+
+
+def test_a_type_row_draws_its_glyph_with_no_picture_plate(qtbot):
+    # A type has no picture, so the muted plate a row falls back to has nothing to stand in
+    # for: the glyph is the leading mark itself.
+    picker = build(qtbot, allow=PRODUCTION)
+    delegate = picker.control.row_delegate()
+    assert delegate.bare_glyph is True
+    assert delegate.indicator == "tick", "a single picker's tick trails the row"
+
+
+def test_the_chosen_row_carries_the_tick(qtbot):
+    picker = build(qtbot, allow=PRODUCTION, value="Shot")
+    model = picker.rows_model
+    ticked = {
+        model.index(row, 0).data(Roles.LABEL)
+        for row in range(model.rowCount())
+        if model.index(row, 0).data(Roles.CHECKED) is True
+    }
+    assert ticked == {"Shot"}

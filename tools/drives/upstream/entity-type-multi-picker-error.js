@@ -16,17 +16,21 @@ async function until(read, t = 10000) {
   for (;;) { const v = read(); if (v) return v; if (Date.now() > d) return null; await wait(50); }
 }
 const pane = $$('[data-pane]').find((p) => p.offsetParent !== null) ?? document.body;
-const POPUP = '[data-picker="entity-type"],[data-picker="entity-type-multi"]';
+// Two popups, one per picker: a descendant selector has to be written out for each, since a
+// comma in a selector list binds looser than the descendant combinator.
+const POPUPS = ['[data-picker="entity-type"]', '[data-picker="entity-type-multi"]'];
+const POPUP = POPUPS.join(',');
 const OPTION = '[data-slot="entity-type-picker-option"]';
 const popup = () => $(POPUP);
-const rows = () => $$(`${POPUP} ${OPTION}`);
+const inPopup = (sel) => $$(POPUPS.map((p) => `${p} ${sel}`).join(','));
+const rows = () => inPopup(OPTION);
 const controls = () => $$('[data-slot="entity-type-picker-control"]', pane).filter((el) => el.getClientRects().length > 0);
 await until(() => controls().length > 0, 15000);
 await wait(600);
 const control = controls().find((el) => el.dataset.disabled === undefined && el.dataset.readonly === undefined) ?? controls()[0];
 control.scrollIntoView({ block: 'center' });
 await wait(300);
-const caret = () => $('[data-slot="entity-type-picker-input"]', control) ?? $(`${POPUP} [data-slot="entity-type-picker-input"]`);
+const caret = () => $('[data-slot="entity-type-picker-input"]', control) ?? inPopup('[data-slot="entity-type-picker-input"]')[0] ?? null;
 // The list open after the one schema read failed.
 // The page offers no way to make it fail: the demo holds no arming control and the mock is not
 // reachable from the page, so the error block is compared from the shared StateLine that every

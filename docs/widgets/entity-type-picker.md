@@ -23,8 +23,8 @@ from sg_widgets_qt.widgets.entity_type_picker import EntityTypePicker
 Every other attribute is spread onto the root: `id`, `aria-*`, `data-*`, key handlers and a
 `ref` to the root element.
 
-Each row shows the display name, with the code beneath it in mono when the two differ, unless
-`showCode` is off. The control is a token field: the value is one chip, with the caret beside it.
+Each row shows the display name, with the code beside it in mono when the two differ, unless
+`show_code` is off. The control is a token field: the value is one chip, with the caret beside it.
 A pick closes the list.
 
 `allow` is applied first and `deny` second, both to the derived list rather than to the read, so a
@@ -57,7 +57,18 @@ framework and both draw the same rows, the same classes and the same states.
 
 Here there is no headless primitive to compose. The box and its popup are
 `widgets/picker_control.py`, the list is `primitives/list_view.py`, and every row is drawn by
-`primitives/row_delegate.py`, so PySide6 and PyQt5 draw the same pixels. A row carries the type's
-glyph from `widgets/entity_glyphs.py` in its leading slot, and the code sits beside the display
-name in the mono family, which is where rule 9 of the design rules puts a code. The one schema
-read runs on `sg_widgets_qt.workers`.
+`primitives/row_delegate.py`, so PySide6 and PyQt5 draw the same pixels.
+
+Three things the row does that the upstream row does not, all of them `docs/design-rules.md`:
+
+- The type's glyph from `widgets/entity_glyphs.py` is the row's leading mark (rule 9). A type has
+  no picture, so the glyph stands alone rather than on the plate a row draws where a picture was
+  expected and has not landed.
+- The chosen row carries the indicator every picker here draws: a trailing tick on the single
+  picker, the leading checkbox on the multi one (rule 2). Upstream the single picker's rows carry
+  no mark at all.
+- The runs a query matched are drawn in DemiBold (rule 6). Upstream draws the label plain here,
+  while its other pickers highlight; the shared row highlights everywhere.
+
+The code sits beside the display name in the mono family, which is where rule 9 puts a code, and
+not under it as upstream does. The one schema read runs on `sg_widgets_qt.workers`.

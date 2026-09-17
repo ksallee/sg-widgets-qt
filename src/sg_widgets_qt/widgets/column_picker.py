@@ -763,10 +763,12 @@ class ColumnPicker(QtWidgets.QWidget):
             filter=filter,
         )
         self._levels.changed.connect(self._refresh_available)
-        self._available_model = FieldOptionModel(self, checkable=True)
+        # The dual list names the field's code beside its display name whenever the two
+        # differ, which upstream's own row does unconditionally (column-picker.tsx:545-549).
+        self._available_model = FieldOptionModel(self, checkable=True, show_code=True)
         self._crumbs = Breadcrumb("column-picker", self)
-        self._crumbs.back_requested.connect(self._levels.back)
-        self._crumbs.reset_requested.connect(self._levels.reset)
+        self._crumbs.back_requested.connect(self._go_back)
+        self._crumbs.reset_requested.connect(self._go_root)
         self._command = Command(
             self,
             placeholder=search_placeholder,
@@ -856,6 +858,7 @@ class ColumnPicker(QtWidgets.QWidget):
         self._levels.context = value
         self._picker.set_context(value)
         self._levels.reset()
+        self._forget_labels()
         self._resolve_labels()
 
     @property
@@ -867,6 +870,7 @@ class ColumnPicker(QtWidgets.QWidget):
         self._levels.entity_type = str(value)
         self._picker.set_entity_type(value)
         self._levels.reset()
+        self._forget_labels()
         self._resolve_labels()
 
     @property
@@ -1193,6 +1197,26 @@ class ColumnPicker(QtWidgets.QWidget):
             on_error=lambda _error: None,
             ticket=(self._label_ticket, number),
         )
+
+    def _go_back(self) -> None:
+        """The dual bar's Back, which clears the query the way the Left key does."""
+        self._command.set_query("")
+        self._levels.back()
+
+    def _go_root(self) -> None:
+        """The dual bar's Reset, which clears the query too."""
+        self._command.set_query("")
+        self._levels.reset()
+
+    def _forget_labels(self) -> None:
+        """Drop the resolved labels when the root moves.
+
+        A label belongs to the type the path starts on, so the same dotted path reads
+        differently under another root. Upstream keys its cache by `type::path` and
+        re-resolves on a change of type; the cache here is emptied instead.
+        """
+        self._labels = {}
+        self._chosen.rows_model.set_labels(self._labels)
 
     def _labels_landed(self, root: str, found: dict) -> None:
         if root != self._levels.entity_type:

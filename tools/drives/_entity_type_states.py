@@ -30,6 +30,7 @@ from sg_widgets_qt.widgets.picker_control import over  # noqa: E402
 
 __all__ = [
     "error",
+    "sizes",
     "focus",
     "hover",
     "loading",
@@ -123,11 +124,15 @@ def focus(page, wait, find, prefs) -> dict:
     if picker is None:
         return _verdict("focus", bad, {})
     control = picker.control
-    control.caret().setFocus(Qt.FocusReason.TabFocusReason)
+    # A token field holds the caret; a summary trigger is the focusable thing itself.
+    target = control.caret() if control.inline else control
+    target.setFocus(Qt.FocusReason.TabFocusReason)
     wait(300)
     if not control._ring_shown():
         bad.append("a keyboard focus painted no ring")
-    return _verdict("focus", bad, {"ring": control._ring_shown()})
+    return _verdict(
+        "focus", bad, {"ring": control._ring_shown(), "on": "caret" if control.inline else "control"}
+    )
 
 
 def open_rows(page, wait, find, prefs) -> dict:
@@ -214,7 +219,7 @@ def no_match(page, wait, find, prefs) -> dict:
     return _verdict(
         "no-match",
         bad,
-        {"rows": control.list_surface().row_count(), "line": control.state_line().text()},
+        {"rows": control.list_surface().row_count(), "line": control.state_line().label},
     )
 
 
@@ -312,6 +317,30 @@ def overflow(page, wait, find, prefs) -> dict:
     )
 
 
+#: The height ladder of rule 3.
+LADDER = {"sm": 28, "md": 32, "lg": 36}
+
+
+def sizes(page, wait, find, prefs) -> dict:
+    """Rule 3's ladder: a control is 28, 32 or 36 high, whatever it holds."""
+    wait(500)
+    bad: list = []
+    seen: dict = {}
+    for one in pickers(find):
+        control = one.control
+        if control.height() > 40:
+            # A wrapped token field stands on as many lines as its chips need.
+            continue
+        held = seen.setdefault(control.size, set())
+        held.add(control.height())
+    for step, heights in seen.items():
+        wanted = LADDER.get(step)
+        off = sorted(h for h in heights if h != wanted)
+        if off:
+            bad.append(f"a {step} control stands {off}px tall, wanted {wanted}")
+    return _verdict("sizes", bad, {"heights": {k: sorted(v) for k, v in seen.items()}})
+
+
 def summary(page, wait, find, prefs) -> dict:
     """The three summary modes, wide and narrow, as the demo lays them out."""
     wait(500)
@@ -340,4 +369,8 @@ def summary(page, wait, find, prefs) -> dict:
         bad.append("an ellipsis control still holds an inline caret")
     if "count" in modes and any(one["chips"] for one in modes["count"]):
         bad.append("a count control draws chips rather than a count")
+    # `max-w-80`: every mode is drawn wide and at 20rem, which is what the fit cuts against.
+    for mode, held in modes.items():
+        if not any(one["width"] == 320 for one in held):
+            bad.append(f"the {mode} demo draws no 20rem control: {[one['width'] for one in held]}")
     return _verdict("summary", bad, {"modes": modes})

@@ -28,6 +28,10 @@ Every other attribute is spread onto the root: `id`, `aria-*`, `data-*`, key han
 
 ::props{name="filter-dialog" kind="events"}
 
+`filters_changed` carries the same tree as `changed`, for a page wiring several query widgets to one
+handler. In Qt the count is a chip beside the trigger rather than inside it, because the button
+primitive draws one label.
+
 ## Slots
 
 The three the editor takes, forwarded unchanged.

@@ -70,13 +70,47 @@ def pickers_of(find) -> list:
     ]
 
 
-def wait_for(read, wait, ms: int) -> bool:
+def wait_for(read, wait, ms: int, step: int = 5) -> bool:
+    """Turn the loop until `read` answers. The step is the measurement's own resolution."""
     end = time.time() + ms / 1000.0
     while time.time() < end:
-        wait(20)
+        wait(step)
         if read():
             return True
     return False
+
+
+class Held:
+    """The longest single call into this package's own code, so a stall can be attributed.
+
+    A turn of the loop is as long as whatever ran in it, the platform and whatever else the
+    machine is doing included. This times the calls a read makes into the widgets themselves,
+    which is the part a regression here would show up in.
+    """
+
+    def __init__(self) -> None:
+        self.calls: list = []
+
+    def watch(self, owner: type, name: str) -> None:
+        original = getattr(owner, name)
+        if getattr(original, "_sg_watched", False):
+            return
+        calls = self.calls
+
+        def timed(*args, **kwargs):
+            start = time.monotonic()
+            try:
+                return original(*args, **kwargs)
+            finally:
+                calls.append(((time.monotonic() - start) * 1000.0, f"{owner.__name__}.{name}"))
+
+        timed._sg_watched = True
+        setattr(owner, name, timed)
+
+    @property
+    def worst(self) -> tuple:
+        return max(self.calls, default=(0.0, ""))
+
 
 
 def drive(page, wait, find, prefs) -> dict:  # noqa: C901
@@ -87,6 +121,17 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
         failures.append(f"{clause} — {detail}")
 
     beat = Heartbeat(page)
+    held = Held()
+    from sg_widgets_qt.widgets.entity_picker import EntitySearchPicker as _Picker
+    from sg_widgets_qt.widgets.picker_row import PickerRowModel as _Rows
+
+    for owner, name in (
+        (_Rows, "set_rows"),
+        (_Picker, "_refresh"),
+        (PickerControl, "_sync_popup"),
+        (PickerControl, "_relayout"),
+    ):
+        held.watch(owner, name)
     pickers = pickers_of(find)
     controls = [
         control
@@ -98,13 +143,21 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
 
     # 1. A read with a page of pictures behind it, with the loop timed all the way through.
     control = controls[0]
-    beat.start()
     control.set_open(True)
+    # The popover is a window of its own: showing it is the platform's work, not a read's, so
+    # the clause is timed from the moment the list is up and its first read is out.
+    wait(80)
+    beat.start()
     wait_for(lambda: control.list_surface().row_count() > 0, wait, 8000)
     # The rows are drawn; their pictures are still arriving. Keep turning the loop over them.
     wait(1500)
     beat.stop()
-    opening = {"turns": len(beat.gaps), "worst_ms": round(beat.worst, 1)}
+    opening = {
+        "turns": len(beat.gaps),
+        "worst_ms": round(beat.worst, 1),
+        "held_ms": round(held.worst[0], 1),
+        "held_by": held.worst[1],
+    }
     if beat.worst > BUDGET_MS:
         note("loop", f"a turn of the loop took {beat.worst:.0f}ms while the list was reading")
     if len(beat.gaps) < 20:
@@ -119,7 +172,12 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
         wait_for(lambda: surface.row_count() != before, wait, 8000)
         wait(600)
     beat.stop()
-    paging = {"turns": len(beat.gaps), "worst_ms": round(beat.worst, 1)}
+    paging = {
+        "turns": len(beat.gaps),
+        "worst_ms": round(beat.worst, 1),
+        "held_ms": round(held.worst[0], 1),
+        "held_by": held.worst[1],
+    }
     if beat.worst > BUDGET_MS:
         note("loop", f"a turn of the loop took {beat.worst:.0f}ms while a page was landing")
 
@@ -128,7 +186,7 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
     if picker is None:
         control.set_open(False)
         return _answer(page, failures, {"opening": opening, "paging": paging})
-    held = picker.debounce_ms
+    debounce = picker.debounce_ms
     picker.set_debounce_ms(0)
     caret = control.caret()
     caret.setFocus()
@@ -140,7 +198,7 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
     landed = wait_for(lambda: picker.state.query == "sh01" and not picker.state.loading, wait, 8000)
     took = (time.monotonic() - started) * 1000.0
     beat.stop()
-    picker.set_debounce_ms(held)
+    picker.set_debounce_ms(debounce)
     budget = MOCK_LATENCY_MS + ANSWER_SLACK_MS
     query = {
         "answered": landed,
@@ -148,6 +206,8 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
         "budget_ms": budget,
         "worst_ms": round(beat.worst, 1),
         "pictures": len(control.list_surface().source_model().rows),
+        "held_ms": round(held.worst[0], 1),
+        "held_by": held.worst[1],
     }
     if not landed:
         note("answer", "the query was never answered")

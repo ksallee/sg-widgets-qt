@@ -1,49 +1,77 @@
-// The list open on the first user picker of the page: an avatar, a name, the address under it.
+// The list open: an avatar, the name, the address under it, the type on the right.
 //
 //   cd ~/dev/sg-widgets && node tools/qa.mjs --base http://127.0.0.1:4466 \
 //       --path /widgets/user-picker/ --framework react \
 //       --drive ~/dev/sg-widgets-qt/tools/drives/upstream/user-picker-open.js --shot out.png
 //
-// The Qt half is `QA_STATE=open tools/drives/states/user-picker.py`.
-
+// The Qt half is `tools/drives/user-picker-open.py`.
+// What the user picker state drives share. Concatenated into each drive by hand, since
+// qa.mjs runs one file as a function body and has no module loader: keep the copies in step.
 function press(el) {
-  for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup']) {
-    el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, button: 0, pointerType: 'mouse' }));
-  }
+  for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup'])
+    el.dispatchEvent(new PointerEvent(t, { bubbles: true, cancelable: true, button: 0, pointerType: 'mouse' }));
   el.click();
 }
-
-async function until(read, timeoutMs = 8000) {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    const value = read();
-    if (value) return value;
-    if (Date.now() > deadline) return null;
-    await wait(100);
-  }
+function typeInto(input, text) {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, text);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
 }
-
-const pane = $('[data-pane="react"]') ?? document;
-const input = $('[data-demo-case="single"] [data-slot="entity-picker-input"]', pane);
-if (!input) return { verdict: 'FAIL no query input in the single case' };
-window.scrollTo({ top: input.getBoundingClientRect().top + window.scrollY - 120, behavior: 'instant' });
-await wait(300);
-press(input);
-const box = await until(() => $('[data-picker="entity"]'));
-if (!box) return { verdict: 'FAIL the list did not open' };
-const rows = await until(() => {
-  const found = $$('[data-picker="entity"] [data-slot="entity-picker-option"]');
-  return found.length > 0 ? found : null;
+async function until(read, t = 8000) {
+  const d = Date.now() + t;
+  for (;;) { const v = read(); if (v) return v; if (Date.now() > d) return null; await wait(50); }
+}
+const pane = $('[data-pane="react"]') ?? $$('[data-pane]').find((p) => p.offsetParent !== null) ?? document;
+const caseBox = (name) => $(`[data-demo-case="${name}"]`, pane);
+const summaryBox = (name) => $(`[data-demo-summary="${name}"]`, pane);
+const bring = (el, room = 120) => window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - room, behavior: 'instant' });
+// The single picker's popup is `entity`, the multi picker's `entity-multi`.
+const PICKER = '[data-picker="entity"], [data-picker="entity-multi"]';
+const popup = () => $(PICKER);
+const options = () => $$('[data-picker="entity"] [data-slot="entity-picker-option"], [data-picker="entity-multi"] [data-slot="entity-picker-option"]');
+const text = (row, slot) => $(`[data-slot="${slot}"]`, row)?.textContent.trim() ?? '';
+const bold = (row, slot) => [...($(`[data-slot="${slot}"]`, row)?.children ?? [])]
+  .filter((span) => span.className.includes('font-semibold')).map((span) => span.textContent).join('');
+const readRow = (row) => ({
+  label: text(row, 'picker-row-label'),
+  sub: text(row, 'picker-row-sub-label'),
+  secondary: text(row, 'picker-row-secondary'),
 });
+const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const tokens = () => ({
+  background: token('--background'), muted: token('--muted'), ring: token('--ring'),
+  destructive: token('--destructive'), accent: token('--accent'), border: token('--input'),
+});
+const controlIn = (box) => $('[data-slot$="-control"]', box) ?? $('[data-slot="entity-picker"]', box);
+const openControl = (box) => {
+  const control = controlIn(box);
+  const input = $('[data-slot$="-input"]', box);
+  // An inline picker opens on its own input; a summary trigger opens on the box or its chevron.
+  press(input ?? $('[data-slot$="-trigger"]', control) ?? control);
+  return input;
+};
+const caretOf = (fallback) => ($('[data-picker="entity"] [data-slot$="-input"]') ?? $('[data-picker="entity-multi"] [data-slot$="-input"]')) ?? fallback;
+const inertRead = (control) => ({
+  opacity: getComputedStyle(control).opacity,
+  chevron: Boolean($('[data-slot$="-trigger"]', control)),
+  clear: Boolean($('[data-slot$="-clear"]', control)),
+  invalid: control.getAttribute('aria-invalid'),
+  chips: $$('[data-chip]', control).length,
+});
+
+const box = await until(() => caseBox('single'), 15000);
+const input = $('[data-slot$="-input"]', box) ?? controlIn(box);
+if (!input) return { verdict: 'FAIL no control in the single case' };
+bring(box);
+await wait(400);
+openControl(box);
+if (!(await until(popup))) return { verdict: 'FAIL the list did not open' };
+const found = await until(() => (options().length ? options() : null));
 await wait(900);
-const at = box.getBoundingClientRect();
-const anchor = input.closest('[data-slot="entity-picker"]')?.getBoundingClientRect() ?? input.getBoundingClientRect();
+const read = (found ?? []).map(readRow);
 return {
-  verdict: rows ? 'PASS the list is open over the people' : 'FAIL no row was drawn',
-  rows: (rows ?? []).length,
-  labels: (rows ?? []).slice(0, 3).map((row) => $('[data-slot="picker-row-label"]', row)?.textContent.trim()),
-  subs: (rows ?? []).slice(0, 3).map((row) => $('[data-slot="picker-row-sub-label"]', row)?.textContent.trim()),
-  secondary: (rows ?? []).slice(0, 3).map((row) => $('[data-slot="picker-row-secondary"]', row)?.textContent.trim()),
-  box: { w: Math.round(at.width), below: at.top >= anchor.bottom - 2 },
-  anchor: { w: Math.round(anchor.width) },
+  verdict: read.some((r) => r.sub.includes('@'))
+    ? 'PASS the list is open over the people'
+    : 'FAIL the rows carry no address under the name',
+  rows: read.length,
+  read: read.slice(0, 3),
 };

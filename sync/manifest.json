@@ -408,6 +408,18 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
     },
+    "demos/results": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/demos/_shared/results.ts": "ca530a3e7e922c38f318e1af8e5d92ca25ee714c78a7365a06f7efdd6c66d13f",
+        "apps/site/src/demos/_shared/version-results.tsx": "c67bd2a5993a323f42660dd72b5783e6cec5959f19c51d0c3b18dd24c48a4679"
+      },
+      "ported": [
+        "src/sg_widgets_qt/showcase/demos/_results.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The count line, the debounce, the Version columns and scope_to_project are ported; the table under them is a list of matching codes until entity-table lands."
+    },
     "demos/showcase": {
       "status": "complete",
       "upstream": {
@@ -1720,6 +1732,71 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
     },
+    "widgets/filter-bar": {
+      "status": "partial",
+      "upstream": {
+        "packages/react/src/registry/sg/components/filter-bar.tsx": "268093edab76b877a615efb50ea698181520935762ec17177d4e75d5618cbfa8",
+        "packages/svelte/src/lib/registry/components/filter-bar.svelte": "e0d53a7d9b8cf391c21f6492f470421f16e7ff3db53999cf04400538374fe91e",
+        "apps/site/src/props/filter-bar.ts": "9811a5a0e1912e4d840522bface0b6610520d7ca2f7080ca5dd35bc4d7b2ee18",
+        "apps/site/src/content/docs/widgets/filter-bar.mdx": "9d2bd3cf24bdad132681b0f3388c268ec259968fb75c25a6b3e59322fb773634",
+        "apps/site/src/demos/filter-bar/Demo.tsx": "0a5948dbd235432e3d76f020542bbc593ce08c30dadcbd2736202fe77e5e9263"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/filter_bar.py",
+        "src/sg_widgets_qt/showcase/demos/filter_bar.py",
+        "docs/widgets/filter-bar.md",
+        "docs/widgets/filter-bar.props.json",
+        "tests/qt/test_filter_bar.py",
+        "shots/filter-bar-light.png",
+        "shots/filter-bar-dark.png"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The rows under the bar are a plain list of matching codes: grouped-list is not ported yet."
+    },
+    "widgets/filter-dialog": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/filter-dialog.tsx": "8b9b68ccdfa4900c0736f1d29b2ddce3640dc9b6dd8a7bf7808f9eed5f471f6b",
+        "packages/svelte/src/lib/registry/components/filter-dialog.svelte": "d47650a4a98e557a1bfbfaf74391de9f75deb88d9350fcd9a6f466777f31dbb9",
+        "apps/site/src/props/filter-dialog.ts": "63afcc89b2e56fc946f94190ae4c76f37e092d88ce845b01d121008bc24a96f7",
+        "apps/site/src/content/docs/widgets/filter-dialog.mdx": "910f338d81b90abfac6a0fb07181430a160c1a5eed746b6bc7c5a2ffa5ec0782",
+        "apps/site/src/demos/filter-dialog/Demo.tsx": "bbd16278b450813264480cbb8dc94e8b9a924ce70bcc7c8a2f444724dcac1fe7"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/filter_dialog.py",
+        "src/sg_widgets_qt/showcase/demos/filter_dialog.py",
+        "docs/widgets/filter-dialog.md",
+        "docs/widgets/filter-dialog.props.json",
+        "tests/qt/test_filter_dialog.py",
+        "shots/filter-dialog-light.png",
+        "shots/filter-dialog-dark.png"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The count is a chip beside the trigger rather than inside it, since the button primitive draws one label."
+    },
+    "widgets/filter-editor": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/filter-editor.tsx": "58fc5d7f3973b9df987d4ea81ed0dee52c66a0acf2049722d6f546651b256612",
+        "packages/svelte/src/lib/registry/components/filter-editor.svelte": "0da5a19680511da0aa54e78222f1d43a800de32c1d0040f574938054a5a515a0",
+        "apps/site/src/props/filter-editor.ts": "5283e4840678080fb7717c7ed5b4382e1102fbeef042ceb483d54bbbe1915f31",
+        "apps/site/src/content/docs/widgets/filter-editor.mdx": "7fb3256e4b646cb3cf8e801d2a096844a6aa1530eb2f4eebaaea2697e4b2d5c1",
+        "apps/site/src/demos/filter-editor/Demo.tsx": "738e4a959df6e077d9359df287dbe8b8af7498bd9340315f06a7621f7a886543",
+        "packages/react/src/registry/sg/components/sortable.tsx": "7ab06e259fb8ed1d37d3cb86307d654e72daa16c9f08ae3850475a4cb6c746cb"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/filter_editor.py",
+        "src/sg_widgets_qt/widgets/_sortable_rows.py",
+        "src/sg_widgets_qt/showcase/demos/filter_editor.py",
+        "docs/widgets/filter-editor.md",
+        "docs/widgets/filter-editor.props.json",
+        "tests/qt/test_filter_editor.py",
+        "shots/filter-editor-light.png",
+        "shots/filter-editor-dark.png"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Drag and Alt with an arrow reorder a row through core's sortable model, which the upstream editor has no equal of; a line under each row names what is still wrong with it. filters_changed and error_changed sit beside the documented changed."
+    },
     "widgets/global-search": {
       "status": "complete",
       "upstream": {
@@ -1960,6 +2037,29 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
+    },
+    "widgets/sort-picker": {
+      "status": "partial",
+      "upstream": {
+        "packages/react/src/registry/sg/components/sort-picker.tsx": "4262b9a51b9af1605b0ccf6556ca2615c6a5fd3fe5563a7cb76919569345fa8b",
+        "packages/svelte/src/lib/registry/components/sort-picker.svelte": "ebbe42ae7c2cfc406522fd08b0e17d56e53994480d4c7781d89c7ed66ae7fa70",
+        "apps/site/src/props/sort-picker.ts": "3b5d9f193c73de324810d767435a4ce1973515ae008330bfc1a398e950fbae06",
+        "apps/site/src/content/docs/widgets/sort-picker.mdx": "b76da2101eaf35d64b740e97f3784540b9de9b49433d38d0ff249af04033d6f3",
+        "apps/site/src/demos/sort-picker/Demo.tsx": "8ed70c9ab6175e0f35c9525be6fb9100394414fc8febf68c214a082996f6e55f",
+        "packages/react/src/registry/sg/components/sortable.tsx": "7ab06e259fb8ed1d37d3cb86307d654e72daa16c9f08ae3850475a4cb6c746cb"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/sort_picker.py",
+        "src/sg_widgets_qt/widgets/_sortable_rows.py",
+        "src/sg_widgets_qt/showcase/demos/sort_picker.py",
+        "docs/widgets/sort-picker.md",
+        "docs/widgets/sort-picker.props.json",
+        "tests/qt/test_sort_picker.py",
+        "shots/sort-picker-light.png",
+        "shots/sort-picker-dark.png"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The rows in that order are a plain list of codes: entity-table is not ported yet. The count past one key is a chip beside the trigger."
     },
     "widgets/state-line": {
       "status": "complete",

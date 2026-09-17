@@ -39,11 +39,11 @@ from .checkbox_editor import CheckboxEditor
 from .color_editor import ColorEditor
 from .date_editor import DateEditor
 from .date_time_editor import DateTimeEditor
-from .entity_chip import EntityChip
 from .entity_multi_picker import EntityMultiPicker
 from .entity_picker import EntityPicker
+from .field_error import FieldError
+from .field_value import FieldValue
 from .number_editor import NumberEditor
-from .status_badge import StatusBadge
 from .text_editor import TextEditor
 from .url_editor import UrlEditor
 
@@ -73,6 +73,9 @@ DISPLAY_TEXT = 14
 
 #: The field's own name over the control in a popover, on the metadata step.
 LABEL_TEXT = 12
+
+#: `CONTROL_BUTTON` of `control-classes.ts`: the step the popover's Cancel and Save stand on.
+POPOVER_BUTTON: dict[str, str] = {"sm": "sm", "md": "md", "lg": "lg"}
 
 #: Between the chips of a multi-entity value.
 CHIP_GAP = 6
@@ -169,8 +172,11 @@ class _TextLine(ThemedWidget):
 class FieldDisplay(ThemedWidget):
     """The display half: the value drawn by its data type, and the box a press opens it from.
 
-    A status is its badge, a link its chip and a multi-entity link a row of them. Everything
-    else is core's `field_text`, which is the one line a value reads as.
+    The value is `FieldValue`, the same widget a table cell draws, which upstream mounts here
+    too (`field-editor.tsx:357-372`): a status is its badge, a link its chip, a multi-entity
+    link a row of them, a url a link, a checkbox its mark, a colour its swatch and an image its
+    thumbnail. A press on an editable half opens the editor rather than reaching the value, so
+    the value takes no mouse of its own while the half is editable.
     """
 
     #: The half was pressed, or Enter or Space landed on it.
@@ -199,6 +205,7 @@ class FieldDisplay(ThemedWidget):
         self._empty_label = empty_label
         self._editable = bool(editable)
         self._parts: list[QtWidgets.QWidget] = []
+        self._value_widget: FieldValue | None = None
         self.setObjectName("field-editor-display")
         self._hover = self.animated(150)
         self.setSizePolicy(
@@ -248,7 +255,7 @@ class FieldDisplay(ThemedWidget):
         self.setFocusPolicy(
             Qt.FocusPolicy.StrongFocus if self._editable else Qt.FocusPolicy.NoFocus
         )
-        self.update()
+        self._rebuild()
 
     def text(self) -> str:
         """The value as one line, which is what a drive reads."""
@@ -268,54 +275,42 @@ class FieldDisplay(ThemedWidget):
         self._row.addWidget(widget)
         self._parts.append(widget)
 
-    def _rebuild(self) -> None:  # noqa: C901
+    def _rebuild(self) -> None:
         self._clear()
         while self._row.count():
             item = self._row.takeAt(0)
             if item.spacerItem() is None and item.widget() is None:
                 break
-        kind = editor_for(self._data_type)
-        value = self._value
-        empty = value is None or value == "" or value == []
-        step = "sm" if self.size_step == "sm" else "sm"
-        if empty and kind != "checkbox":
-            self._add(_TextLine(self._empty_label, muted=True))
-        elif kind == "status_list":
-            self._add(
-                StatusBadge(
-                    code=str(value),
-                    status=(self._statuses or {}).get(str(value)),
-                    field=self._field,
-                    size=step,
-                    site_url=getattr(self._context, "site_url", "") or "",
-                )
-            )
-        elif kind == "entity" and isinstance(value, dict):
-            self._add(self._chip(value, step))
-        elif kind == "multi_entity" and isinstance(value, (list, tuple)):
-            for one in value:
-                if isinstance(one, dict):
-                    self._add(self._chip(one, step))
-        else:
-            self._add(_TextLine(self.text()))
-        self._row.addStretch(1)
+        options = self._options
+        site = getattr(self._context, "site_url", "") or ""
+        shown = FieldValue(
+            value=self._value,
+            data_type=self._data_type,
+            field=self._field,
+            statuses=self._statuses,
+            # An empty site leaves a chip inert, so a press on it reaches the half under it.
+            site_url="",
+            context=self._context,
+            hours_per_day=options.hours_per_day,
+            locale=options.locale,
+            time_zone=options.time_zone,
+            frame_rate=options.frame_rate,
+            precision=options.decimals,
+            currency_symbol=options.currency_symbol,
+            empty_label=self._empty_label,
+        )
+        shown.setObjectName("field-editor-value")
+        # A url value opens itself on a press; on an editable half the press belongs to the
+        # editor instead, so the value is taken out of the mouse and the tab order.
+        if self._editable:
+            shown.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            shown.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        elif site:
+            shown.set_site_url(site)
+        self._value_widget = shown
+        self._add(shown)
         self.updateGeometry()
         self.update()
-
-    def _chip(self, value: dict, step: str) -> QtWidgets.QWidget:
-        ref = EntityRef(
-            type=str(value.get("type", "")),
-            id=int(value.get("id", 0) or 0),
-            name=value.get("name"),
-        )
-        # An empty href leaves the chip inert, so a press on it reaches the half under it.
-        return EntityChip(
-            entity=ref,
-            href="",
-            context=self._context,
-            site_url=getattr(self._context, "site_url", "") or "",
-            size=step,
-        )
 
     # --- the box ----------------------------------------------------------------------------
 
@@ -452,9 +447,7 @@ class FieldEditor(QtWidgets.QWidget):
         )
         self._display.activated.connect(lambda: self._enter(focus=True))
         self._column.addWidget(self._display)
-        self._message = _TextLine("", muted=True, size=LABEL_TEXT, parent=self)
-        self._message.setObjectName("field-editor-error")
-        self._message.hide()
+        self._message = FieldError(None, error_message=self._error_message, parent=self)
         self._column.addWidget(self._message)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred
@@ -856,10 +849,11 @@ class FieldEditor(QtWidgets.QWidget):
         buttons.setContentsMargins(0, 0, 0, 0)
         buttons.setSpacing(8)
         buttons.addStretch(1)
-        cancel = Button("Cancel", variant="ghost", size="sm", parent=popup)
+        step = POPOVER_BUTTON.get(self._size, "md")
+        cancel = Button("Cancel", variant="ghost", size=step, parent=popup)
         cancel.setObjectName("field-editor-cancel")
         cancel.clicked.connect(lambda: self._close(restore=True))
-        save = Button("Save", variant="default", size="sm", parent=popup)
+        save = Button("Save", variant="default", size=step, parent=popup)
         save.setObjectName("field-editor-save")
         save.clicked.connect(lambda: self._close(restore=False))
         buttons.addWidget(cancel)
@@ -867,7 +861,11 @@ class FieldEditor(QtWidgets.QWidget):
         column.addLayout(buttons)
         width = POPOVER_WIDTH_WIDE if self.kind == "multi_entity" else POPOVER_WIDTH
         self._popup = popup
-        self._popover = Popover(self._display, popup, side="bottom", align="start", width=width)
+        # A popover holding fields of its own takes the caret, which `popover.py` gates on
+        # this flag; without it the window refuses focus and the control never gets it.
+        self._popover = Popover(
+            self._display, popup, side="bottom", align="start", width=width, takes_focus=True
+        )
         self._popover.dismissed.connect(lambda: self._close(restore=False))
         self._popover.open()
         if focus:
@@ -935,14 +933,12 @@ class FieldEditor(QtWidgets.QWidget):
         elif kind == "color":
             made = ColorEditor(value=value if isinstance(value, str) else None, **shared)
         elif kind == "list" and ListPicker is not None:
+            # Upstream hands the list picker the same `shared` every other editor gets,
+            # so the caller's message and its renderer reach this one too.
             made = ListPicker(
                 value=value if isinstance(value, str) else None,
-                field=self._field,
                 project_id=self._project_id,
-                size=self._size,
-                disabled=self._disabled,
-                readonly=self.readonly,
-                invalid=self._invalid,
+                **shared,
             )
         elif kind == "status_list" and StatusPicker is not None:
             made = StatusPicker(
@@ -1066,10 +1062,8 @@ class FieldEditor(QtWidgets.QWidget):
 
     def _apply_error(self) -> None:
         message = self._error
-        self._message.set_text(message or "", muted=False)
-        self._message.setVisible(bool(message))
-        if message and self._error_message is None:
-            self._message.setToolTip(message)
+        self._message.set_error_message(self._error_message)
+        self._message.set_message(message)
         setter = getattr(self._control, "set_error", None)
         if callable(setter):
             setter(message)
@@ -1102,8 +1096,18 @@ class FieldEditor(QtWidgets.QWidget):
             if commits and self._live_error is None:
                 # The editor commits on the same Enter and its own handler runs after this
                 # one, so the toggle waits a turn of the loop before the control goes.
-                QtCore.QTimer.singleShot(0, lambda: self._close(restore=False))
+                QtCore.QTimer.singleShot(0, self._close_unless_invalid)
         return False
+
+    def _close_unless_invalid(self) -> None:
+        """Close the session a turn after Enter, unless the parse refused what was typed.
+
+        This filter sees the key before the control does, so the parse error the same Enter
+        raises is only there a turn later. Invalid input never emits and the edit half stays,
+        which is `field-editor-invalid-float.js`.
+        """
+        if self._live_error is None:
+            self._close(restore=False)
 
     def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:  # noqa: N802
         if self._mode != "edit":

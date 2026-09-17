@@ -216,8 +216,12 @@ def user_open(page, wait, find, prefs, case: str = "") -> dict:
     }
 
 
-def user_query(page, wait, find, prefs, case: str = "") -> dict:
-    """The list open over `ada`, so the matched runs are bold in both lines."""
+def user_query(page, wait, find, prefs, case: str = "by-address") -> dict:
+    """The list open over `ada`, so the matched runs are bold in both lines.
+
+    The single picker's own `by-address` case is the one upstream's twin drives, because its
+    placeholder names what a person search matches; a page without it takes its first control.
+    """
     wait(700)
     control = control_in(page, find, case) if case else None
     if control is None:
@@ -321,12 +325,16 @@ def user_focus(page, wait, find, prefs) -> dict:
         return {"verdict": "FAIL no picker to focus"}
     control = live[0]
     scroll_to(page, control, wait, room=200)
-    control.caret().setFocus(Qt.FocusReason.TabFocusReason)
+    # Tab lands in the control's own input on an inline picker, and on the box itself on a
+    # summary trigger, whose caret lives in the popup. Rule 7 clause 2.
+    taker = control.caret() if control.inline else control
+    taker.setFocus(Qt.FocusReason.TabFocusReason)
     wait(300)
     ring = control._ring_shown()
     return {
         "verdict": "PASS the ring is painted" if ring else "FAIL a keyboard focus painted no ring",
         "ring": ring,
+        "inline": control.inline,
     }
 
 

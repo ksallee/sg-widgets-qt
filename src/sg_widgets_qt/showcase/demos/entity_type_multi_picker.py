@@ -12,12 +12,23 @@ from qtpy import QtWidgets
 
 from ...widgets.entity_type_multi_picker import EntityTypeMultiPicker
 from ..context import DemoContext
-from ._pickers import boxed, column, field, poll_ready, readout, section
+from ._pickers import NARROW_WIDTH, boxed, column, field, poll_ready, readout, section
 from .entity_type_picker import PRODUCTION
 
 __all__ = ["build"]
 
 SUMMARIES = ("chips", "ellipsis", "count")
+
+
+def narrow(picker: QtWidgets.QWidget) -> QtWidgets.QWidget:
+    """`max-w-80`: the control held to 20rem, so the chip fit has something to cut against.
+
+    `boxed` caps the width. A control with a stretch beside it is given its size hint rather
+    than the cap, so the floor is set here too and the box is the 20rem the upstream demo
+    measures; anything narrower would hide chips the upstream control still fits.
+    """
+    picker.setMinimumWidth(NARROW_WIDTH)
+    return boxed(picker, NARROW_WIDTH)
 
 
 class EntityTypeMultiPickerDemo(QtWidgets.QWidget):
@@ -66,7 +77,7 @@ class EntityTypeMultiPickerDemo(QtWidgets.QWidget):
             summaries.append(
                 field(
                     f"{summary}, at most 20rem",
-                    boxed(
+                    narrow(
                         self._picker(
                             value=list(PRODUCTION),
                             summary=summary,

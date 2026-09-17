@@ -19,6 +19,7 @@ surface, so a linked row is a link and the rest is one line of text through core
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any, Callable
 
 from qtpy import QtCore, QtGui, QtWidgets
@@ -38,6 +39,7 @@ from sg_widgets_core.presentation import entity_detail_url
 from sg_widgets_core.render import (
     FieldTextOptions,
     field_text,
+    image_state,
     is_empty_value,
     render_kind_for,
     url_link,
@@ -47,22 +49,24 @@ from sg_widgets_core.state import StateLabels, error_text
 from sg_widgets_core.status import StatusRecord
 
 from ..icons import paint_icon
-from ..images import ImageLoader, image_loader
+from ..images import ImageLoader, grayscale, image_loader
 from ..primitives.base import (
     CHIP_HEIGHT,
     THUMB_SIZE,
     ThemedWidget,
     elide,
+    fill_round_rect,
     painter_for,
     text_width,
 )
 from ..primitives.skeleton import Skeleton
-from ..theme import Theme, with_alpha
+from ..theme import Theme, theme_for, with_alpha
 from ..workers import JobPool, Ticket, default_pool
 from .entity_glyphs import entity_glyph
+from .field_value import FieldValueOptions, field_value_size_hint, paint_field_value
 from .state_line import StateLine
 from .status_badge import StatusBadge
-from .thumbnail import Thumbnail
+from .thumbnail import THUMBNAIL_GLYPH, Thumbnail
 
 __all__ = [
     "ENTITY_CARD_SIZE_VALUES",
@@ -73,7 +77,16 @@ __all__ = [
     "CARD_ROW_GAP",
     "CARD_STACK",
     "CARD_THUMB",
+    "CARD_TILE_BODY",
+    "CARD_TILE_WIDTH",
+    "CardTile",
+    "CardTileOptions",
     "EntityCard",
+    "card_tile_checkbox_rect",
+    "card_tile_media_rect",
+    "card_tile_size",
+    "paint_card_tile",
+    "tile_of",
 ]
 
 #: The three steps a card stands on.
@@ -112,6 +125,13 @@ LINK_GLYPH = 12
 SKELETON_NAME = 16
 SKELETON_META = 12
 SKELETON_LABEL = 64
+
+#: Between the header's two skeleton lines, which stand further apart than the lines they replace.
+SKELETON_GAP = 8
+
+#: The share of the header each line takes, so the block is shaped like the name under it.
+SKELETON_NAME_SHARE = 0.75
+SKELETON_META_SHARE = 0.5
 
 #: What a failed read is drawn with.
 ERROR_ICON = "circle-alert"
@@ -813,12 +833,12 @@ class EntityCard(ThemedWidget):
 
     @property
     def variant(self) -> str:
-        """`card`, the stacked surface. The tile lands with EntityGrid."""
+        """`card`, the stacked surface, or `tile`, the thumbnail-first cell a grid lays out."""
         return self._variant
 
     def set_variant(self, value: str) -> None:
         self._variant = value if value in ENTITY_CARD_VARIANT_VALUES else "card"
-        self._rebuild()
+        self._read()
 
     @property
     def size(self) -> str:
@@ -921,6 +941,8 @@ class EntityCard(ThemedWidget):
         if value == self._selected:
             return
         self._selected = value
+        if isinstance(self._body, _TilePane):
+            self._body.set_selected(value)
         self.selected_changed.emit(value)
         self.update()
 
@@ -1110,15 +1132,79 @@ class EntityCard(ThemedWidget):
 
     def _rebuild(self) -> None:
         self._clear()
+        tile = self._variant == "tile"
         if self._error is not None:
             self._body = self._error_block()
         elif self._model is None:
-            self._body = self._skeleton_block()
+            self._body = self._tile_skeleton() if tile else self._skeleton_block()
+        elif tile:
+            self._body = self._tile_block(self._model)
         else:
             self._body = self._card_block(self._model)
         self._column.addWidget(self._body)
         self.updateGeometry()
         self.update()
+
+    def _tile_text(self, path: str, custom: Callable[[EntityRow], str] | None) -> str:
+        """One side of the tile's metadata line: the caller's own, then the column's own text."""
+        model = self._model
+        if model is None:
+            return ""
+        if custom is not None:
+            return custom(model.row)
+        if not path:
+            return ""
+        column = next((entry for entry in model.columns if entry.path == path), None)
+        if column is None or is_empty_value(column.value):
+            return ""
+        return field_text(column.value, column.data_type, self._text_options())
+
+    def _tile_block(self, model: EntityCardModel) -> QtWidgets.QWidget:
+        """The thumbnail-first cell a grid lays out, drawn through the shared tile face."""
+        tile = tile_of(
+            model,
+            label_field=self._label_field,
+            sub_label=self._tile_text(path_of(self._sub_label_field), self._sub_label),
+            secondary=self._tile_text(path_of(self._secondary_field), self._secondary),
+            show_code=self._show_code,
+        )
+        pane = _TilePane(
+            tile,
+            CardTileOptions(
+                size=self._size,
+                statuses=self._statuses if self._statuses is not None else self._table,
+                site_url=self.site_url,
+                selectable=self._selectable,
+                selected=self._selected,
+                loader=self._loader,
+            ),
+            self,
+        )
+        pane.toggled.connect(self.set_selected)
+        pane.activated.connect(self.clicked.emit)
+        return pane
+
+    def _tile_skeleton(self) -> QtWidgets.QWidget:
+        """A tile's own shape while the read is in flight: the picture, then two lines."""
+        holder = QtWidgets.QWidget(self)
+        holder.setObjectName("entity-card-tile-skeleton")
+        column = QtWidgets.QVBoxLayout(holder)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(0)
+        picture = Skeleton(height=card_tile_size(self._size).height() // 2, parent=holder)
+        picture.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed
+        )
+        column.addWidget(picture)
+        body = QtWidgets.QWidget(holder)
+        lines = QtWidgets.QVBoxLayout(body)
+        pad = CARD_TILE_BODY[self._size]
+        lines.setContentsMargins(pad, pad, pad, pad)
+        lines.setSpacing(CARD_TILE_GAP)
+        lines.addWidget(Skeleton(height=SKELETON_NAME, parent=body))
+        lines.addWidget(Skeleton(width=SKELETON_LABEL, height=SKELETON_META, parent=body))
+        column.addWidget(body)
+        return holder
 
     def _error_block(self) -> QtWidgets.QWidget:
         line = StateLine(pad="none", slot_name="entity-card-error", parent=self)
@@ -1142,9 +1228,11 @@ class EntityCard(ThemedWidget):
         lines = QtWidgets.QWidget(header)
         stack = QtWidgets.QVBoxLayout(lines)
         stack.setContentsMargins(0, 0, 0, 0)
-        stack.setSpacing(GLYPH_GAP)
-        stack.addWidget(Skeleton(height=SKELETON_NAME, parent=lines))
-        stack.addWidget(Skeleton(height=SKELETON_META, parent=lines))
+        stack.setSpacing(SKELETON_GAP)
+        # A skeleton stands in for what it replaces, so the name's block runs three quarters of
+        # the header and the line under it half, which is the shape a name and a type line have.
+        stack.addWidget(_part(lines, SKELETON_NAME, SKELETON_NAME_SHARE))
+        stack.addWidget(_part(lines, SKELETON_META, SKELETON_META_SHARE))
         stack.addStretch(1)
         row.addWidget(lines, 1)
         column.addWidget(header)
@@ -1279,8 +1367,387 @@ def _describe(
     return model, table
 
 
+def _part(parent: QtWidgets.QWidget, height: int, share: float) -> QtWidgets.QWidget:
+    """One skeleton line taking `share` of the width it is given.
+
+    A `Skeleton` is fixed or expanding, and what a header line stands in for is neither: it is a
+    fraction of the room, the way upstream's `w-3/4` is. The fraction is a layout's stretch.
+    """
+    holder = QtWidgets.QWidget(parent)
+    row = QtWidgets.QHBoxLayout(holder)
+    row.setContentsMargins(0, 0, 0, 0)
+    row.setSpacing(0)
+    taken = max(1, min(99, int(round(share * 100))))
+    row.addWidget(Skeleton(height=height, parent=holder), taken)
+    row.addStretch(100 - taken)
+    return holder
+
+
 def _context_of(client: object) -> SgContext | None:
     """The shared context for a bare client, so a card handed one shares the page's caches."""
     if client is None:
         return None
     return context_from_client(client)  # type: ignore[arg-type]
+
+
+# --- the tile ---------------------------------------------------------------------------------
+
+#: Tile widths, which are also the grid's column minimum (upstream `TILE`).
+CARD_TILE_WIDTH: dict[str, int] = {"sm": 160, "md": 224, "lg": 288}
+
+#: The inset of the tile's body, upstream's `p-3` and `p-4`.
+CARD_TILE_BODY: dict[str, int] = {"sm": 12, "md": 12, "lg": 16}
+
+#: Between the name and the metadata line under it, rule 2's inline gap.
+CARD_TILE_GAP = 6
+
+#: The chrome over the picture: the corner inset and the gap between the marks in a corner.
+CARD_TILE_OVERLAY = 8
+CARD_TILE_OVERLAY_GAP = 6
+
+#: The checkbox drawn over the picture, and the ground it sits on so it reads over any picture.
+CARD_TILE_CHECKBOX = 16
+CARD_TILE_GROUND = 0.8
+
+#: What a status draws as in a tile corner: the value's own face, rule 9.
+STATUS_TYPE = "status_list"
+
+
+@dataclass
+class CardTile:
+    """One row as a tile reads it: the picture, the name, and one metadata line."""
+
+    name: str = ""
+    code: str = ""
+    sub_label: str = ""
+    secondary: str = ""
+    thumbnail: str | None = None
+    entity_type: str | None = None
+    #: The row's status code, drawn in the picture's trailing corner.
+    status_code: str = ""
+    status_field: Any = None
+    #: True on a Version whose media is ready, which is the one tile that carries the play mark.
+    playable: bool = False
+
+
+@dataclass
+class CardTileOptions:
+    """What the tile face needs that a widget would read off itself."""
+
+    theme: Theme | None = None
+    size: str = "md"
+    statuses: Mapping[str, StatusRecord] | None = None
+    site_url: str = ""
+    selectable: bool = False
+    selected: bool = False
+    enabled: bool = True
+    loader: ImageLoader | None = None
+    #: Called on the GUI thread once the picture lands, so a view repaints.
+    on_ready: Callable[[], None] | None = None
+
+
+def card_tile_size(size: str = "md") -> QtCore.QSize:
+    """The room one tile takes: its width, its picture and the two lines under it."""
+    step = size if size in ENTITY_CARD_SIZE_VALUES else "md"
+    width = CARD_TILE_WIDTH[step]
+    return QtCore.QSize(width, _tile_height(width, step))
+
+
+def _tile_height(width: int, size: str) -> int:
+    pad = CARD_TILE_BODY[size]
+    name = QtGui.QFontMetrics(theme_for("default").font(CARD_NAME[size], QtGui.QFont.Weight.Medium))
+    meta = QtGui.QFontMetrics(theme_for("default").font(CARD_META))
+    media = int(round(width * 9 / 16))
+    return media + 2 * pad + name.height() + CARD_TILE_GAP + meta.height()
+
+
+def card_tile_media_rect(rect: QtCore.QRect) -> QtCore.QRect:
+    """Where the picture sits inside a tile: the full width, 16:9 tall."""
+    height = min(rect.height(), int(round(rect.width() * 9 / 16)))
+    return QtCore.QRect(rect.left(), rect.top(), rect.width(), height)
+
+
+def card_tile_checkbox_rect(rect: QtCore.QRect) -> QtCore.QRect:
+    """Where the tile's selection box sits, so a view can tell a press on it apart."""
+    media = card_tile_media_rect(rect)
+    return QtCore.QRect(
+        media.left() + CARD_TILE_OVERLAY,
+        media.top() + CARD_TILE_OVERLAY,
+        CARD_TILE_CHECKBOX,
+        CARD_TILE_CHECKBOX,
+    )
+
+
+def paint_card_tile(
+    painter: QtGui.QPainter,
+    rect: QtCore.QRect,
+    tile: CardTile,
+    options: CardTileOptions | None = None,
+) -> None:
+    """Draw one tile inside `rect`: the picture, the marks over it, the name and the metadata line.
+
+    The face the grid's delegate and the card's own `tile` variant both draw through, so a grid
+    cell and a card show the same row the same way. The value of an `image` field is the only
+    state marker there is, so a row with no picture, one still transcoding and one ready all
+    render (field_types/image).
+    """
+    o = options if options is not None else CardTileOptions()
+    theme = o.theme if o.theme is not None else theme_for("default")
+    size = o.size if o.size in ENTITY_CARD_SIZE_VALUES else "md"
+    radius = float(theme.radius_px("lg"))
+
+    painter.save()
+    painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+    painter.setRenderHint(QtGui.QPainter.RenderHint.TextAntialiasing, True)
+    painter.setOpacity(1.0 if o.enabled else 0.5)
+
+    ground = theme.color("accent") if o.selected else theme.color("card")
+    fill_round_rect(painter, rect, radius, ground, theme.color("border"))
+
+    clip = QtGui.QPainterPath()
+    clip.addRoundedRect(QtCore.QRectF(rect), radius, radius)
+    painter.save()
+    painter.setClipPath(clip)
+    media = card_tile_media_rect(rect)
+    _paint_tile_media(painter, media, tile, o, theme)
+    painter.restore()
+
+    _paint_tile_body(painter, rect, media, tile, o, theme, size)
+    painter.restore()
+
+
+def _paint_tile_media(
+    painter: QtGui.QPainter,
+    media: QtCore.QRect,
+    tile: CardTile,
+    o: CardTileOptions,
+    theme: Theme,
+) -> None:
+    painter.fillRect(media, theme.color("muted"))
+    picture = None
+    loader = o.loader if o.loader is not None else image_loader()
+    if tile.thumbnail and image_state(tile.thumbnail) == "ready":
+        picture = loader.pixmap_cached(tile.thumbnail)
+        if picture is None and not loader.has(tile.thumbnail):
+            loader.load(tile.thumbnail, lambda _pixmap: _ready(o))
+    if picture is not None and not picture.isNull():
+        if not o.enabled:
+            picture = grayscale(picture)
+        scaled = picture.scaled(
+            media.size(),
+            QtCore.Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+            QtCore.Qt.TransformationMode.SmoothTransformation,
+        )
+        target = QtCore.QRect(QtCore.QPoint(0, 0), scaled.size())
+        target.moveCenter(media.center())
+        painter.save()
+        painter.setClipRect(media)
+        painter.drawPixmap(target, scaled)
+        painter.restore()
+    else:
+        side = THUMBNAIL_GLYPH[CARD_THUMB[o.size if o.size in CARD_THUMB else "md"]]
+        slot = QtCore.QRect(0, 0, side, side)
+        slot.moveCenter(media.center())
+        name = "hourglass" if image_state(tile.thumbnail) == "pending" else entity_glyph(tile.entity_type)
+        paint_icon(painter, slot, name, theme.color("muted_foreground"))
+
+    if o.selectable:
+        _paint_tile_checkbox(painter, card_tile_checkbox_rect(media), o.selected, theme)
+    if tile.status_code:
+        _paint_tile_status(painter, media, tile, o, theme)
+
+
+def _paint_tile_checkbox(
+    painter: QtGui.QPainter, box: QtCore.QRect, checked: bool, theme: Theme
+) -> None:
+    """The tile's own box, on a ground so it reads over any picture."""
+    radius = float(theme.radius_px("sm"))
+    fill = theme.color("primary") if checked else with_alpha(theme.background, CARD_TILE_GROUND)
+    fill_round_rect(painter, box, radius, fill, None if checked else theme.color("border"))
+    if checked:
+        paint_icon(painter, box.adjusted(3, 3, -3, -3), "check", theme.color("primary_foreground"))
+
+
+def _paint_tile_status(
+    painter: QtGui.QPainter,
+    media: QtCore.QRect,
+    tile: CardTile,
+    o: CardTileOptions,
+    theme: Theme,
+) -> None:
+    options = FieldValueOptions(
+        theme=theme,
+        field=tile.status_field,
+        statuses=o.statuses,
+        site_url=o.site_url,
+        density="compact",
+        loader=o.loader,
+        on_ready=lambda: _ready(o),
+    )
+    wanted = field_value_size_hint(tile.status_code, STATUS_TYPE, options)
+    width = min(wanted.width(), media.width() - 2 * CARD_TILE_OVERLAY)
+    height = min(wanted.height(), media.height() - 2 * CARD_TILE_OVERLAY)
+    if width <= 0 or height <= 0:
+        return
+    box = QtCore.QRect(
+        media.right() + 1 - CARD_TILE_OVERLAY - width, media.top() + CARD_TILE_OVERLAY, width, height
+    )
+    fill_round_rect(
+        painter,
+        box.adjusted(-2, -1, 2, 1),
+        float(theme.radius_px("sm")),
+        with_alpha(theme.background, CARD_TILE_GROUND),
+        None,
+    )
+    paint_field_value(painter, box, tile.status_code, STATUS_TYPE, options)
+
+
+def _paint_tile_body(
+    painter: QtGui.QPainter,
+    rect: QtCore.QRect,
+    media: QtCore.QRect,
+    tile: CardTile,
+    o: CardTileOptions,
+    theme: Theme,
+    size: str,
+) -> None:
+    pad = CARD_TILE_BODY[size]
+    left = rect.left() + pad
+    width = max(0, rect.width() - 2 * pad)
+    top = media.bottom() + 1 + pad
+    ink = theme.color("accent_foreground" if o.selected else "foreground")
+
+    name_font = theme.font(CARD_NAME[size], QtGui.QFont.Weight.Medium)
+    name_metrics = QtGui.QFontMetrics(name_font)
+    code_font = theme.font(CARD_META)
+    code_font.setFamily(theme.font_mono)
+    code_metrics = QtGui.QFontMetrics(code_font)
+    code_width = text_width(code_metrics, tile.code) + GLYPH_GAP if tile.code else 0
+    painter.setFont(name_font)
+    painter.setPen(ink)
+    painter.drawText(
+        QtCore.QRect(left, top, max(0, width - code_width), name_metrics.height()),
+        int(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter),
+        elide(name_metrics, tile.name, max(0, width - code_width)),
+    )
+    if tile.code:
+        painter.setFont(code_font)
+        painter.setPen(theme.color("muted_foreground"))
+        painter.drawText(
+            QtCore.QRect(left + width - code_width + GLYPH_GAP, top, code_width, name_metrics.height()),
+            int(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter),
+            tile.code,
+        )
+
+    if not tile.sub_label and not tile.secondary:
+        return
+    meta_font = theme.font(CARD_META)
+    meta_metrics = QtGui.QFontMetrics(meta_font)
+    line = top + name_metrics.height() + CARD_TILE_GAP
+    right_width = min(text_width(meta_metrics, tile.secondary), width // 2) if tile.secondary else 0
+    painter.setFont(meta_font)
+    painter.setPen(theme.color("muted_foreground"))
+    if tile.sub_label:
+        room = max(0, width - right_width - (GLYPH_GAP if right_width else 0))
+        painter.drawText(
+            QtCore.QRect(left, line, room, meta_metrics.height()),
+            int(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter),
+            elide(meta_metrics, tile.sub_label, room),
+        )
+    if right_width:
+        painter.drawText(
+            QtCore.QRect(left + width - right_width, line, right_width, meta_metrics.height()),
+            int(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter),
+            elide(meta_metrics, tile.secondary, right_width),
+        )
+
+
+def _ready(o: CardTileOptions) -> None:
+    if o.on_ready is not None:
+        o.on_ready()
+
+
+def tile_of(
+    model: EntityCardModel,
+    label_field: str | None = None,
+    sub_label: str = "",
+    secondary: str = "",
+    show_code: bool = False,
+) -> CardTile:
+    """The tile one card model reads as, with the row-anatomy strings the caller resolved."""
+    name = (
+        str(cell_value(model.row, label_field) or "") if label_field else model.name
+    )
+    raw = cell_value(model.row, "code")
+    code = raw if show_code and isinstance(raw, str) and raw and raw != name else ""
+    return CardTile(
+        name=name,
+        code=code,
+        sub_label=sub_label,
+        secondary=secondary,
+        thumbnail=model.thumbnail,
+        entity_type=model.entity.type,
+        status_code=model.status.code if model.status is not None else "",
+        status_field=model.status.field if model.status is not None else None,
+        playable=model.entity.type == "Version" and image_state(model.thumbnail) == "ready",
+    )
+
+
+class _TilePane(ThemedWidget):
+    """The tile face as a widget: one `paint_card_tile`, and the press its checkbox takes."""
+
+    toggled = QtCore.Signal(bool)
+    activated = QtCore.Signal()
+
+    def __init__(
+        self,
+        tile: CardTile,
+        options: CardTileOptions,
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setObjectName("entity-card-tile")
+        self._tile = tile
+        self._options = options
+        self._options.on_ready = self.update
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed
+        )
+        self.setMinimumWidth(0)
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+
+    def set_tile(self, tile: CardTile) -> None:
+        self._tile = tile
+        self.update()
+
+    def set_selected(self, value: bool) -> None:
+        self._options.selected = bool(value)
+        self.update()
+
+    def sizeHint(self) -> QtCore.QSize:  # noqa: N802
+        hint = card_tile_size(self._options.size)
+        width = self.width() if self.width() > 0 else hint.width()
+        return QtCore.QSize(width, _tile_height(width, self._options.size))
+
+    def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802
+        return QtCore.QSize(0, self.sizeHint().height())
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self.setFixedHeight(_tile_height(max(1, self.width()), self._options.size))
+
+    def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
+        painter = painter_for(self)
+        self._options.theme = self.theme
+        self._options.enabled = self.isEnabled()
+        paint_card_tile(painter, self.rect(), self._tile, self._options)
+        if self.keyboard_focus:
+            self.paint_focus_ring(painter, self.rect(), float(self.theme.radius_px("lg")))
+        painter.end()
+
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
+        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        if self._options.selectable and card_tile_checkbox_rect(self.rect()).contains(point):
+            self.toggled.emit(not self._options.selected)
+            return
+        self.activated.emit()

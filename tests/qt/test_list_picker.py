@@ -117,3 +117,20 @@ def test_the_alias_module_re_exports_the_picker(qtbot):
     from sg_widgets_qt.widgets.list_select import ListSelect
 
     assert ListSelect is ListPicker
+
+
+def test_the_list_opens_with_the_cursor_on_the_value_it_holds(qtbot):
+    # Upstream's combobox opens on the row it holds, so the reader sees where the value sits.
+    picker = build(qtbot, value="Full CG")
+    picker.set_open(True)
+    spin(qtbot, 60)
+    surface = picker.control.list_surface()
+    assert [one.code for one in picker.shown][surface.highlighted()] == "Full CG"
+
+
+def test_a_picker_holding_nothing_opens_with_nothing_highlighted(qtbot):
+    # Nothing held, nothing under the cursor: the first Down takes the first row, as the base says.
+    picker = build(qtbot)
+    picker.set_open(True)
+    spin(qtbot, 60)
+    assert picker.control.list_surface().highlighted() < 0

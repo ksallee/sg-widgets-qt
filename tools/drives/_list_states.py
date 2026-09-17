@@ -15,9 +15,9 @@ from typing import Any
 
 from qtpy.QtCore import Qt
 
-from sg_widgets_qt.theme import with_alpha
 from sg_widgets_qt.primitives.roles import Roles
-from sg_widgets_qt.widgets.list_picker import ListOption, ListPicker
+from sg_widgets_qt.theme import with_alpha
+from sg_widgets_qt.widgets.list_picker import ListPicker
 from sg_widgets_qt.widgets.picker_control import over
 
 __all__ = [
@@ -42,6 +42,8 @@ __all__ = [
 QUERY = "d"
 #: A query the vocabulary answers nothing for, so the empty line stands.
 NO_MATCH = "zzzqqq"
+#: The room the upstream demo's table cell gives a control, which is what the chip fit cuts against.
+OVERFLOW_WIDTH = 380
 
 
 def demo_of(picker: Any) -> str:
@@ -321,11 +323,11 @@ def list_overflow(page, wait, find, prefs) -> dict:
         return {"verdict": "FAIL no list multi picker on the page"}
     if not picker.MULTIPLE:
         return {"verdict": "FAIL the overflow state is the multi picker's"}
-    # `ellipsis` is the summary the page draws: the chips that fit, then a `+n` pill.
-    picker.set_options(
-        [ListOption(code=f"Value {n}", label=f"Value number {n}") for n in range(1, 13)]
-    )
-    picker.set_value([f"Value {n}" for n in range(1, 13)])
+    # `ellipsis` is the summary the page draws: the chips that fit, then a `+n` pill. The
+    # control is held to the width of the upstream demo's table cell, so the fit has the same
+    # room to cut against, and every value the field offers is ticked, as the upstream twin does.
+    picker.setMaximumWidth(OVERFLOW_WIDTH)
+    picker.set_value([one.code for one in picker.options])
     wait(400)
     control = picker.control
     pill = control.overflow_pill()

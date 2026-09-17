@@ -616,6 +616,11 @@ class PickerControl(ThemedWidget):
         self.setMinimumWidth(0)
         self._hover = self.animated(DURATION["hover"])
 
+        #: Coalesces the popup's measuring, which one answer would otherwise ask for five times.
+        self._sync_timer = QtCore.QTimer(self)
+        self._sync_timer.setSingleShot(True)
+        self._sync_timer.timeout.connect(lambda: self._resize_popup(now=True))
+
         self._caret = _Caret(self._on_key, self)
         self._caret.setObjectName(f"{slot}-input")
         self._caret.textEdited.connect(self._on_typed)
@@ -1144,6 +1149,7 @@ class PickerControl(ThemedWidget):
             self._popover.close()
         else:
             self._sync_popup()
+            self._resize_popup(now=True)
             self._popover.open()
             self._focus_caret()
             if self._highlight_on_open:
@@ -1396,13 +1402,29 @@ class PickerControl(ThemedWidget):
         )
         self._list.setAccessibleDescription(self.status_text())
         self.setAccessibleDescription(self.status_text())
-        self._popup.adjustSize()
         if self._open:
             # The rows of an open list land after it opened, so a picker that opens on a row
             # takes it as the rows arrive rather than only when the list was already full.
             if self._highlight_on_open and self._list.highlighted() < 0:
                 self._list.highlight_first()
-            self._popover.reposition()
+        self._resize_popup()
+
+    def _resize_popup(self, now: bool = False) -> None:
+        """Size the popup to its content and put it back against the control.
+
+        One answer walks the whole shell — the rows, the keys, the loading flag, the error, the
+        empty flag and the page flag — and each of those syncs the popup. Measuring the list
+        costs a size hint per row, so the measuring is coalesced onto the next turn of the loop
+        and five calls in one answer become one.
+        """
+        if now or not self._open:
+            self._sync_timer.stop()
+            self._popup.adjustSize()
+            if self._open:
+                self._popover.reposition()
+            return
+        if not self._sync_timer.isActive():
+            self._sync_timer.start(0)
 
     # --- the chips ------------------------------------------------------------------------
 

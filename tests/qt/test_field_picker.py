@@ -189,3 +189,133 @@ def test_the_contract(qtbot):
     assert "caret on open" in checked
     assert "escape" in checked
     assert "disabled" in checked
+
+
+def shown_row(picker, wanted):
+    """A row of the open list as the view itself indexes it, which is what `visualRect` takes."""
+    surface = picker.control.list_surface()
+    model = surface.model()
+    for row in range(model.rowCount()):
+        index = model.index(row, 0)
+        option = picker.rows_model.option_at(row)
+        if option is not None and wanted(option):
+            return index
+    raise AssertionError("no row of the open list answers that")
+
+
+def test_a_link_row_carries_the_delegate_s_own_drill_chevron(qtbot):
+    """Upstream's descend mark is a 16px button in the row, not a cell that eats the label."""
+    from sg_widgets_qt.primitives.row_delegate import DRILL_WIDTH
+
+    picker = build(qtbot)
+    settled(qtbot, picker)
+    picker.control.set_open(True)
+    spin(qtbot, 60)
+    surface = picker.control.list_surface()
+    index = shown_row(picker, lambda one: one.traversable)
+    assert index.data(Roles.DRILLABLE) is True
+    assert index.data(Roles.PAINTER) is None, "the chevron still takes a painter cell"
+    rect = surface.visualRect(index)
+    assert rect.width() > 0, "the row is not laid out"
+    mark = surface.row_delegate().drill_rect(rect, index)
+    assert mark.width() == DRILL_WIDTH
+    assert rect.contains(mark), "the mark is drawn outside its row"
+    flat = shown_row(picker, lambda one: not one.traversable)
+    assert flat.data(Roles.DRILLABLE) is False
+
+
+def test_a_press_on_the_chevron_descends_and_one_beside_it_does_not(qtbot):
+    from qtpy.QtCore import QPoint
+
+    def link_row(picker):
+        return shown_row(picker, lambda one: one.traversable and one.selectable)
+
+    # A press beside the mark chooses the link, as it does on any other row.
+    picker = build(qtbot)
+    settled(qtbot, picker)
+    picker.control.set_open(True)
+    spin(qtbot, 60)
+    surface = picker.control.list_surface()
+    index = link_row(picker)
+    rect = surface.visualRect(index)
+    QTest.mouseClick(
+        surface.viewport(),
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        QPoint(rect.left() + 40, rect.center().y()),
+    )
+    spin(qtbot, 120)
+    assert not picker.levels.deep, "a press on the label descended"
+    assert picker.value, "a press on the label of a link chose nothing"
+
+    # A press on the mark itself descends and leaves the value alone.
+    other = build(qtbot)
+    settled(qtbot, other)
+    other.control.set_open(True)
+    spin(qtbot, 60)
+    surface = other.control.list_surface()
+    index = link_row(other)
+    mark = surface.row_delegate().drill_rect(surface.visualRect(index), index)
+    QTest.mouseClick(
+        surface.viewport(),
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        mark.center(),
+    )
+    spin(qtbot, 200)
+    assert other.levels.deep, "a press on the chevron did not descend"
+    assert other.value == "", "a press on the chevron chose the link"
+
+
+def test_the_search_box_asks_which_type_while_a_link_is_being_resolved(qtbot):
+    from sg_widgets_qt.widgets.field_picker import CHOOSING_PLACEHOLDER
+
+    picker = build(qtbot, search_placeholder="Search fields…")
+    settled(qtbot, picker)
+    picker.control.set_open(True)
+    spin(qtbot, 60)
+    assert picker.control.search_placeholder == "Search fields…"
+    link = next(one for one in picker.options if one.traversable and len(one.targets) > 1)
+    picker.levels.descend_into(link)
+    spin(qtbot, 60)
+    assert picker.levels.choosing is not None
+    assert picker.control.search_placeholder == CHOOSING_PLACEHOLDER
+    assert picker.search_placeholder == "Search fields…", "the caller's own is kept"
+    picker.levels.reset()
+    spin(qtbot, 200)
+    assert picker.control.search_placeholder == "Search fields…"
+
+
+def test_back_and_reset_from_the_bar_clear_the_query(qtbot):
+    """Upstream's `back()` and `reset()` both clear the search box, as the Left key does."""
+    picker = build(qtbot)
+    settled(qtbot, picker)
+    picker.control.set_open(True)
+    spin(qtbot, 60)
+    link = next(one for one in picker.options if one.traversable)
+    picker.levels.descend_into(link)
+    spin(qtbot, 200)
+    picker.control.set_query("dat")
+    spin(qtbot, 20)
+    picker.breadcrumb.back_button.clicked.emit()
+    spin(qtbot, 200)
+    assert picker.control.query == ""
+
+    picker.levels.descend_into(link)
+    spin(qtbot, 200)
+    picker.control.set_query("dat")
+    spin(qtbot, 20)
+    picker.breadcrumb.reset_button.clicked.emit()
+    spin(qtbot, 200)
+    assert picker.control.query == ""
+    assert not picker.levels.deep
+
+
+def test_the_first_row_is_the_cursor_the_moment_the_list_opens(qtbot):
+    """Upstream's Command is `autoHighlight="always"`, so Right acts without a Down first."""
+    picker = build(qtbot)
+    settled(qtbot, picker)
+    picker.control.set_open(True)
+    spin(qtbot, 60)
+    assert picker.control.highlight_on_open is True
+    assert picker.control.list_surface().highlighted() == 0

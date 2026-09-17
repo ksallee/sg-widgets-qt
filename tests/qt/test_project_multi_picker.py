@@ -101,3 +101,38 @@ def test_the_summary_modes_change_what_the_control_shows(qtbot):
     picker.set_summary("count")
     spin(qtbot, 60)
     assert not picker.control.inline and picker.summary == "count"
+
+
+def test_a_clear_sends_the_two_empty_lists_the_docs_promise(qtbot):
+    # `value_changed` carries `EntityRef[], PickerRow[]`, and both are empty once nothing is ticked.
+    picker = build(qtbot, value=[BLUE, HARBOUR])
+    answers: list = []
+    picker.value_changed.connect(lambda refs, rows: answers.append((refs, rows)))
+    picker.control.cleared.emit()
+    spin(qtbot, 60)
+    assert answers[-1] == ([], [])
+    assert list(picker.value) == []
+
+
+def test_the_listing_rule_leaves_a_pre_filter_standing(qtbot):
+    from sg_widgets_core.filter import condition, group
+
+    own = group("and", [condition("is_demo", "is", False)])
+    picker = build(qtbot, filters=own)
+    assert any(one == ["archived", "is", False] for one in conditions(picker))
+    assert any(isinstance(one, dict) for one in conditions(picker))
+    picker.set_include_archived(True)
+    assert not any(one == ["archived", "is", False] for one in conditions(picker))
+    assert any(isinstance(one, dict) for one in conditions(picker))
+    assert picker.filters is own
+
+
+def test_a_row_carries_the_project_picture(qtbot):
+    from sg_widgets_core.row import row_thumbnail
+
+    picker = build(qtbot, thumbnail="image")
+    picker.set_open(True)
+    settled(qtbot, picker)
+    rows = picker.state.rows
+    assert rows
+    assert all(row_thumbnail(row.values, picker.rows_model.anatomy()) for row in rows)

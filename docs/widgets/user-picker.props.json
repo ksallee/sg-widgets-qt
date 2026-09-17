@@ -93,9 +93,8 @@
       "name": "round_thumbnail",
       "type": "`boolean`",
       "py_type": "`bool`",
-      "default": "`false`",
-      "meaning": "Draws the thumbnail as a circle.",
-      "owner": "entity-picker"
+      "default": "`true`",
+      "meaning": "Draws the thumbnail as a circle. A person's picture is an avatar, so the preset starts it True here."
     },
     {
       "name": "show_code",

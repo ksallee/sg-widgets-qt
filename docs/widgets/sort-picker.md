@@ -30,6 +30,10 @@ Every other attribute is spread onto the root: `id`, `aria-*`, `data-*`, key han
 
 ::props{name="sort-picker" kind="events"}
 
+`changed` carries the keys and the string together. `sort_changed` carries the keys alone, for a
+page wiring several query widgets to one handler, and `announced` carries the line a live region
+reads.
+
 ## Slots
 
 None.
@@ -38,8 +42,8 @@ None.
 
 ::props{name="sort-picker" kind="keyboard"}
 
-A key is also reordered by dragging its grip: the key lifts and the ones it passes shift to open a
-gap. Every step is announced in a live region.
+A key is also reordered by dragging its grip: a drop mark shows where it would land, and the move is
+announced. Holding `Alt` with `Up` or `Down` on a grip moves the key one place without a drag.
 
 ## API behaviour
 
@@ -64,4 +68,7 @@ Reordering follows ReUI's Sortable 2.5.2 for the grip and the lifted row, and Di
 its shadcn registry item, for the live-region copy and the keyboard model. Neither is installed. The
 pointer behaviour, a four-pixel activation distance with midpoint hit-testing and edge auto-scroll,
 follows dnd-kit 6.3.1.
-::qt-note
+
+In Qt the grip, the drag and the arrow keys run on `sg_widgets_core.sortable`, which answers where a
+drop lands and what the live region is told. The count past one key is a chip beside the trigger
+rather than inside it, because the button primitive draws one label.

@@ -9,6 +9,7 @@ from qtpy.QtWidgets import QApplication
 from sg_widgets_qt.primitives.roles import Roles
 from sg_widgets_qt.widgets.status_badge import StatusBadge
 from sg_widgets_qt.widgets.status_multi_picker import StatusMultiPicker
+from sg_widgets_qt.widgets.status_picker import StatusLeadDelegate
 
 from .pickers import OTHER_PROJECT, PROJECT, context_for, mount, spin, window
 from .test_picker_contract import PickerShape, check_contract
@@ -81,7 +82,21 @@ def test_a_row_is_the_glyph_the_name_and_the_code_after_its_checkbox(qtbot):
     index = model.index(at, 0)
     assert index.data(Roles.SECONDARY) == "ip"
     assert index.data(Roles.CHECKED) is True
-    assert picker.control.row_delegate().indicator == "checkbox"
+    # The delegate the list paints with, not the one the surface was built with.
+    delegate = picker.control.list_surface().itemDelegate()
+    assert isinstance(delegate, StatusLeadDelegate), "the rows are drawn with the status row"
+    assert delegate.indicator == "checkbox"
+    assert delegate._source_for(index) is not None, "the row resolves a glyph of its own"
+
+
+def test_the_overflow_pill_counts_statuses_not_values(qtbot):
+    # Upstream names the pill `Show all n statuses`; the fixed-set picker under this one
+    # would say `values`.
+    picker = build(qtbot, project_id=PROJECT, value=["ip", "apr", "rev"])
+    assert picker.control.overflow_label == "Show all 3 statuses"
+    picker.set_value(["ip"])
+    spin(qtbot, 30)
+    assert picker.control.overflow_label == "Show all 1 statuses"
 
 
 def test_every_chosen_code_is_a_badge_in_the_control(qtbot):

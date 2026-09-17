@@ -14,12 +14,12 @@ import json
 
 from qtpy import QtWidgets
 
-from sg_widgets_core.filter import FilterGroup, condition, group, to_api3_hash
+from sg_widgets_core.filter import EntityRef, FilterGroup, condition, group, to_api3_hash
+
 from ...widgets.filter_editor import FilterEditor
 from ..context import DemoContext
 from . import _layout
-from ._results import VersionResults
-from ._wire import WireView
+from ._results import VersionResults, WireView
 
 __all__ = ["build"]
 
@@ -36,7 +36,9 @@ def initial(live: bool) -> FilterGroup:
         "and",
         [
             status,
-            condition("entity.Shot.sg_sequence", "is", {"type": "Sequence", "id": 100, "name": "sh010"}),
+            condition(
+                "entity.Shot.sg_sequence", "is", EntityRef(type="Sequence", id=100, name="sh010")
+            ),
             condition("project.Project.sg_status", "is", "Active"),
             condition("entity.Shot.sg_working_duration", "greater_than", 90),
             group(
@@ -69,8 +71,6 @@ class FilterEditorDemo(QtWidgets.QWidget):
         super().__init__(parent)
         self.setObjectName("filter-editor-demo")
         self._sized: list[FilterEditor] = []
-        #: The result set under the editor is what the page waits on.
-        self.demo_ready = False
 
         body = _layout.column(self)
 
@@ -130,14 +130,14 @@ class FilterEditorDemo(QtWidgets.QWidget):
             return
         self.wire.set_text(_wire_text(value))
         self.results.set_value(value)
-        self.demo_ready = False
 
     def set_size(self, size: str) -> None:
         """Wear the size step the toolbar holds. The sizes section names its own."""
         self.editor.set_size(size)
 
     @property
-    def ready(self) -> bool:
+    def demo_ready(self) -> bool:
+        """True once the result set under the editor has answered. The stage polls it."""
         return bool(self.results.demo_ready)
 
 
@@ -147,6 +147,4 @@ def _wire_text(value: FilterGroup) -> str:
 
 def build(context: DemoContext, parent: QtWidgets.QWidget | None = None) -> QtWidgets.QWidget:
     """The demo."""
-    made = FilterEditorDemo(context, parent)
-    made.demo_ready = False
-    return made
+    return FilterEditorDemo(context, parent)

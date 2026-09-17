@@ -389,3 +389,136 @@ def test_the_site_preferences_reach_the_delegate_face(qtbot):
     assert plan_field_value(480, "duration", opts).text == "1d"
     assert plan_field_value("1.777778", "float", opts).text == "1.78"
     assert plan_field_value(12500, "currency", opts).text == "€12,500.00"
+
+
+# --- the two faces, pixel for pixel ------------------------------------------------------------
+
+
+FACE_CASES = [
+    ("text", "Plate delivered."),
+    ("list", "Type A"),
+    ("number", 1001),
+    ("float", "1.777778"),
+    ("percent", 50),
+    ("currency", 12500),
+    ("duration", 480),
+    ("timecode", 3600000),
+    ("footage", 24),
+    ("date", "2026-09-02"),
+    ("date_time", "2026-09-02T15:58:21Z"),
+    ("checkbox", True),
+    ("checkbox", False),
+    ("status_list", "ip"),
+    ("status_list", "unknown_code"),
+    ("entity", SHOT),
+    ("multi_entity", ASSETS),
+    ("tag_list", ASSETS),
+    ("entity_type", "Sequence"),
+    ("uuid", "8f14e45f-ea0e"),
+    ("jsonb", '{"a": 1}'),
+    ("serializable", "x"),
+    ("calculated", "12"),
+    ("summary", "3"),
+    ("color", "253,94,99"),
+    ("color", "pipeline_step"),
+    ("url", UPLOADED),
+    ("url", LOCAL),
+    ("pivot_column", None),
+    ("text", None),
+]
+
+
+def rendered(widget: QtWidgets.QWidget, size: QtCore.QSize) -> QtGui.QImage:
+    """The widget and every child under it, into an image of `size`."""
+    image = QtGui.QImage(size, QtGui.QImage.Format.Format_ARGB32)
+    image.fill(QtCore.Qt.GlobalColor.transparent)
+    widget.render(
+        image,
+        QtCore.QPoint(0, 0),
+        QtGui.QRegion(0, 0, size.width(), size.height()),
+        QtWidgets.QWidget.RenderFlag.DrawChildren,
+    )
+    return image
+
+
+def through_delegate(value: FieldValue, size: QtCore.QSize) -> QtGui.QImage:
+    """The same value through the delegate face, into an image of the same size."""
+    image = QtGui.QImage(size, QtGui.QImage.Format.Format_ARGB32)
+    image.fill(QtCore.Qt.GlobalColor.transparent)
+    painter = QtGui.QPainter(image)
+    paint_field_value(
+        painter,
+        QtCore.QRect(0, 0, size.width(), size.height()),
+        value.value,
+        value.data_type,
+        value.options(),
+    )
+    painter.end()
+    return image
+
+
+@pytest.mark.parametrize(("data_type", "value"), FACE_CASES)
+@pytest.mark.parametrize("dark", [False, True])
+@pytest.mark.parametrize("density", ["default", "compact"])
+def test_the_two_faces_draw_the_same_pixels(qtbot, loader, data_type, value, dark, density):
+    """A cell and a widget never disagree about a value, which is what the docs page claims.
+
+    The widget composes EntityChip, StatusBadge and Thumbnail; the delegate paints the same
+    shapes itself. The only proof the two have not drifted is the pixels.
+    """
+    root = QtWidgets.QWidget()
+    apply_theme(root, theme_for("default", dark=dark))
+    qtbot.addWidget(root)
+    root.resize(600, 200)
+    root.show()
+
+    size = QtCore.QSize(320, 32)
+    widget = FieldValue(
+        value=value,
+        data_type=data_type,
+        density=density,
+        statuses={"ip": IN_PROGRESS},
+        field=status_field(),
+        loader=loader,
+        parent=root,
+    )
+    widget.resize(size)
+    widget.show()
+    QtWidgets.QApplication.processEvents()
+    assert rendered(widget, size) == through_delegate(widget, size)
+
+
+def test_a_status_with_nothing_to_draw_keeps_the_badge_bare(qtbot, loader):
+    """A code the site has no Status row for is a bordered label, never a stand-in dot.
+
+    Upstream's badge draws its glyph only where the status has one; `fallback` is the bare glyph
+    variant's, and a value is never that variant.
+    """
+    known = options(statuses={"ip": IN_PROGRESS}, loader=loader)
+    unknown = options(statuses={}, loader=loader)
+    with_glyph = field_value_size_hint("ip", "status_list", known)
+    without = field_value_size_hint("ip", "status_list", unknown)
+    # The glyph and the room beside it are what the wider badge is carrying.
+    assert with_glyph.width() > without.width()
+    assert with_glyph.height() == without.height() == CHIP_HEIGHT["sm"]
+
+
+def test_the_colour_sentinel_keeps_its_token_in_the_tooltip(root):
+    """The value shown is words; the value held is the token (field_types/color)."""
+    sentinel = place(root, FieldValue(value="pipeline_step", data_type="color"))
+    assert sentinel.plan.text == "pipeline step"
+    assert sentinel.plan.tooltip == "pipeline_step"
+    assert sentinel.toolTip() == "pipeline_step"
+    colour = place(root, FieldValue(value="253,94,99", data_type="color"))
+    assert colour.plan.tooltip == "253,94,99"
+
+
+def test_a_linked_value_leaves_the_tooltip_to_its_chips(root, loader):
+    """A chip carries its own, so the value around it carries none, as upstream does."""
+    linked = place(root, FieldValue(value=SHOT, data_type="entity", loader=loader))
+    assert linked.plan.tooltip == ""
+    assert linked.toolTip() == ""
+    many = place(root, FieldValue(value=ASSETS, data_type="multi_entity", loader=loader))
+    assert many.toolTip() == ""
+    # A single-line rendering still carries the full value, which is the design rule.
+    assert place(root, FieldValue(value="Type A", data_type="list")).toolTip() == "Type A"

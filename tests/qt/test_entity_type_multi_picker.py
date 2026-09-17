@@ -122,3 +122,31 @@ def test_the_query_narrows_the_list_here(qtbot):
     spin(qtbot, 60)
     assert "Version" in [one.name for one in picker.shown]
     assert len(picker.shown) < len(picker.types)
+
+
+def test_deny_wins_over_allow_where_both_name_a_type(qtbot):
+    picker = build(qtbot, allow=PRODUCTION, deny=["Task"])
+    names = [one.name for one in picker.types]
+    assert "Task" not in names and "Shot" in names
+
+
+def test_a_type_row_draws_its_glyph_with_no_picture_plate(qtbot):
+    picker = build(qtbot, allow=PRODUCTION)
+    delegate = picker.control.row_delegate()
+    assert delegate.bare_glyph is True
+    assert delegate.indicator == "checkbox"
+
+
+def test_the_value_changed_payload_is_a_list_of_codes(qtbot):
+    # The docs page promises `string[]`, empty on clear.
+    picker = build(qtbot, allow=PRODUCTION)
+    answers: list = []
+    picker.value_changed.connect(answers.append)
+    picker.set_open(True)
+    spin(qtbot, 60)
+    picker.control.list_surface().activate(0)
+    spin(qtbot, 60)
+    assert isinstance(answers[-1], list) and all(isinstance(one, str) for one in answers[-1])
+    picker.control.cleared.emit()
+    spin(qtbot, 40)
+    assert answers[-1] == []

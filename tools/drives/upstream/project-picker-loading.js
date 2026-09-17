@@ -26,5 +26,5 @@ await wait(300);
 press(control);
 const popup = await until(() => $("[data-picker]"), 4000);
 await wait(60);
-const skeletons = $$("[data-picker] [data-slot=\"search-skeleton\"], [data-picker] [data-slot$=\"-loading\"]").length;
+const skeletons = $$("[data-picker] [data-slot=\"skeleton\"]").length;
 return { verdict: "PASS loading", popup: !!popup, skeletons };

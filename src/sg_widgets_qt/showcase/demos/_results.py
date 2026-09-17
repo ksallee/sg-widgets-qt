@@ -25,9 +25,9 @@ from sg_widgets_core.client import Page, SearchOptions, SummarizeOptions, Summar
 from sg_widgets_core.filter import FilterNode, condition, group, to_api3_hash
 
 from ...primitives.list_view import ListSurface
-from ...primitives.scrollbar import install_overlay_scrollbars
 from ...primitives.roles import Roles
 from ...primitives.row_delegate import RowDelegate
+from ...primitives.scrollbar import install_overlay_scrollbars
 from ...theme import theme_of, watch_theme
 from ...workers import Debounce, Ticket, default_pool
 from .. import chrome
@@ -40,6 +40,7 @@ __all__ = [
     "VERSION_COLUMNS",
     "ResultColumn",
     "ResultCount",
+    "EntityResults",
     "VersionResults",
     "WireView",
     "match_label",
@@ -53,8 +54,10 @@ RESULT_DEBOUNCE_MS = 250
 #: Rows per page in a result set.
 RESULT_PAGE_SIZE = 25
 
-#: `p-3` of the block a demo draws its serialised filter in.
+#: `p-3` of the block a demo draws its serialised filter in, and the one line it never
+#: falls under.
 WIRE_PAD = 12
+WIRE_MIN_HEIGHT = 44
 
 
 @dataclass(frozen=True)
@@ -169,8 +172,8 @@ class _Read:
     total: ResultCount = dc_field(default_factory=ResultCount)
 
 
-class VersionResults(QtWidgets.QWidget):
-    """The Versions a filter tree matches: the count and the codes behind it.
+class EntityResults(QtWidgets.QWidget):
+    """The rows a filter tree matches: the count and the codes behind it.
 
     The editor emits a tree on every keystroke, so the read is debounced. The count and the
     rows come from one read, so both answer the same filter, and a path the site refuses fails
@@ -185,11 +188,17 @@ class VersionResults(QtWidgets.QWidget):
         context: DemoContext,
         value: FilterNode,
         heading: str = "Versions matching the filter",
+        entity_type: str = "Version",
+        noun: str = "Version",
+        sort: str = "",
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self.setObjectName("version-results")
+        self.setObjectName("entity-results")
         self._context = context
+        self._entity_type = entity_type
+        self._noun = noun
+        self._sort = sort
         self._value = value
         self._count = ResultCount()
         self._ticket = Ticket()
@@ -230,6 +239,17 @@ class VersionResults(QtWidgets.QWidget):
         self._debounce.call(self._read)
 
     @property
+    def sort(self) -> str:
+        """The `sort` string the rows come back in."""
+        return self._sort
+
+    def set_sort(self, value: str) -> None:
+        """Order the rows. A key the site cannot sort on is a silent no-op (026_result_order)."""
+        self._sort = value or ""
+        self.demo_ready = False
+        self._debounce.call(self._read)
+
+    @property
     def count(self) -> ResultCount:
         """The count the last read answered."""
         return self._count
@@ -251,20 +271,33 @@ class VersionResults(QtWidgets.QWidget):
     def _read(self) -> None:
         client = self._context.client
         wire = to_api3_hash(scope_to_project(self._context, self._value))
-        fields = [column.path for column in VERSION_COLUMNS]
+        entity_type = self._entity_type
+        # A Version set reads the columns the table would draw; another type reads the two
+        # the list stands on until `entity-table` lands.
+        fields = (
+            [column.path for column in VERSION_COLUMNS]
+            if entity_type == "Version"
+            else ["code", "sg_status_list"]
+        )
+        sort = self._sort or None
 
         def run() -> _Read:
-            found = read_count(lambda: _total(client, wire))
+            found = read_count(lambda: _total(client, entity_type, wire))
             if found.kind == "error":
                 return _Read(rows=[], total=found)
             page = client.search(
-                "Version",
-                SearchOptions(filters=wire, fields=fields, page=Page(size=RESULT_PAGE_SIZE)),
+                entity_type,
+                SearchOptions(
+                    filters=wire,
+                    fields=fields,
+                    sort=sort,
+                    page=Page(size=RESULT_PAGE_SIZE),
+                ),
             )
             return _Read(rows=[_row_of(row) for row in page.data], total=found)
 
         self._count = ResultCount()
-        self._line.set_text(match_label(self._count, "Version"))
+        self._line.set_text(match_label(self._count, self._noun))
         token = self._ticket.next()
         default_pool().submit(
             run,
@@ -275,7 +308,7 @@ class VersionResults(QtWidgets.QWidget):
 
     def _answered(self, found: _Read) -> None:
         self._count = found.total
-        self._line.set_text(match_label(self._count, "Version"))
+        self._line.set_text(match_label(self._count, self._noun))
         self._line.set_token("destructive" if self._count.kind == "error" else "muted_foreground")
         self._model.set_rows(found.rows)
         self._list.setVisible(bool(found.rows))
@@ -290,10 +323,14 @@ class VersionResults(QtWidgets.QWidget):
         self.demo_ready = True
 
 
-def _total(client: Any, wire: Any) -> int | None:
+class VersionResults(EntityResults):
+    """The Versions a filter tree matches, which is what the filter demos show."""
+
+
+def _total(client: Any, entity_type: str, wire: Any) -> int | None:
     """The total the filter matches, through `_summarize` (020_summarize)."""
     summary = client.summarize(
-        "Version",
+        entity_type,
         SummarizeOptions(filters=wire, summary_fields=[SummaryField(field="id", type="count")]),
     )
     total = summary.summaries.get("id")
@@ -301,7 +338,7 @@ def _total(client: Any, wire: Any) -> int | None:
 
 
 def _row_of(row: Any) -> tuple[str, str]:
-    code = row.values.get("code") or f"Version {row.id}"
+    code = row.values.get("code") or f"{row.type} {row.id}"
     status = row.values.get("sg_status_list") or ""
     return str(code), str(status)
 
@@ -334,6 +371,19 @@ class WireView(QtWidgets.QPlainTextEdit):
     def set_text(self, text: str) -> None:
         """Write the serialised filter into the block."""
         self.setPlainText(text)
+        self.updateGeometry()
+
+    def sizeHint(self) -> QtCore.QSize:  # noqa: N802
+        """As tall as the filter it holds, up to the height the block scrolls at.
+
+        A plain text document measures its height in lines, not pixels, so the block counts
+        them and multiplies by the line it is set in.
+        """
+        spacing = QtGui.QFontMetrics(self.font()).lineSpacing()
+        tall = self.document().blockCount() * spacing + 2 * WIRE_PAD
+        return QtCore.QSize(
+            super().sizeHint().width(), min(self.MAX_HEIGHT, max(WIRE_MIN_HEIGHT, tall))
+        )
 
     def _apply_theme(self) -> None:
         theme = theme_of(self)

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import sys
 import time
+import traceback
 from pathlib import Path
 
 from qtpy.QtCore import Qt
@@ -101,11 +102,37 @@ def runs_bold(model, query: str) -> int:
 # --- the clauses ---------------------------------------------------------------------------
 
 
+def shape_key(control) -> str:
+    return f"{control.multiple}|{control.inline}|{control.clearable}"
+
+
+def representatives(pickers: list) -> list:
+    """One picker per shape, preferring one whose chip row clause 4 can walk.
+
+    Clause 4 walks the chip row with Left and then Right, and `ArrowRight` past the last chip
+    gives the caret back, which is what the docs page promises. A control holding exactly one
+    chip is therefore the one shape of the clause the checker cannot walk, so where the page
+    draws another control of the same shape with none or several, that one stands for it.
+    """
+    best: dict = {}
+    for picker in pickers:
+        if picker.readonly or picker.disabled:
+            continue
+        key = shape_key(picker.control)
+        held = len(picker.control.labels)
+        rank = 1 if (picker.control.multiple and held == 1) else 0
+        found = best.get(key)
+        if found is None or rank < found[0]:
+            best[key] = (rank, picker)
+    return [picker for _rank, picker in best.values()]
+
+
 def contract(pickers: list, wait, note) -> list:
     """Rule 7, every clause, once per shape the page draws."""
     walked: list = []
     done = set()
     bot = _Bot(wait)
+    stands = {id(one) for one in representatives(pickers)}
     for picker in pickers:
         control = picker.control
         where = demo_of(picker)
@@ -123,8 +150,8 @@ def contract(pickers: list, wait, note) -> list:
                 control.set_open(False)
             walked.append({"demo": where, "ran": "readonly" if picker.readonly else "disabled"})
             continue
-        key = f"{control.multiple}|{control.inline}|{control.clearable}"
-        if key in done:
+        key = shape_key(control)
+        if key in done or id(picker) not in stands:
             continue
         done.add(key)
         shape = PickerShape(
@@ -137,7 +164,8 @@ def contract(pickers: list, wait, note) -> list:
         try:
             checked = check_contract(bot, picker, shape)
         except AssertionError as failure:
-            note("contract", f"{where}: {failure}")
+            where_at = traceback.extract_tb(failure.__traceback__)[-1]
+            note("contract", f"{where}: {failure or 'a bare assert'} (clause line {where_at.lineno}: {where_at.line})")
             checked = []
         except Exception as failure:  # noqa: BLE001
             note("contract", f"{where}: {type(failure).__name__}: {failure}")
@@ -200,6 +228,15 @@ def combobox_walk(picker, wait, note) -> dict:  # noqa: C901
         (i for i in range(control.list_surface().row_count()) if control.items[i] == WANTED),
         0,
     )
+    # A multi picker holding the type already is unticked first, so the pick below always adds it.
+    if WANTED in control.keys:
+        control.list_surface().activate(row)
+        wait(SETTLE_MS)
+        if WANTED in control.keys:
+            note("combobox", f"a pick on a ticked row did not untick {WANTED}")
+        if not control.is_open:
+            press_control(control)
+            wait(SETTLE_MS)
     before = list(control.keys)
     control.list_surface().activate(row)
     wait(SETTLE_MS)

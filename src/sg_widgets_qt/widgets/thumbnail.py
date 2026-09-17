@@ -10,9 +10,12 @@ the same, because the value is presigned and re-minted on every read, so a stale
 normal outcome.
 
 The height comes from the size ladder and the width from the aspect, so the widget never sets a
-fixed width of its own. While the read is in flight the box holds a skeleton of its own shape.
+fixed width of its own. `stretch` turns that around for a tile: the picture fills the width it is
+given and the aspect sets the height, which is what the top of a card tile is. While the read is in
+flight the box holds a skeleton of its own shape.
 
     Thumbnail(src=row.values["image"], entity_type="Shot", size="lg", playable=True)
+    Thumbnail(src=row.values["image"], stretch=True, radius="none")
 """
 from __future__ import annotations
 
@@ -54,6 +57,9 @@ NO_TYPE_GLYPH = "image"
 #: The mark a picture still transcoding carries.
 PENDING_GLYPH = "hourglass"
 
+#: The corners a stretched picture keeps. A tile clips its own, so its picture squares off.
+THUMBNAIL_RADIUS_VALUES: tuple[str, ...] = ("md", "none")
+
 
 class Thumbnail(ThemedWidget):
     """The picture of one row, at a step of the thumbnail ladder."""
@@ -69,6 +75,8 @@ class Thumbnail(ThemedWidget):
         size: str = "md",
         entity_type: str | None = None,
         playable: bool = False,
+        stretch: bool = False,
+        radius: str = "md",
         loader: ImageLoader | None = None,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
@@ -80,6 +88,8 @@ class Thumbnail(ThemedWidget):
         self._aspect = aspect if aspect in THUMBNAIL_ASPECT_VALUES else "16:9"
         self._entity_type = entity_type
         self._playable = bool(playable)
+        self._stretch = bool(stretch)
+        self._radius = radius if radius in THUMBNAIL_RADIUS_VALUES else "md"
         self._pixmap: QtGui.QPixmap | None = None
         self._failed = ""
         self._reading = ""
@@ -149,6 +159,24 @@ class Thumbnail(ThemedWidget):
         self._playable = bool(value)
         self.update()
 
+    @property
+    def stretch(self) -> bool:
+        """Fill the width given and take the height from the aspect, which is what a tile wants."""
+        return self._stretch
+
+    def set_stretch(self, value: bool) -> None:
+        self._stretch = bool(value)
+        self._apply_size()
+
+    @property
+    def radius(self) -> str:
+        """`md`, or `none` where the surface around the picture owns the corners."""
+        return self._radius
+
+    def set_radius(self, value: str) -> None:
+        self._radius = value if value in THUMBNAIL_RADIUS_VALUES else "md"
+        self.update()
+
     # --- what it is showing ---
 
     @property
@@ -205,16 +233,42 @@ class Thumbnail(ThemedWidget):
 
     def _apply_size(self) -> None:
         box = self._box_size()
-        self.setFixedSize(box)
-        self._skeleton.setGeometry(QtCore.QRect(QtCore.QPoint(0, 0), box))
+        if self._stretch:
+            # A stretched picture takes the width it is given; only its height is fixed.
+            self.setMinimumSize(0, 0)
+            self.setMaximumSize(16777215, 16777215)
+            self.setSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed
+            )
+            self.setFixedHeight(self.heightForWidth(max(box.width(), self.width())))
+        else:
+            self.setSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed
+            )
+            self.setFixedSize(box)
+        self._skeleton.setGeometry(QtCore.QRect(QtCore.QPoint(0, 0), self.size()))
         self.updateGeometry()
         self.update()
 
+    def hasHeightForWidth(self) -> bool:  # noqa: N802
+        return self._stretch
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802
+        if not self._stretch:
+            return self._box_size().height()
+        return width if self._aspect == "square" else int(round(width * 9 / 16))
+
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
-        return self._box_size()
+        box = self._box_size()
+        if not self._stretch:
+            return box
+        width = self.width() if self.width() > 0 else box.width()
+        return QtCore.QSize(width, self.heightForWidth(width))
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # noqa: N802
         super().resizeEvent(event)
+        if self._stretch:
+            self.setFixedHeight(self.heightForWidth(self.width()))
         self._skeleton.setGeometry(self.rect())
 
     def _sync_skeleton(self) -> None:
@@ -235,8 +289,14 @@ class Thumbnail(ThemedWidget):
         painter.setOpacity(self.disabled_opacity())
         theme = self.theme
         box = self.rect()
-        radius = float(theme.radius_px("md"))
-        fill_round_rect(painter, box, radius, theme.color("muted"), theme.color("border"))
+        radius = 0.0 if self._radius == "none" else float(theme.radius_px("md"))
+        fill_round_rect(
+            painter,
+            box,
+            radius,
+            theme.color("muted"),
+            None if self._radius == "none" else theme.color("border"),
+        )
 
         if self._pixmap is not None and not self._pixmap.isNull() and self.state == "ready":
             self._paint_picture(painter, box, radius)

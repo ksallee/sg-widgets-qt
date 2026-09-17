@@ -239,3 +239,117 @@ def test_the_field_picker_keeps_the_contract(qtbot):
     assert "press toggles" in checked
     assert "outside press" in checked
     assert "readonly" in checked
+
+
+def test_a_drag_emits_the_new_order_once_on_the_release(qtbot):
+    """Upstream's `endDrag` emits once per gesture; the rows give way in between."""
+    picker = build(qtbot, value=COLUMNS)
+    labelled(qtbot, picker)
+    heard: list = []
+    picker.value_changed.connect(lambda value: heard.append(list(value)))
+    chosen = picker.chosen_list
+    rows = chosen.viewport()
+    third = chosen.visualRect(chosen.model().index(2, 0))
+    grip = QPoint(third.left() + 12, third.center().y())
+    QTest.mousePress(rows, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, grip)
+    QTest.mouseMove(rows, QPoint(grip.x(), grip.y() - 8))
+    first = chosen.visualRect(chosen.model().index(0, 0))
+    QTest.mouseMove(rows, QPoint(first.left() + 12, first.center().y()))
+    spin(qtbot, 20)
+    assert heard == [], "the rows gave way but nothing was emitted before the release"
+    assert chosen.paths != COLUMNS, "the rows never gave way"
+    QTest.mouseRelease(
+        rows,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        QPoint(first.left() + 12, first.center().y()),
+    )
+    spin(qtbot, 40)
+    assert len(heard) == 1
+    assert heard[0] == picker.value == chosen.paths
+
+
+def test_a_cancelled_drag_puts_the_row_back_and_emits_nothing(qtbot):
+    picker = build(qtbot, value=COLUMNS)
+    labelled(qtbot, picker)
+    heard: list = []
+    picker.value_changed.connect(heard.append)
+    chosen = picker.chosen_list
+    rows = chosen.viewport()
+    first = chosen.visualRect(chosen.model().index(0, 0))
+    grip = QPoint(first.left() + 12, first.center().y())
+    QTest.mousePress(rows, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, grip)
+    QTest.mouseMove(rows, QPoint(grip.x(), grip.y() + 8))
+    third = chosen.visualRect(chosen.model().index(2, 0))
+    QTest.mouseMove(rows, QPoint(third.left() + 12, third.center().y()))
+    QTest.keyClick(chosen, Qt.Key.Key_Escape)
+    spin(qtbot, 40)
+    assert heard == []
+    assert picker.value == chosen.paths == COLUMNS
+
+
+def test_a_keyboard_move_still_emits_one_order_per_step(qtbot):
+    picker = build(qtbot, value=COLUMNS)
+    labelled(qtbot, picker)
+    heard: list = []
+    picker.value_changed.connect(lambda value: heard.append(list(value)))
+    chosen = picker.chosen_list
+    chosen.setFocus(Qt.FocusReason.TabFocusReason)
+    chosen.set_highlight(0)
+    QTest.keyClick(chosen, Qt.Key.Key_Space)
+    QTest.keyClick(chosen, Qt.Key.Key_Down)
+    spin(qtbot, 20)
+    assert heard == [[COLUMNS[1], COLUMNS[0], COLUMNS[2]]]
+    QTest.keyClick(chosen, Qt.Key.Key_Space)
+    spin(qtbot, 20)
+    assert len(heard) == 1, "the drop emitted an order of its own"
+
+
+def test_a_read_only_row_keeps_no_room_for_a_grip(qtbot):
+    """Upstream's read-only row is the label alone: no grip, and none of its inset."""
+    picker = build(qtbot, value=COLUMNS, readonly=True)
+    labelled(qtbot, picker)
+    assert picker.chosen_list.row_delegate().thumbnail is False
+    picker.set_readonly(False)
+    spin(qtbot, 20)
+    assert picker.chosen_list.row_delegate().thumbnail is True
+
+
+def test_the_grip_is_drawn_bare_rather_than_on_a_picture_plate(qtbot):
+    picker = build(qtbot, value=COLUMNS)
+    assert picker.chosen_list.row_delegate().bare_glyph is True
+
+
+def test_the_cross_rides_the_size_ladder(qtbot):
+    from sg_widgets_qt.widgets.column_picker import LEAD_GLYPH, _remove_painter
+
+    sizes = {}
+    for step in ("sm", "md", "lg"):
+        picker = build(qtbot, value=COLUMNS, size=step)
+        sizes[step] = picker.chosen_list.rows_model._size
+    assert sizes == {"sm": "sm", "md": "md", "lg": "lg"}
+    # The painter each step answers draws its own glyph, on the ladder upstream's own uses.
+    assert LEAD_GLYPH["sm"] != LEAD_GLYPH["lg"]
+    assert callable(_remove_painter("lg"))
+
+
+def test_a_change_of_root_drops_the_labels_the_old_one_resolved(qtbot):
+    """A label belongs to the type the path starts on, so a new root re-resolves it."""
+    picker = build(qtbot, entity_type="Version", value=["code"])
+    labelled(qtbot, picker)
+    before = picker.chosen_list.rows_model.parts_of("code")
+    assert before
+    picker.set_entity_type("Shot")
+    assert picker.chosen_list.rows_model.parts_of("code") is None
+    labelled(qtbot, picker)
+    assert picker.chosen_list.rows_model.parts_of("code")
+
+
+def test_the_dual_list_names_the_field_code_beside_its_label(qtbot):
+    from sg_widgets_qt.primitives.roles import Roles
+
+    picker = build(qtbot, entity_type="Shot", layout="dual", value=[])
+    settled(qtbot, picker)
+    model = picker.available.list_surface().model()
+    codes = [model.index(row, 0).data(Roles.CODE) for row in range(model.rowCount())]
+    assert any(codes), "no row names its programmatic field code"

@@ -99,6 +99,10 @@ class EntityTypePicker(QtWidgets.QWidget):
             thumbnail=True,
             indicator="checkbox" if self.MULTIPLE else "tick",
         )
+        # A type has no picture, so its glyph is the leading mark itself: the muted plate a row
+        # draws is where a picture was expected and has not landed, and there is none to wait
+        # for here. Upstream draws no mark at all; rule 9 asks for one, and this is one mark.
+        delegate.set_bare_glyph(True)
         self._control = PickerControl(
             slot=self.SLOT,
             picker="entity-type-multi" if self.MULTIPLE else "entity-type",

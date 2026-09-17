@@ -32,6 +32,10 @@ Every other attribute is spread onto the root: `id`, `aria-*`, `data-*`, key han
 
 ::props{name="filter-editor" kind="events"}
 
+`filters_changed` carries the same tree as `changed`, for a page wiring several query widgets to one
+handler. `error_changed` carries the first line under an incomplete row, or nothing once every row
+is complete, and `announced` carries the line a live region reads after a reorder.
+
 ## Value editors
 
 The operator picks the arity and the field's data type picks the control inside it.
@@ -62,6 +66,11 @@ sent.
 
 A duration is typed as `1h 30m`, `1:30` or `90` and stored as the 90 minutes all three mean.
 
+A row stands on a skeleton while the type's fields, or the leaf of a dotted path, are still being
+read, so a control is never built on a guess and replaced a moment later. Under each row the editor
+draws what is still wrong with it: no field yet, an operator the field does not take, or a value
+left blank.
+
 ## Slots
 
 ::props{name="filter-editor" kind="slots"}
@@ -73,6 +82,10 @@ wants its own row or its own search.
 ## Keyboard
 
 ::props{name="filter-editor" kind="keyboard"}
+
+Each row and each nested group leads with a grip. Dragging it moves the row among its siblings, with
+a mark showing where it would land, and holding `Alt` with `Up` or `Down` moves it one place from
+the keyboard. In a group holding one row the grip is inert, since there is nowhere to move it.
 
 ## Operators
 

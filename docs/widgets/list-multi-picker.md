@@ -32,6 +32,9 @@ value already held that is outside that set keeps a row of its own, labelled wit
 The control draws a chip per chosen value. What does not fit on the line becomes a `+n` pill, and a
 press on it opens the list.
 
+The list opens with the cursor on the row of the first chosen value; one holding nothing opens with
+nothing highlighted, and the first <kbd>↓</kbd> takes the first row.
+
 ## Props
 
 ::props{name="list-multi-picker" kind="props"}

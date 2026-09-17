@@ -244,8 +244,9 @@ def plan_field_value(
         plan.text = field_text(value, data_type, text_options)
         return plan
     if kind == "entity" or kind == "multi_entity":
+        # A chip carries its own tooltip, so the value around it carries none: upstream leaves
+        # the `title` off a linked value for the same reason.
         plan.refs = _refs_of(value)
-        plan.tooltip = field_text(value, data_type, text_options)
         return plan
     if kind == "status":
         plan.code = str(value)
@@ -270,7 +271,9 @@ def plan_field_value(
         plan.text = "pipeline step" if plan.sentinel else str(value)
         plan.mono = plan.rgb is not None
         plan.tabular = plan.rgb is not None
-        plan.tooltip = plan.text
+        # The tooltip is the value the row holds, so the sentinel shows its token and not the
+        # words it is drawn as (field_types/color).
+        plan.tooltip = str(value)
         return plan
     if kind in ("number", "date", "datetime"):
         plan.text = field_text(value, data_type, text_options)
@@ -307,6 +310,28 @@ def _value_font(theme: Theme, plan: FieldValuePlan) -> QtGui.QFont:
 def _chip_label(ref: EntityRef) -> str:
     """The name, or `Type #id`, which is always addressable (probe 060)."""
     return str(ref.name) if ref.name else f"{ref.type} #{ref.id}"
+
+
+def _glyph_slot(box: QtCore.QRect, left: int, glyph: int) -> QtCore.QRect:
+    """The leading slot of a chip, where the badge primitive puts it.
+
+    `primitives/badge.py` centres the glyph on the box's own centre line rather than sharing the
+    room above and below, so the delegate face centres it the same way: the widget face composes
+    that primitive, and the two faces must land on one pixel.
+    """
+    slot = QtCore.QRect(0, 0, glyph, glyph)
+    slot.moveCenter(QtCore.QPoint(left + glyph // 2, box.center().y()))
+    return slot
+
+
+def _centre_top(rect: QtCore.QRect, height: int) -> int:
+    """Where a box of that height sits to be centred in `rect`, the way a row centres.
+
+    `QRect.center()` rounds down on an even height, which leaves a box a pixel high; the room
+    above and below is what rule 2 asks to be equal, so it is shared here instead. Both faces
+    centre through this, which is what keeps a cell and a widget pixel-identical.
+    """
+    return rect.top() + max(0, rect.height() - height) // 2
 
 
 def _chip_width(theme: Theme, label: str, step: str, glyph: bool = True) -> int:
@@ -401,7 +426,7 @@ def _paint_chips(
     x = rect.left()
     for index in range(fit.visible):
         box = QtCore.QRect(x, 0, int(widths[index]) - CHIP_GAP, height)
-        box.moveTop(rect.center().y() - height // 2 + 1)
+        box.moveTop(_centre_top(rect, height))
         _paint_one_chip(painter, box, plan.refs[index], theme, step, options)
         x += int(widths[index])
     if fit.hidden > 0:
@@ -428,10 +453,11 @@ def _paint_one_chip(
     ink = theme.color("secondary_foreground")
     fill_round_rect(painter, box, float(theme.radius_px("md")), fill, theme.color("border"))
     glyph = CHIP_GLYPH[step]
-    slot = QtCore.QRect(box.left() + pad.lead, 0, glyph, glyph)
-    slot.moveTop(box.center().y() - glyph // 2)
+    slot = _glyph_slot(box, box.left() + pad.lead, glyph)
     paint_icon(painter, slot, entity_glyph(ref.type), with_alpha(ink, 0.7))
-    left = slot.right() + 1 + CHIP_SPACING[step].glyph
+    # The badge walks its own cursor past the slot rather than reading the slot's right edge,
+    # which `QRect.moveCenter` shifts by a pixel on an even glyph. The two must agree.
+    left = box.left() + pad.lead + glyph + CHIP_SPACING[step].glyph
     font = theme.font(CHIP_TEXT[step], QtGui.QFont.Weight.Medium)
     painter.setFont(font)
     painter.setPen(ink)
@@ -443,17 +469,20 @@ def _paint_one_chip(
     )
 
 
+def _status_glyph_source(plan: FieldValuePlan, options: FieldValueOptions) -> StatusGlyphSource:
+    record = (options.statuses or {}).get(plan.code)
+    return _status_source(record, options.site_url, options.loader, options.on_ready)
+
+
 def _status_width(theme: Theme, plan: FieldValuePlan, options: FieldValueOptions) -> int:
     step = _chip_step(options.density)
     pad = CHIP_PAD[step]
     font = theme.font(CHIP_TEXT[step], QtGui.QFont.Weight.Medium)
-    return (
-        pad.lead
-        + CHIP_GLYPH[step]
-        + CHIP_SPACING[step].glyph
-        + text_width(QtGui.QFontMetrics(font), plan.text)
-        + pad.text
-    )
+    # A status the site draws nothing for is a bordered label, which is what StatusBadge draws:
+    # no glyph, and the bare text inset in its place.
+    glyph = _status_glyph_source(plan, options).draws()
+    lead = pad.lead + CHIP_GLYPH[step] + CHIP_SPACING[step].glyph if glyph else pad.text
+    return lead + text_width(QtGui.QFontMetrics(font), plan.text) + pad.text
 
 
 def _paint_status(
@@ -469,18 +498,20 @@ def _paint_status(
     height = min(CHIP_HEIGHT[step], rect.height())
     width = min(_status_width(theme, plan, options), rect.width())
     box = QtCore.QRect(rect.left(), 0, width, height)
-    box.moveTop(rect.center().y() - height // 2 + 1)
-    fill_round_rect(painter, box, float(theme.radius_px("md")), None, theme.color("border"))
+    box.moveTop(_centre_top(rect, height))
+    # The badge's own surface, which an uncoloured status wears (`status_badge._surface`).
+    fill_round_rect(
+        painter, box, float(theme.radius_px("md")), theme.color("background"), theme.color("border")
+    )
 
     ink = theme.color("foreground")
-    glyph = CHIP_GLYPH[step]
-    slot = QtCore.QRect(box.left() + pad.lead, 0, glyph, glyph)
-    slot.moveTop(box.center().y() - glyph // 2)
-    record = (options.statuses or {}).get(plan.code)
-    source = _status_source(record, options.site_url, options.loader, options.on_ready)
-    source.paint(painter, slot, theme, fallback=True)
-
-    left = slot.right() + 1 + CHIP_SPACING[step].glyph
+    source = _status_glyph_source(plan, options)
+    left = box.left() + pad.text
+    if source.draws():
+        glyph = CHIP_GLYPH[step]
+        slot = _glyph_slot(box, box.left() + pad.lead, glyph)
+        source.paint(painter, slot, theme)
+        left = box.left() + pad.lead + glyph + CHIP_SPACING[step].glyph
     font = theme.font(CHIP_TEXT[step], QtGui.QFont.Weight.Medium)
     painter.setFont(font)
     painter.setPen(ink)
@@ -506,7 +537,7 @@ def _paint_image(
     theme = _theme_of(options)
     size = _image_size()
     box = QtCore.QRect(rect.left(), 0, min(size.width(), rect.width()), min(size.height(), rect.height()))
-    box.moveTop(rect.center().y() - box.height() // 2)
+    box.moveTop(_centre_top(rect, box.height()))
     radius = float(theme.radius_px("md"))
     fill_round_rect(painter, box, radius, theme.color("muted"), theme.color("border"))
 
@@ -548,7 +579,7 @@ def _paint_color(
         _draw_line(painter, rect, _value_font(theme, plan), _ink(theme, options, token), plan.text, plan)
         return
     box = QtCore.QRect(rect.left(), 0, SWATCH, SWATCH)
-    box.moveTop(rect.center().y() - SWATCH // 2)
+    box.moveTop(_centre_top(rect, SWATCH))
     # Status and swatch colour is data, which is the one colour a widget takes off the site (rule 1).
     swatch = QtGui.QColor(plan.rgb.r, plan.rgb.g, plan.rgb.b)
     fill_round_rect(painter, box, float(theme.radius_px("sm")), swatch, theme.color("border"))
@@ -590,7 +621,7 @@ def _paint_url(
     if external:
         left = rect.left() + min(text_width(QtGui.QFontMetrics(font), shown), max(0, room)) + GLYPH_GAP
         slot = QtCore.QRect(left, 0, LINK_GLYPH, LINK_GLYPH)
-        slot.moveTop(rect.center().y() - LINK_GLYPH // 2)
+        slot.moveTop(_centre_top(rect, LINK_GLYPH))
         paint_icon(painter, slot, LINK_ICON, with_alpha(ink, 0.7))
 
 
@@ -602,7 +633,7 @@ def _paint_checkbox(
 ) -> None:
     theme = _theme_of(options)
     box = QtCore.QRect(rect.left(), 0, CHECK_GLYPH, CHECK_GLYPH)
-    box.moveTop(rect.center().y() - CHECK_GLYPH // 2)
+    box.moveTop(_centre_top(rect, CHECK_GLYPH))
     if plan.checked:
         paint_icon(painter, box, CHECK_ICON, _ink(theme, options))
     else:
@@ -1174,14 +1205,19 @@ class FieldValue(ThemedWidget):
         return field_value_size_hint(self._value, self._data_type, self.options(), width=width).height()
 
     def _place_child(self) -> None:
-        """The one widget a value is, at the top left of the room the value has."""
+        """The one widget a value is, on the left of the room the value has and centred in it.
+
+        The delegate face centres what it draws in the cell it is given, so the widget centres
+        its child through the same helper: the two faces then land on the same pixels.
+        """
         child = self._child
         if child is None:
             return
         hint = child.sizeHint()
         expands = child.sizePolicy().horizontalPolicy() == QtWidgets.QSizePolicy.Policy.Expanding
         width = self.width() if expands else min(hint.width(), self.width())
-        child.setGeometry(0, 0, max(0, width), max(0, min(hint.height(), self.height())))
+        height = max(0, min(hint.height(), self.height()))
+        child.setGeometry(0, _centre_top(self.rect(), height), max(0, width), height)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # noqa: N802
         super().resizeEvent(event)

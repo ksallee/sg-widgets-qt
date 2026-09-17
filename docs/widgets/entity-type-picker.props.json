@@ -43,7 +43,7 @@
       "type": "`boolean`",
       "py_type": "`bool`",
       "default": "`true`",
-      "meaning": "Shows the code under the display name where the two differ."
+      "meaning": "Shows the code beside the display name, in the mono family, where the two differ."
     },
     {
       "name": "size",
