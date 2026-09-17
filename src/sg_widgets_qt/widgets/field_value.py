@@ -656,13 +656,13 @@ def _paint_checkbox(
     track.moveCenter(box.center())
     radius = track.height() / 2.0
     off = with_alpha(theme.input, 0.8) if theme.dark else theme.color("input")
-    fill_round_rect(painter, track, radius, theme.primary if plan.checked else off)
+    fill_round_rect(painter, track, radius, theme.color("primary") if plan.checked else off)
 
     travel = track.width() - SWITCH_THUMB - SWITCH_INSET * 2
     x = track.x() + SWITCH_INSET + (travel if plan.checked else 0)
     thumb = QtCore.QRectF(x, track.y() + SWITCH_INSET, SWITCH_THUMB, SWITCH_THUMB)
     if theme.dark:
-        ink = theme.primary_foreground if plan.checked else theme.foreground
+        ink = theme.color("primary_foreground" if plan.checked else "foreground")
     else:
         ink = theme.color("background")
     painter.setPen(QtCore.Qt.PenStyle.NoPen)

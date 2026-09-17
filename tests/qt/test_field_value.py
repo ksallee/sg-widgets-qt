@@ -11,7 +11,7 @@ from sg_widgets_core.render import FieldTextOptions
 from sg_widgets_core.schema import FieldSchema
 from sg_widgets_core.status import ImageMapIcon, StatusRecord
 from sg_widgets_qt.images import ImageLoader
-from sg_widgets_qt.primitives.base import CHIP_HEIGHT
+from sg_widgets_qt.primitives.base import CHIP_HEIGHT, text_width
 from sg_widgets_qt.theme import apply_theme, theme_for
 from sg_widgets_qt.widgets.entity_chip import EntityChip
 from sg_widgets_qt.widgets.field_value import (
@@ -404,6 +404,43 @@ def test_the_site_preferences_reach_the_delegate_face(qtbot):
     assert plan_field_value(480, "duration", opts).text == "1d"
     assert plan_field_value("1.777778", "float", opts).text == "1.78"
     assert plan_field_value(12500, "currency", opts).text == "€12,500.00"
+
+
+# --- what the upstream markup decided per type -------------------------------------------------
+
+
+def test_a_checkbox_is_the_switch_the_web_widget_draws(root):
+    """`field-value.tsx` renders `<Switch size="sm" checked disabled aria-readonly />`.
+
+    A disabled switch with the dimming turned off: the two states read at full contrast and
+    nothing about it invites a press. A tick and a cross would be a different reading of the
+    same field, so the port draws the primitive the web widget names.
+    """
+    from sg_widgets_qt.primitives.checkbox import Switch
+
+    on = place(root, FieldValue(value=True, data_type="checkbox"))
+    off = place(root, FieldValue(value=False, data_type="checkbox"))
+    assert isinstance(on.child, Switch)
+    assert on.child.checked is True
+    assert off.child.checked is False
+    # Inert, out of the tab order, and never dimmed: `data-disabled:opacity-100` upstream.
+    assert on.child.focusPolicy() == QtCore.Qt.FocusPolicy.NoFocus
+    assert on.child.testAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+    assert on.child.isEnabled() is True
+    assert on.plan.text == "Yes"
+    assert off.plan.text == "No"
+
+
+def test_a_url_is_an_underline_and_nothing_else(root):
+    """The web widget's anchor carries `underline` and no mark of its own, so neither does this.
+
+    Where a link goes is the link's business; a glyph beside it is a second thing to read.
+    """
+    value = place(root, FieldValue(value=UPLOADED, data_type="url"))
+    plain = field_value_size_hint(UPLOADED, "url", options())
+    metrics = QtGui.QFontMetrics(theme_for("default").font(14))
+    # The value asks for its text and not a pixel more, so nothing is drawn beside it.
+    assert plain.width() == text_width(metrics, value.plan.text)
 
 
 # --- the two faces, pixel for pixel ------------------------------------------------------------
