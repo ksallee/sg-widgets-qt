@@ -520,7 +520,25 @@ class FieldEditor(QtWidgets.QWidget):
         self._display.set_value(value)
         setter = getattr(self._control, "set_value", None)
         if callable(setter):
-            setter(value)
+            setter(self._shaped(value))
+
+    def _shaped(self, value: Any) -> Any:
+        """The raw attribute value in the shape the open control takes.
+
+        A link picker holds an `EntityRef`, not the `{type, id, name}` hash the API returns,
+        and a checkbox holds a bool; the control was built with the same shaping, and a value
+        set while it stands, a cancel's restore among them, has to arrive the same way.
+        """
+        kind = self.kind
+        if kind == "entity":
+            return _as_ref(value)
+        if kind == "multi_entity":
+            return [ref for ref in (_as_ref(one) for one in (value or [])) if ref is not None]
+        if kind == "checkbox":
+            return value is True
+        if kind == "url":
+            return value if isinstance(value, dict) else None
+        return value
 
     @property
     def data_type(self) -> str:

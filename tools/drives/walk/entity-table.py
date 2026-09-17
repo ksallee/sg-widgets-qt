@@ -253,6 +253,24 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901, PLR0915
         )
         walk.check(f"and leaves no {placement} popup standing", not tops(), tops())
 
+        if placement == "popover":
+            # The popover's own Cancel, on a link cell: the restore hands the picker its
+            # value in the picker's shape, and the close runs after it.
+            artist = text_at(table, "user")
+            table.on_cell_activated(cell(table, "user"))
+            wait(600)
+            cancel = None
+            for top in QtWidgets.QApplication.topLevelWidgets():
+                cancel = top.findChild(QtWidgets.QWidget, "field-editor-cancel") or cancel
+            if walk.check("the popover on a link cell carries a Cancel button", cancel is not None):
+                QTest.mouseClick(cancel, Qt.MouseButton.LeftButton)
+                wait(700)
+                walk.check(
+                    "Cancel closes the link popover and keeps the value",
+                    table._editing is None and not tops() and text_at(table, "user") == artist,
+                    f"{table._editing} {tops()} {text_at(table, 'user')!r}",
+                )
+
         table.on_cell_activated(cell(table, "description"))
         wait(500)
         walk.check(f"the {placement} editor opens again", table._editing is not None)

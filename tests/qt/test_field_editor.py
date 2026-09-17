@@ -449,3 +449,36 @@ def test_the_list_editor_takes_the_caller_s_message_like_every_other(qtbot):
     spin(qtbot, 40)
     assert editor.control is not None
     assert editor.control.error == "Refused."
+
+
+@pytest.mark.parametrize(
+    ("data_type", "value"),
+    [
+        ("entity", {"type": "HumanUser", "id": 3, "name": "Ada Lovelace"}),
+        ("multi_entity", [{"type": "HumanUser", "id": 3, "name": "Ada Lovelace"}]),
+    ],
+)
+def test_cancel_on_a_link_popover_closes_it_and_keeps_the_hash(qtbot, data_type, value):
+    """The restore hands the picker the value in its own shape, not the API's hash.
+
+    Cancel on the Artist cell of a table left the popover standing: the picker's setter took
+    the `{type, id, name}` hash and fell over before the close could run.
+    """
+    editor = build(
+        qtbot,
+        value=value,
+        field=schema("user", "Artist", data_type, valid_types=["HumanUser"]),
+        editable=True,
+        editor_placement="popover",
+        mode="edit",
+    )
+    modes: list = []
+    editor.mode_changed.connect(modes.append)
+    cancel = None
+    for top in QApplication.topLevelWidgets():
+        cancel = top.findChild(QWidget, "field-editor-cancel") or cancel
+    assert cancel is not None, "the popover carries a Cancel button"
+    QTest.mouseClick(cancel, Qt.MouseButton.LeftButton)
+    spin(qtbot, 60)
+    assert editor.mode == "display" and modes == ["display"]
+    assert editor.value == value, "a cancel restores the value the session opened on"
