@@ -72,6 +72,9 @@ SEARCH_ROW_LEAD = 12
 SEARCH_ROW_TRAIL = 0
 SEARCH_ROW_GAP = 6
 
+#: The hairline the box paints round itself, which stands outside its `p-1`.
+BOX_BORDER = 1
+
 #: The palette's dialog: `sm:max-w-sm` and `p-0`, since the command box brings its own inset.
 DIALOG_WIDTH = 384
 
@@ -217,7 +220,10 @@ class SearchControl(ThemedWidget):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
         self._column = QVBoxLayout(self)
-        self._column.setContentsMargins(0, 0, 0, 0)
+        # The box's own hairline border, which upstream's box model puts outside the `p-1`
+        # and a painted Qt border would otherwise take out of it.
+        edge = 0 if self._shell == "bare" else BOX_BORDER
+        self._column.setContentsMargins(edge, edge, edge, edge)
         self._column.setSpacing(0)
 
         self._input: _SearchInput | None = None
@@ -792,6 +798,7 @@ class SearchControl(ThemedWidget):
         # description are `sr-only`, so the panel is the search box and its list and nothing
         # else. Here they are the panel's accessible name and description.
         self._dialog = Dialog(host, show_close=False, padding=0, width=DIALOG_WIDTH, align="third")
+        self._dialog.setObjectName("dialog-content")
         self._dialog.setAccessibleName(self._title)
         self._dialog.setAccessibleDescription(self._description)
         self._dialog.set_content(self)

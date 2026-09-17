@@ -34,6 +34,7 @@ from sg_widgets_qt.primitives.row_delegate import (
     DRILL_WIDTH,
     GAP,
     INDICATOR_WIDTH,
+    ROW_LINE,
     ROW_PAD_X,
     ROW_PAD_Y,
     ROW_PAD_Y_SUB,
@@ -264,7 +265,7 @@ def _parts(delegate: RowDelegate, rect: QRect, index: object, theme: object) -> 
         out.append(("picker-row-secondary", QRect(right + GAP, box.top(), width, box.height())))
     out.append(("picker-row-text", QRect(left, box.top(), max(0, right - left), box.height())))
     if sub:
-        label = QFontMetrics(theme.font(ROW_TEXT[delegate.size])).height()
+        label = ROW_LINE[delegate.size]
         out.append(
             (
                 "picker-row-sub-label",
