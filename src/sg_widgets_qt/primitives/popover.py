@@ -555,18 +555,39 @@ class Popover(ThemedWidget):
         self._guard = guard
 
     def add_pass_through(self, widget: QtWidgets.QWidget) -> None:
-        """A window a press may land in without dismissing this one, such as a submenu."""
+        """A popup a press may land in without dismissing this one, such as a submenu.
+
+        The widget may be the popup window itself or anything inside it: what is kept is the
+        window it belongs to, read when a press arrives rather than now, because a picker
+        builds its shell the first time it opens.
+        """
         if widget not in self._pass_through:
             self._pass_through.append(widget)
+
+    def _pass_through_windows(self) -> list[QtWidgets.QWidget]:
+        """The top levels the pass-through widgets stand in, the ones still alive.
+
+        A child widget's `geometry` is in its parent's coordinates, so a press in global ones
+        is never inside it. The window it belongs to is the surface a press really lands in.
+        """
+        out: list[QtWidgets.QWidget] = []
+        for widget in self._pass_through:
+            try:
+                window = widget.window()
+            except RuntimeError:  # The popup went with the widget that owned it.
+                continue
+            if window is not None and window not in out:
+                out.append(window)
+        return out
 
     def _claims(self, pos: QPoint) -> bool:
         if self.surface_geometry().contains(pos):
             return True
         if anchor_rect(self._anchor).contains(pos) or self.anchor_geometry().contains(pos):
             return True
-        for widget in self._pass_through:
+        for window in self._pass_through_windows():
             try:
-                if widget.isVisible() and widget.geometry().contains(pos):
+                if window.isVisible() and anchor_rect(window).contains(pos):
                     return True
             except RuntimeError:
                 continue
@@ -576,13 +597,21 @@ class Popover(ThemedWidget):
         """True when the window the anchor's window lost activation to is one of ours.
 
         Showing a popup deactivates the anchor's window on some platforms, so a deactivation
-        that handed activation to this surface or to a submenu of it is not a dismissal.
+        that handed activation to this surface or to a submenu of it is not a dismissal. What
+        Qt hands back is not always a top level — a widget rebuilt inside the surface can be
+        the active one — so the window it stands in is what is compared.
         """
         app = QtWidgets.QApplication.instance()
         active = app.activeWindow() if app is not None else None
-        if active is None:
-            return False
-        return active is self or any(active is widget for widget in self._pass_through)
+        if active is not None:
+            window = active.window()
+            return window is self or any(
+                window is other for other in self._pass_through_windows()
+            )
+        # No window of ours holds the activation. A popup of ours opening or closing leaves it
+        # there for a moment, and the application itself stays the active one, so only a
+        # deactivation that took the whole application away is a dismissal.
+        return QtGui.QGuiApplication.applicationState() == Qt.ApplicationState.ApplicationActive
 
     def event(self, event: QtCore.QEvent) -> bool:
         """A layout request means the content asked for another size, so place the surface again.

@@ -206,8 +206,18 @@ class EntityTableDemo(QtWidgets.QWidget):
         columns, statuses = answer
         self.table.set_statuses(statuses)
         self.table.set_columns(columns)
+        self._sort_paths(columns)
         self.table.control.count()
         self._ready = True
+
+    def _sort_paths(self, columns: object) -> None:
+        """Offer the sort picker the columns the table shows, as upstream's `paths` does.
+
+        A toolbar sorts on the columns it shows, so the list follows every change to them:
+        the column picker's own writes, and a column hidden from a header menu.
+        """
+        if self._sort is not None:
+            self._sort.set_paths([column.path for column in columns or []])
 
     def _failed(self, error: BaseException) -> None:
         if lay.alive(self):
@@ -222,6 +232,7 @@ class EntityTableDemo(QtWidgets.QWidget):
 
     def _on_columns(self, columns: object) -> None:
         self._picker.set_value([column.path for column in columns or []])
+        self._sort_paths(columns)
 
     # --- the toggles ----------------------------------------------------------------------
 
@@ -290,8 +301,10 @@ def _sort_picker(context: DemoContext, parent: QtWidgets.QWidget) -> Any:
         from ...widgets.sort_picker import SortPicker
     except Exception:
         return None
+    # `paths` is the columns on show, never every column the demo can show: the table opens
+    # on `SHOWN` and `_sort_paths` follows it from there.
     return SortPicker(
-        entity_type="Version", context=context, paths=list(PATHS), size="sm", parent=parent
+        entity_type="Version", context=context, paths=list(SHOWN), size="sm", parent=parent
     )
 
 

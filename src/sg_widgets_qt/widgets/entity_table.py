@@ -656,7 +656,7 @@ class EntityTable(QtWidgets.QWidget):
         column.addWidget(self.footer)
 
         self.control.changed.connect(self._sync)
-        self.control.selection_changed.connect(self.selection_changed.emit)
+        self.control.selection_changed.connect(self._on_selection)
         self.control.sort_changed.connect(self._on_sort_moved)
         self.control.filters_changed.connect(self.filters_changed.emit)
         self.control.failed.connect(self.failed.emit)
@@ -1295,8 +1295,14 @@ class EntityTable(QtWidgets.QWidget):
         self._draft = value
 
     def _on_editor_mode(self, mode: str, key: str, column: CollectionColumn) -> None:
-        """A popover editor drives its own close and reports it; the cell commits what it holds."""
-        if mode != "display" or self.placement_for(column) != "popover":
+        """An editor that closed itself takes the cell with it, and commits what it holds.
+
+        Escape and Cancel restore the value the session opened on before they report the
+        close, so the commit they end on writes nothing; Save and Enter report the value
+        that was typed. An editor left mounted after it went back to display would draw a
+        dead half over the cell and refuse to open again.
+        """
+        if mode != "display" or not self.is_editing(key, column.path):
             return
         self.commit(key, column, self._draft)
 
@@ -1365,8 +1371,24 @@ class EntityTable(QtWidgets.QWidget):
 
     # --- drawing --------------------------------------------------------------------------
 
+    def _on_selection(self, rows: object) -> None:
+        """Keep the header's box on the selection, then report it.
+
+        `_sync` runs on a snapshot, and taking a row moves no snapshot: without this the
+        header's tri state is whatever the last read left, so the box never draws itself
+        full and the press that should clear the selection takes it again.
+        """
+        self._header.set_check_state(
+            self.control.all_selected.all, self.control.all_selected.some
+        )
+        self.view.viewport().update()
+        self.selection_changed.emit(rows)
+
     def _sync(self) -> None:
         state = self.control.snapshot()
+        # The mark follows the sort the source holds, however it got there: a header click, the
+        # column menu, or a `sort` prop a toolbar's SortPicker writes.
+        self._apply_sort_indicator()
         view = self.control.view(len(self.model.lines))
         self.view.setVisible(view == "rows")
         self._skeleton.setVisible(view == "loading")

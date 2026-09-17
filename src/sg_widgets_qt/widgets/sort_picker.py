@@ -149,7 +149,9 @@ class SortPicker(QtWidgets.QWidget):
         )
         self._popover.closed.connect(self._on_closed)
         self._popover.dismissed.connect(self._on_closed)
-        self._popover.add_pass_through(self._field_picker.control.popup())
+        # The field list is a popover of its own inside this one: a press in it must not
+        # read as a press outside this panel.
+        self._popover.add_pass_through(self._field_picker.control.popover())
 
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed)
         self._refresh()
@@ -415,17 +417,22 @@ class _SortKeys(ThemedWidget):
         self._owner.move(from_index, to_index)
 
     def rebuild(self) -> None:
-        """Draw the keys the picker now holds."""
+        """Draw the keys the picker now holds.
+
+        A row on its way out is hidden and dropped, never orphaned: `setParent(None)` turns a
+        widget into a top level of its own, and Qt hands the activation to it, which the
+        popover holding this panel reads as the window losing activation and dismisses on.
+        """
         for row in self._rows:
             self._column.removeWidget(row)
-            row.setParent(None)
+            row.hide()
             row.deleteLater()
         self._rows = []
         while self._column.count():
             item = self._column.takeAt(0)
             widget = item.widget() if item is not None else None
             if widget is not None:
-                widget.setParent(None)
+                widget.hide()
                 widget.deleteLater()
 
         owner = self._owner

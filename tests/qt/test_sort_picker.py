@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import time
 
+from qtpy.QtCore import Qt
+from qtpy.QtTest import QTest
 from qtpy.QtWidgets import QApplication, QWidget
 
 from sg_widgets_core.filter_ux import SortKey
@@ -133,3 +135,83 @@ def test_the_count_is_a_chip_inside_the_trigger(qtbot):
     spin(qtbot, 120)
     # One key names itself and carries no count, as upstream does.
     assert picker.trigger().count == ""
+
+
+def until(qtbot, read, ms: int = 5000) -> bool:
+    """Spin until `read` answers something truthy, or the time runs out."""
+    end = time.time() + ms / 1000.0
+    while time.time() < end:
+        if read():
+            return True
+        QApplication.processEvents()
+        qtbot.wait(5)
+    return bool(read())
+
+
+def test_a_press_in_the_field_list_adds_a_key_and_keeps_the_panel_open(qtbot):
+    """The pick a reader makes: the trigger, the field picker inside the panel, a row.
+
+    The field list is a popover standing over the panel's own popover, so the press lands in
+    a window of its own. A parent that reads it as a press outside itself shuts the panel
+    under the caret and the row is never taken: the pick has to survive real events.
+    """
+    picker = build(qtbot)
+    QTest.mouseClick(
+        picker.trigger(),
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        picker.trigger().rect().center(),
+    )
+    spin(qtbot, 200)
+    assert picker.open is True
+
+    control = picker.field_picker().control
+    QTest.mouseClick(
+        control, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, control.rect().center()
+    )
+    view = control.list_surface()
+    assert until(qtbot, lambda: view.model().rowCount() > 0)
+    assert picker.open is True, "opening the field list dismissed the panel"
+
+    keys: list = []
+    picker.sort_changed.connect(keys.append)
+    wanted = picker.field_picker()._model.rows[0].path
+    index = view.model().index(0, 0)
+    view.scrollTo(index)
+    spin(qtbot, 60)
+    QTest.mouseClick(
+        view.viewport(),
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        view.visualRect(index).center(),
+    )
+    spin(qtbot, 300)
+
+    assert picker.open is True, "the press in the field list dismissed the panel"
+    assert [key.field for key in picker.value] == [wanted]
+    assert [[key.field for key in one] for one in keys] == [[wanted]]
+    assert picker.sort == wanted
+    assert len(picker.key_rows().rows()) == 1
+    assert picker.key_rows().rows()[0].direction().value == "asc"
+
+
+def test_the_keyboard_takes_a_field_the_same_way(qtbot):
+    picker = build(qtbot)
+    picker.set_open(True)
+    spin(qtbot, 200)
+    control = picker.field_picker().control
+    control.set_open(True)
+    assert until(qtbot, lambda: control.list_surface().model().rowCount() > 0)
+
+    keys: list = []
+    picker.sort_changed.connect(keys.append)
+    caret = control.caret()
+    QTest.keyClick(caret, Qt.Key.Key_Down)
+    spin(qtbot, 120)
+    QTest.keyClick(caret, Qt.Key.Key_Return)
+    spin(qtbot, 300)
+
+    assert len(keys) == 1
+    assert len(picker.value) == 1
+    assert picker.open is True
+    assert len(picker.key_rows().rows()) == 1
