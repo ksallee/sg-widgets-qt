@@ -1,0 +1,72 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sg-widgets-qt"
+version = "0.1.0"
+description = "Flow Production Tracking widgets for Qt, a port of sg-widgets on qtpy and shotgun_api3"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Kevin Sallee" }]
+keywords = ["shotgrid", "shotgun", "flow-production-tracking", "qt", "pyside", "pyqt", "vfx"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Software Development :: User Interfaces",
+]
+dependencies = [
+    "qtpy>=2.4",
+    "shotgun_api3>=3.5",
+    "typing_extensions>=4.4; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+pyside6 = ["PySide6"]
+pyqt5 = ["PyQt5"]
+
+[project.scripts]
+sg-widgets-showcase = "sg_widgets_qt.showcase.__main__:main"
+
+[project.urls]
+Source = "https://github.com/ksallee/sg-widgets-qt"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sg_widgets_core", "src/sg_widgets_qt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+qt_api = "pyside6"
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-qt>=4.4",
+    "pytest-timeout>=2",
+    "PySide6>=6.7,<6.8",
+    "ruff>=0.6",
+]
+qt5 = [
+    "pytest>=8",
+    "pytest-qt>=4.4",
+    "pytest-timeout>=2",
+    "PyQt5>=5.15.11",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]

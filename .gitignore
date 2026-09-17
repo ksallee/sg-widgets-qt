@@ -1,0 +1,12 @@
+.env.local
+.venv*
+__pycache__/
+*.pyc
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+shots/*.png
+.qa/
+.idea/
+.DS_Store
