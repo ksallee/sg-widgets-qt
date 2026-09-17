@@ -420,14 +420,13 @@ def named_in(root: QWidget, name: str) -> QWidget:
     return found[0]
 
 
-def test_a_multi_value_row_holds_the_upstream_axes(qtbot):
-    """A row whose value grew onto three lines puts each control where upstream puts it.
+def test_a_multi_value_row_keeps_every_control_on_its_first_line(qtbot):
+    """A row whose value grew onto three lines keeps the field and the operator on the first.
 
-    Measured on the reference with `node tools/qa.mjs --path /widgets/filter-editor/`: the first
-    value line sits at the top of the row, the field and the operator centre on the row and so
-    read level with the second line, the add row stands under the last value, and the remove
-    control keeps the axis of the *first* line, because upstream hangs it in a `self-start` box
-    of the row's own control height. The grip rides that same axis.
+    The first value line sits at the top of the row, the field, the operator, the grip and the
+    remove control read level with it, and the add row stands under the last value: a value
+    list pushes only the rows under it, never the controls beside it. Upstream's row is
+    `items-start` the same way.
     """
     editor = build(qtbot, value=group("and", [condition("sg_first_frame", "in", [1001, 1101])]))
     at_its_own_height(qtbot, editor)
@@ -443,15 +442,10 @@ def test_a_multi_value_row_holds_the_upstream_axes(qtbot):
 
     first, second = (axis_of(row, one) for one in lines)
     assert first < second, (first, second)
-    # Two values and an add row make three lines, so the row's centre is the second of them:
-    # the field and the operator, which centre on the row, read level with that second value.
-    assert axis_of(row, field) == second
-    assert axis_of(row, operator) == second
+    for part in (field, operator, remove, grip):
+        assert axis_of(row, part) == first, part.objectName()
     # The add row stands under the last value.
     assert axis_of(row, add) > second
-    # The grip and the cross keep the first line, not the middle of the row.
-    assert axis_of(row, remove) == first
-    assert axis_of(row, grip) == first
     # The lines are the gap apart upstream gives them, with the add row the same gap under.
     assert second - first == axis_of(row, add) - second
 

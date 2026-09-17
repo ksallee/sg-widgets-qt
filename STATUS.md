@@ -229,7 +229,7 @@ Last synced upstream commit: `a3e515188ab1`.
 | where | what |
 |---|---|
 | filter-editor page | A rebuild of the five demo editors takes 55ms on PySide6 (30ms on PyQt5), 5ms over the 50ms budget of the thread drive, after the picker popup became lazy. Next cost is the row layout itself. |
-| text search on the Python API | `shotgun_api3.text_search` refuses a term under three characters; global and hierarchical search show that as their error line. Documented on both pages. |
+| text search on the Python API | The endpoint refuses a term under three characters, so the client answers one itself with a name read per type; such a row carries no linked name. Documented on both search pages. |
 | `tests/qt/test_primitives_leaf.py::test_a_filled_button_paints_primary_at_its_centre` | Flaked once under a random test order during concurrent edits; passes alone, in file order and in every final run on either binding. Watch it. |
 | field-picker, sort-picker, pickers, entity-table demo | Recorded from upstream branch `feat/field-picker-options` (PR #255), not from `dev`. Re-record the six items against the merged commit once the PR lands. |
 | `pytest -q` | `addopts` already carries `-q`; a second `-q` hides the summary line. Run `pytest` bare. |

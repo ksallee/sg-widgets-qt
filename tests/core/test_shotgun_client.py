@@ -85,6 +85,18 @@ def client_with(answers: dict[str, Any]) -> tuple[ShotgunClient, FakeShotgun]:
     return client_on(fake), fake
 
 
+class TestAFaultsMessage:
+    def test_is_cut_at_the_request_dump_the_site_appends(self) -> None:
+        # The site's fault names the reason, then the whole request one key per line.
+        fault = shotgun_api3.Fault(
+            'API query_display_name_cache() query text too short! must be 3 or more characters :\n{"text" => "sh",\n "entity_types" =>'
+        )
+        client = client_on(FakeShotgun(error=fault))
+        with pytest.raises(SgApiError) as caught:
+            client.text_search("xyz", {"Shot": None})
+        assert str(caught.value) == "API query_display_name_cache() query text too short! must be 3 or more characters"
+
+
 class TestTextSearchOnTheWire:
     def test_sends_the_hash_content_type_with_a_hash_group_per_type_and_flattens_the_row(self) -> None:
         client, fake = client_with(
@@ -124,9 +136,53 @@ class TestTextSearchOnTheWire:
         # 25 is the cap and the default, and the call takes a row cap and no offset,
         # so page three of 25 is cut from a read of 75 (probe 053).
         client, fake = client_with({"text_search": {"matches": []}})
-        client.text_search("x", {"Shot": None}, Page(size=100, number=3))
+        client.text_search("xyz", {"Shot": None}, Page(size=100, number=3))
         assert fake.call("text_search").kwargs["limit"] == 75
         assert fake.call("text_search").args[1] == {"Shot": []}
+
+    def test_a_term_under_three_characters_is_a_name_read_per_type(self) -> None:
+        # The endpoint refuses a term under three characters where the REST search the web
+        # widgets use takes any, so the client reads each type's names itself.
+        def find(entity_type, filters, fields, limit):
+            rows = {
+                "Shot": [
+                    {"type": "Shot", "id": 2, "cached_display_name": "sh020_0010", "sg_status_list": "ip"},
+                    {"type": "Shot", "id": 1, "cached_display_name": "sh0", "sg_status_list": "fin"},
+                ],
+                "Asset": [{"type": "Asset", "id": 9, "cached_display_name": "shark", "sg_status_list": None}],
+            }
+            return rows[entity_type]
+
+        client, fake = client_with({"find": find})
+        rows = client.text_search("sh", {"Shot": [["project", "is", {"type": "Project", "id": 70}]], "Asset": None})
+        assert not [c for c in fake.calls if c.name == "text_search"], "the endpoint is never asked"
+        calls = [c for c in fake.calls if c.name == "find"]
+        assert [c.args[0] for c in calls] == ["Shot", "Asset"]
+        # The type's own filter, then the name, and the site's status field beside the name.
+        assert calls[0].args[1] == [["project", "is", {"type": "Project", "id": 70}], ["cached_display_name", "contains", "sh"]]
+        assert calls[0].args[2] == ["cached_display_name", "sg_status_list"]
+        assert calls[0].kwargs["limit"] == 25
+        # Shortest name first across types, as the site's own text search answers (probe 053).
+        assert [(r.type, r.id, r.name, r.status) for r in rows] == [
+            ("Shot", 1, "sh0", "fin"),
+            ("Asset", 9, "shark", None),
+            ("Shot", 2, "sh020_0010", "ip"),
+        ]
+        assert rows[0].links == ("", "")
+
+    def test_a_short_term_page_is_cut_from_the_sorted_read(self) -> None:
+        def find(entity_type, filters, fields, limit):
+            assert limit == 4
+            return [{"type": "Shot", "id": i, "cached_display_name": f"s{i}"} for i in range(1, 5)]
+
+        client, _ = client_with({"find": find})
+        rows = client.text_search("s", {"Shot": None}, Page(size=2, number=2))
+        assert [r.id for r in rows] == [3, 4]
+
+    def test_a_blank_term_reads_nothing(self) -> None:
+        client, fake = client_with({"find": []})
+        assert client.text_search("  ", {"Shot": None}) == []
+        assert fake.calls == []
 
     def test_reads_a_row_that_links_to_nothing_as_two_empty_strings(self) -> None:
         client, _ = client_with(

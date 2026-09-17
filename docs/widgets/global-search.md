@@ -55,9 +55,11 @@ Every word of the query has to match, each as a case-insensitive substring, and 
 own name or on the name of the row it links to. So a Version whose code holds none of the words comes
 back because its linked Shot does (053_text_search_matching).
 
-On the Python API a term is three characters or more: `shotgun_api3.text_search` refuses a
-shorter one outright rather than answering nothing, and the widget draws that refusal as its
-error line (053_text_search_matching).
+The endpoint `shotgun_api3.text_search` calls refuses a term under three characters, where the
+REST text search the web widgets use takes any. So the Python client answers a one or two
+character term itself, with a read of each type's names through `cached_display_name`, sorted
+shortest name first as the site's own answer is; such a row cannot match on the name of the row
+it links to, so its `links` pair is empty (053_text_search_matching).
 
 The page size is 1 to 25, and 25 is also the default. The answer carries no paging links, so "load
 more" asks for the next page and stops when a page comes back short (053_text_search_matching,

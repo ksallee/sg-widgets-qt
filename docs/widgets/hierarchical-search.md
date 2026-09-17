@@ -65,9 +65,11 @@ answers where it sits; its criteria accepts the single key `entity` and any othe
 its path. That endpoint has no `fields` parameter either, so the picture and whatever the row props
 name are a second read of the hits (post_entity_text_search).
 
-On the Python API a term is three characters or more: `shotgun_api3.text_search` refuses a
-shorter one outright rather than answering nothing, and the widget draws that refusal as its
-error line (053_text_search_matching).
+The endpoint `shotgun_api3.text_search` calls refuses a term under three characters, where the
+REST text search the web widgets use takes any. So the Python client answers a one or two
+character term itself, with a read of each type's names through `cached_display_name`, sorted
+shortest name first as the site's own answer is; such a row cannot match on the name of the row
+it links to, so its `links` pair is empty (053_text_search_matching).
 
 The hierarchy endpoints take `application/json` and refuse the vendor content types every other POST
 on this API demands (046_search_without_a_path).

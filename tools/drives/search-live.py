@@ -14,9 +14,9 @@ from qtpy.QtCore import QObject, QTimer
 #: No event-loop iteration may take longer than this while a read is in flight.
 GAP_LIMIT_MS = 50
 
-#: Two letters, and then three. The site's `_text_search` refuses a query under three
-#: characters (`query text too short! must be 3 or more characters`), which the mock does not,
-#: so the short query is expected to draw the error line and the longer one the rows.
+#: Two letters, and then three. The endpoint refuses a query under three characters (`query
+#: text too short! must be 3 or more characters`), so the client answers the short one with a
+#: name read per type; both queries are expected to draw rows, or empty, never the error line.
 SHORT = "sh"
 QUERY = "sh0"
 
@@ -77,6 +77,8 @@ def drive(page, wait, find, prefs) -> dict:
     bad = []
     if control.view not in ("rows", "empty"):
         bad.append(f"the list drew {control.view!r} against the site")
+    if short_view not in ("rows", "empty"):
+        bad.append(f"the two-letter query drew {short_view!r}, not a name read")
     if watch.worst > GAP_LIMIT_MS:
         bad.append(f"the GUI thread stalled {watch.worst:.0f}ms")
     return {

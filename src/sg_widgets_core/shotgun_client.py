@@ -44,7 +44,7 @@ from .client import (
     normalize_hierarchy_node,
 )
 from .filter import EntityRef, TextSearchFilter, WireGroup, to_filter_array
-from .schema import FieldSchema, normalize_field, normalize_fields, undeclared_field
+from .schema import FieldSchema, normalize_field, normalize_fields, status_field_name_for, undeclared_field
 from .status import HtmlIcon, ImageIcon, ImageMapIcon, StatusIcon, StatusRecord
 
 __all__ = [
@@ -265,10 +265,18 @@ def _summarize_result(raw: Mapping[str, Any]) -> SummarizeResult:
     return SummarizeResult(summaries=from_api3_value(body.get("summaries") or {}), groups=groups)
 
 
+#: A text search term shorter than this is answered by a name read, not by the endpoint.
+SHORT_TERM = 3
+
+
 def _sg_api_error(exc: Exception) -> SgApiError:
-    """A `shotgun_api3` failure as the error core catches, with the status it named."""
+    """A `shotgun_api3` failure as the error core catches, with the status it named.
+
+    A fault's message carries the whole request after the reason, one line per key, and a
+    widget's error line has room for the reason; the message is cut at the first line break.
+    """
     status = getattr(exc, "errcode", None)
-    message = str(getattr(exc, "errmsg", None) or exc)
+    message = str(getattr(exc, "errmsg", None) or exc).split("\n", 1)[0].rstrip(" :")
     if status is None:
         found = _HTTP_STATUS.search(message)
         status = int(found.group(1)) if found else None
@@ -413,6 +421,8 @@ class ShotgunClient:
         """
         size, number = _page_of(page, 25)
         size = min(size, 25)
+        if len(text.strip()) < SHORT_TERM:
+            return self._short_text_search(text.strip(), entity_types, size, number)
         answer = self._call(
             "text_search",
             text,
@@ -421,6 +431,44 @@ class ShotgunClient:
         )
         rows = (answer or {}).get("matches") or []
         return [_text_search_row(row) for row in rows[(number - 1) * size:]]
+
+    def _short_text_search(
+        self, text: str, entity_types: dict[str, TextSearchFilter], size: int, number: int
+    ) -> list[TextSearchRow]:
+        """A term under three characters, answered by a name read per type.
+
+        The endpoint `shotgun_api3.text_search` calls refuses a term under three characters
+        (`query text too short! must be 3 or more characters`), where the REST text search the
+        web widgets use takes any term. So a short term reads each type through `find` on
+        `cached_display_name`, which every type carries and the site filters on, and shapes the
+        rows as text search does. The rows come back shortest name first, as the site's own do
+        (053_text_search_matching); what a name read cannot do is match on the name of the row
+        a row links to, so `links` is empty here.
+        """
+        if not text:
+            return []
+        found: list[TextSearchRow] = []
+        for entity_type, flt in entity_types.items():
+            status_field = status_field_name_for(entity_type)
+            filters = [*to_filter_array(flt), ["cached_display_name", "contains", text]]
+            rows = self._call(
+                "find",
+                entity_type,
+                filters,
+                ["cached_display_name", status_field],
+                limit=size * number,
+            )
+            for row in rows or []:
+                found.append(
+                    TextSearchRow(
+                        type=str(row.get("type") or entity_type),
+                        id=int(row["id"]),
+                        name=str(row.get("cached_display_name") or ""),
+                        status=row.get(status_field),
+                    )
+                )
+        found.sort(key=lambda row: (len(row.name), row.name.lower(), row.type, row.id))
+        return found[(number - 1) * size : number * size]
 
     def statuses(self) -> list[StatusRecord]:
         """Status entities with colour and icon."""

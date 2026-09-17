@@ -1122,11 +1122,12 @@ class _ConditionRow(ThemedWidget):
         controls.addWidget(field, 1)
         controls.addWidget(operator)
         controls.addWidget(values, 2)
-        # The three cells keep their own height and centre on the band, which is `items-center`
-        # on the row upstream: a value that grows onto several lines never stretches the field
-        # and the operator beside it, and they read level with the middle of it.
+        # The three cells keep their own height and sit on the band's first line: a value that
+        # grows onto several lines, one per value of an `in`, pushes only the rows under it,
+        # and the field and the operator stay level with the first value, the grip and the
+        # cross. Upstream's row is `items-start` the same way.
         for cell in (field, operator, values):
-            controls.setAlignment(cell, Qt.AlignmentFlag.AlignVCenter)
+            controls.setAlignment(cell, Qt.AlignmentFlag.AlignTop)
 
         # `QLayout.replaceWidget` hands back an item the caller owns, and the two bindings
         # disagree about who frees it, so the band is swapped by index instead.

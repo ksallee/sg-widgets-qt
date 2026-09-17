@@ -244,3 +244,27 @@ def test_the_three_labels_reach_both_lists(host, qtbot, context):
 
 def _key(key: Qt.Key) -> QKeyEvent:
     return QKeyEvent(QKeyEvent.Type.KeyPress, int(key), Qt.KeyboardModifier.NoModifier)
+
+
+def test_keys_on_the_trigger_type_into_the_browse_search(host, qtbot, context):
+    """The panel never takes the window's focus, so the keyboard delivers to the trigger.
+
+    With the panel open a key on the selector lands in the browse search box, the way a
+    picker's anchor hands its keys to the popup's search.
+    """
+    from qtpy.QtTest import QTest
+
+    selector = make(host, qtbot, context)
+    settle(qtbot, selector)
+    selector.set_open(True)
+    qtbot.wait(100)
+    box = selector._tree.search_control().input()
+    assert box is not None and box.isVisible()
+    QTest.keyClicks(selector, "sh0")
+    qtbot.wait(50)
+    assert selector._tree.search_control().query == "sh0"
+    assert box.text() == "sh0"
+    QTest.keyClick(selector, Qt.Key.Key_Backspace)
+    qtbot.wait(50)
+    assert selector._tree.search_control().query == "sh"
+    selector.set_open(False)

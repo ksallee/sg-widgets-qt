@@ -21,6 +21,7 @@ from typing import Any
 from qtpy.QtCore import QEvent, QSize, Qt, Signal
 from qtpy.QtGui import QFont, QFontMetrics, QKeyEvent, QPainter
 from qtpy.QtWidgets import (
+    QApplication,
     QHBoxLayout,
     QScrollArea,
     QSizePolicy,
@@ -907,12 +908,27 @@ class ContextSelector(QWidget):
         self.set_open(False)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
-        """Escape from the trigger closes the popover, and `_on_closed` gives the caret back."""
+        """Escape from the trigger closes the popover, and `_on_closed` gives the caret back.
+
+        Any other key with the panel open is the browse search's: the panel never takes the
+        window's focus, so the keyboard delivers here while its search box stands in the
+        popover, and the box gets the key as if it were typed in it.
+        """
         if self._open and event.key() == Qt.Key.Key_Escape:
             self.set_open(False)
             event.accept()
             return
+        if self._open and self._type_into_browse(event):
+            event.accept()
+            return
         super().keyPressEvent(event)
+
+    def _type_into_browse(self, event: QKeyEvent) -> bool:
+        box = self._tree.search_control().input()
+        if box is None or not box.isVisible():
+            return False
+        QApplication.sendEvent(box, event)
+        return event.isAccepted()
 
     @property
     def label(self) -> str:
