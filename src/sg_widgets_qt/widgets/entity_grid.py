@@ -779,9 +779,11 @@ class EntityGrid(QtWidgets.QWidget):
             tile = card_tile_size(self.size)
             gap = ENTITY_GRID_GAP[self.density]
             if self._rows_height > 0:
-                rows = max(1, round((self._rows_height - 2 * GRID_PAD + gap) / (tile.height() + gap)))
+                rows = max(1, -(-(self._rows_height - 2 * GRID_PAD + gap) // (tile.height() + gap)))
                 per_row = max(1, (self.view.width() - 2 * GRID_PAD + gap) // (tile.width() + gap))
-                self._skeleton.set_tiles(rows * per_row, tile, gap, self.view.width())
+                self._skeleton.set_tiles(
+                    rows * per_row, tile, gap, self.view.width(), height=self._rows_height
+                )
             else:
                 self._skeleton.set_tiles(SKELETON_TILES, tile, gap, self.view.width())
         self.view.setVisible(view == "rows")
@@ -845,8 +847,14 @@ class _GridSkeleton(SkeletonBlock):
         """How many tiles stand in the block."""
         return self._tiles
 
-    def set_tiles(self, count: int, tile: QtCore.QSize, gap: int, width: int) -> None:
-        """`count` tiles of `tile`, `gap` apart, wrapped to `width` (0 for one row)."""
+    def set_tiles(
+        self, count: int, tile: QtCore.QSize, gap: int, width: int, height: int = 0
+    ) -> None:
+        """`count` tiles of `tile`, `gap` apart, wrapped to `width` (0 for one row).
+
+        With `height`, the block stands at exactly that and clips its last row, the way the
+        box the tiles scrolled in clipped them.
+        """
         count = max(1, int(count))
         per_row = max(1, (width - 2 * GRID_PAD + gap) // (tile.width() + gap)) if width > 0 else count
         while self._grid.count():
@@ -863,7 +871,7 @@ class _GridSkeleton(SkeletonBlock):
         self._grid.setColumnStretch(per_row, 1)
         rows = (count + per_row - 1) // per_row
         self._tiles = count
-        self.setFixedHeight(rows * tile.height() + (rows - 1) * gap + 2 * GRID_PAD)
+        self.setFixedHeight(height if height > 0 else rows * tile.height() + (rows - 1) * gap + 2 * GRID_PAD)
 
 
 #: The tile width per step, so a caller can size its own column around one.

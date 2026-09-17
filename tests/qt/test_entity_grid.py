@@ -264,9 +264,10 @@ def test_a_re_read_stands_behind_tiles_that_keep_the_grids_height(qtbot):
     assert grid.control.snapshot().status == "loading"
     skeleton = grid.findChild(QWidget, "entity-grid-loading")
     assert skeleton.isVisible() and not grid.view.isVisible()
-    # Two rows of three at this width and height: the box the tiles filled, not a cold read's eight.
-    assert skeleton.tiles == 6
-    assert abs(skeleton.height() - rows_height) <= 40
-    assert abs(grid.height() - before) <= 40
+    # Three rows of three cover the box at this width and height, the last row clipped as the
+    # tiles' own was; not a cold read's eight.
+    assert skeleton.tiles == 9
+    assert skeleton.height() == rows_height
+    assert abs(grid.height() - before) <= 2
     settle(grid, grid.control.binding)
     assert grid.view.isVisible() and abs(grid.height() - before) <= 2
