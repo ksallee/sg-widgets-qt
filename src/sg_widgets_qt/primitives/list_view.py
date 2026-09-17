@@ -521,10 +521,15 @@ class ListSurface(QListView):
         self.updateGeometry()
 
     def content_height(self) -> int:
-        """How tall the rows stand, the inset counted."""
+        """How tall the rows stand, the inset counted.
+
+        A list with nothing in it stands at nothing: `p-1` is the room around rows, and the
+        upstream `command-list` with no rows under it measures zero, so a box holding an
+        empty list is as tall as its search row and no taller.
+        """
         rows = self.row_count()
         if rows == 0:
-            return 2 * LIST_PAD
+            return 0
         total = sum(self.sizeHintForRow(row) for row in range(rows))
         return total + 2 * LIST_PAD
 
