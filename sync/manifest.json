@@ -1066,6 +1066,42 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "Upstream's pressed prop on a toggle is checked here: pressed is the mouse state every painted leaf keeps."
     },
+    "primitives/dialog": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/dialog.tsx": "7e96b921d921ee9fb7c53e9372b17e775d087be9788ce1d51cbcdbab2b0d4ba5"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/dialog.py",
+        "tests/qt/test_primitives_floating.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The backdrop is a separate overlay widget over the parent window at 50% black, and the panel takes p-6 and max-w-lg."
+    },
+    "primitives/dropdown-menu": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/dropdown-menu.tsx": "38eb2d79c390295e7038ed4c016543afdd5441611e9692f10c85f78434752a3f"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/dropdown_menu.py",
+        "tests/qt/test_primitives_floating.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The anchor forwards its keys rather than the menu taking focus, so no Qt.Popup is needed."
+    },
+    "primitives/hover-card": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/hover-card.tsx": "ca6d242bebfe31dc067aa2e6c96c0e5898762c56fea6cc2bf17d1a1d100604d8"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/hover_card.py",
+        "tests/qt/test_primitives_floating.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Upstream's p-2.5 padding is kept; the open and close delays are keywords."
+    },
     "primitives/icons": {
       "status": "complete",
       "upstream": {
@@ -1106,6 +1142,30 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
     },
+    "primitives/popover": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/popover.tsx": "6bf2b8ffd41fc8bd32f71a1b5240443a8b6c51869bba6e099e6b76690a52a3e4"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/popover.py",
+        "tests/qt/test_primitives_floating.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "A frameless translucent Tool window rather than a portal: the anchor keeps its focus and its caret while the surface is up."
+    },
+    "primitives/select": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/select.tsx": "cbc52a4859b7c29d9fea157d4224844efee99eadb1a4cd922190cc80d5decd6e"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/select.py",
+        "tests/qt/test_primitives_floating.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The trigger carries chevrons-up-down rather than upstream's chevron-down, and the list is the menu list of primitives/dropdown_menu.py."
+    },
     "primitives/skeleton": {
       "status": "complete",
       "upstream": {
@@ -1133,6 +1193,18 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
+    },
+    "primitives/tooltip": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/components/ui/popover.tsx": "6bf2b8ffd41fc8bd32f71a1b5240443a8b6c51869bba6e099e6b76690a52a3e4"
+      },
+      "ported": [
+        "src/sg_widgets_qt/primitives/tooltip.py",
+        "tests/qt/test_primitives_floating.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "No upstream tooltip.tsx: recorded against popover.tsx, whose surface it wears, because the host QToolTip look is stock."
     },
     "primitives/workers": {
       "status": "complete",

@@ -166,7 +166,7 @@ class IconButton(ThemedWidget):
             self._glyph,
         )
         ink = theme.color("accent_foreground" if self._wash.value > 0.5 else "foreground")
-        icons.paint_icon(painter, box, self._name, with_alpha(ink, 0.7 + 0.3 * self._wash.value))
+        icons.paint_icon(painter, box, self._name, with_alpha(ink, 0.85 + 0.15 * self._wash.value))
         if self.keyboard_focus:
             self.paint_focus_ring(painter, self.rect(), radius)
         painter.end()

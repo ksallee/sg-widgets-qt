@@ -71,16 +71,12 @@ class PrefsToolbar(QtWidgets.QWidget):
             made.setObjectName("theme-switch")
             return made
         if key == "motion":
-            made = chrome.ChromeButton(
+            made = chrome.toggle(
                 text="Reduce motion",
-                variant="outline",
+                pressed=self._prefs.reduced_motion,
                 size=self._size,
-                checkable=True,
                 parent=self,
-            )
-            made.set_checked(self._prefs.reduced_motion)
-            made.toggled.connect(
-                lambda on: self._prefs.set("motion", "reduced" if on else "normal")
+                on_toggle=lambda on: self._prefs.set("motion", "reduced" if on else "normal"),
             )
             made.setObjectName("motion-toggle")
             return made

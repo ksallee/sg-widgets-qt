@@ -29,6 +29,7 @@ __all__ = [
     "primitive",
     "select",
     "switch",
+    "toggle",
 ]
 
 #: The height ladder: `sm`, `md`, `lg`.
@@ -662,12 +663,33 @@ def select(
     made = _from_primitive("Select", items=list(options), value=value, size=size, parent=parent)
     if made is None:
         made = ChromeSelect(options, value=value, size=size, parent=parent)
+    else:
+        _hold_label(made)
     if on_pick is not None:
         for name in ("value_changed", "picked"):
             signal = getattr(made, name, None)
             if signal is not None:
                 signal.connect(lambda value: on_pick(str(value)))
                 break
+    return made
+
+
+def toggle(
+    text: str = "",
+    pressed: bool = False,
+    size: str = "md",
+    parent: QtWidgets.QWidget | None = None,
+    on_toggle: Callable[[bool], None] | None = None,
+) -> QtWidgets.QWidget:
+    """A button that stays down: the primitive where there is one, else the painted one."""
+    made = _from_primitive("Toggle", text=text, pressed=pressed, size=size, parent=parent)
+    if made is None:
+        made = ChromeButton(text=text, variant="outline", size=size, checkable=True, parent=parent)
+        made.set_checked(pressed)
+    if on_toggle is not None:
+        signal = getattr(made, "toggled", None)
+        if signal is not None:
+            signal.connect(on_toggle)
     return made
 
 
@@ -689,6 +711,21 @@ def switch(
         if signal is not None:
             signal.connect(on_toggle)
     return made
+
+
+def _hold_label(control: QtWidgets.QWidget) -> None:
+    """Keep a select wide enough for its own longest label.
+
+    `primitives/select.py` leaves the ring's room out of `sizeHint`, so a select at exactly its
+    hint elides the value it was measured from.
+    """
+    slack = 8
+
+    def fit(_theme: object = None) -> None:
+        control.setMinimumWidth(control.sizeHint().width() + slack)
+
+    watch_theme(control, fit)
+    fit()
 
 
 def _from_primitive(name: str, **kwargs: Any) -> QtWidgets.QWidget | None:

@@ -327,20 +327,19 @@ class RowDelegate(QStyledItemDelegate):
         sub_height = QFontMetrics(theme.font(CODE_TEXT)).height() if sub else 0
         top = box.top() + max(0, (box.height() - label_height - sub_height) // 2)
 
-        code = _text(index, Roles.CODE)
-        room = box.width()
-        if code:
-            code_font = theme.font(CODE_TEXT, mono=True)
-            code_width = QFontMetrics(code_font).horizontalAdvance(code)
-            room = max(0, room - code_width - LABEL_GAP)
-
-        line = QRect(box.left(), top, room, label_height)
         runs = _runs(index)
+        code = _text(index, Roles.CODE)
+        code_font = theme.font(CODE_TEXT, mono=True)
+        code_width = QFontMetrics(code_font).horizontalAdvance(code) if code else 0
+        room = max(0, box.width() - (code_width + LABEL_GAP if code else 0))
+        # The code sits beside the label, not at the far edge, so the two read as one line.
+        width = min(_runs_width(runs, base, bold), room)
+
+        line = QRect(box.left(), top, width, label_height)
         cut = _draw_runs(painter, line, runs, base, bold, ink)
 
         if code:
-            code_font = theme.font(CODE_TEXT, mono=True)
-            code_box = QRect(box.left() + room + LABEL_GAP, top, box.width() - room - LABEL_GAP, label_height)
+            code_box = QRect(box.left() + width + LABEL_GAP, top, code_width, label_height)
             painter.setFont(code_font)
             painter.setPen(muted)
             painter.drawText(
@@ -504,6 +503,12 @@ def _runs(index: QModelIndex) -> list[tuple[str, bool]]:
         if out:
             return out
     return [(_text(index, Roles.LABEL) or _display(index), False)]
+
+
+def _runs_width(runs: list[tuple[str, bool]], base: QFont, bold: QFont) -> int:
+    """How wide the runs stand, each in the weight it is drawn in."""
+    normal, heavy = QFontMetrics(base), QFontMetrics(bold)
+    return sum((heavy if matched else normal).horizontalAdvance(text) for text, matched in runs)
 
 
 def _draw_runs(

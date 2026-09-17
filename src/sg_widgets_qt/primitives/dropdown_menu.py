@@ -39,7 +39,6 @@ __all__ = [
 #: A row stands 32 high, the `md` rung of the control ladder. `px-2 py-1.5` is its inset.
 MENU_ROW_HEIGHT = 32
 MENU_ROW_PAD = 8
-MENU_ROW_VPAD = 6
 
 #: `p-1` around the rows, inside the surface.
 MENU_LIST_PAD = 4

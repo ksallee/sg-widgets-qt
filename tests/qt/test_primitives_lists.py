@@ -201,9 +201,12 @@ def test_a_short_list_keeps_no_scrollbar(themed, qtbot):
 # --- the row ---------------------------------------------------------------------------
 
 
-def paint_row(delegate, model, row, size=QSize(320, 48), widget=None):
+ROW_BOX = QSize(320, 48)
+
+
+def paint_row(delegate, model, row, size=None, widget=None):
     """Draw one row into a pixmap and give back the image."""
-    picture = QPixmap(size)
+    picture = QPixmap(size if size is not None else ROW_BOX)
     picture.fill(QColor("#ffffff"))
     option = QStyleOptionViewItem()
     option.rect = picture.rect()
