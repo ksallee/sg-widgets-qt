@@ -86,7 +86,7 @@ class TextEditor(ValueEditor):
         made: QtWidgets.QWidget
         if self._multiline:
             made = Textarea(placeholder=self.placeholder, size=self.size, parent=self)
-            made.setMinimumHeight(self._text_height())
+            made.set_floor_height(self._text_height())
         else:
             made = Input(placeholder=self.placeholder, size=self.size, parent=self)
         made.setObjectName("text-editor-input")
@@ -137,14 +137,14 @@ class TextEditor(ValueEditor):
     def set_rows(self, value: int) -> None:
         self._rows = max(1, int(value))
         if self._multiline and self._control is not None:
-            self._control.setMinimumHeight(self._text_height())
+            self._control.set_floor_height(self._text_height())
 
     # --- hooks ---------------------------------------------------------------------------
 
     def _apply_size(self, size: str) -> None:
         set_control_size(self._control, size)
         if self._multiline and self._control is not None:
-            self._control.setMinimumHeight(self._text_height())
+            self._control.set_floor_height(self._text_height())
 
     def _apply_placeholder(self, placeholder: str) -> None:
         if self._control is not None:

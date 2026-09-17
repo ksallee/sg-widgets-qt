@@ -312,7 +312,8 @@ class Textarea(_Field, QtWidgets.QPlainTextEdit):
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred
         )
-        self.setMinimumHeight(TEXTAREA_MIN_HEIGHT)
+        #: The least the box stands at: 64px, or the rows a caller asks for.
+        self._floor_height = TEXTAREA_MIN_HEIGHT
         #: A height the reader dragged the box to, or None while it follows its text.
         self._dragged_height: int | None = None
         self._drag_from: tuple[int, int] | None = None
@@ -334,12 +335,24 @@ class Textarea(_Field, QtWidgets.QPlainTextEdit):
         return max(1, lines) * self.fontMetrics().lineSpacing() + 2 * margin + 2
 
     @property
+    def floor_height(self) -> int:
+        """The least height the box asks for; a caller sets it from the rows it wants."""
+        return self._floor_height
+
+    def set_floor_height(self, value: int) -> None:
+        # A floor set here rather than through `setMinimumHeight`: a layout prefers an explicit
+        # minimum to the hint, which would pin the box at the floor when its text or a drag
+        # asks for more.
+        self._floor_height = max(TEXTAREA_MIN_HEIGHT, int(value))
+        self.updateGeometry()
+
+    @property
     def dragged_height(self) -> int | None:
         """The height set by a drag on the corner, or None while the box follows its text."""
         return self._dragged_height
 
     def set_dragged_height(self, value: int | None) -> None:
-        self._dragged_height = max(self.minimumHeight(), int(value)) if value is not None else None
+        self._dragged_height = max(self._floor_height, int(value)) if value is not None else None
         self.updateGeometry()
 
     def _on_text_grew(self, *_args: Any) -> None:
@@ -371,10 +384,12 @@ class Textarea(_Field, QtWidgets.QPlainTextEdit):
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
         height = self._dragged_height if self._dragged_height is not None else self.content_height()
-        return QtCore.QSize(240, max(self.minimumHeight(), TEXTAREA_MIN_HEIGHT, height))
+        return QtCore.QSize(240, max(self._floor_height, height))
 
     def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802
-        return QtCore.QSize(0, TEXTAREA_MIN_HEIGHT)
+        # The height is the box's own, as a browser textarea's intrinsic height is: a page in
+        # a scroll area lays its content out at the minimum, so the minimum carries it.
+        return QtCore.QSize(0, self.sizeHint().height())
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # noqa: N802
         super().resizeEvent(event)
