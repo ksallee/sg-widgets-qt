@@ -18,12 +18,13 @@ from sg_widgets_core.collection import (
     resolve_columns,
 )
 from sg_widgets_core.collection_state import collapse_all, expand_all, to_sort_specs
-from sg_widgets_core.filter import condition
+from sg_widgets_core.filter import condition, group
 from sg_widgets_core.mock import MockCounts
 
 from ...images import image_loader
 from ...widgets.column_picker import ColumnPicker
 from ...widgets.entity_table import EntityTable
+from ...widgets.filter_bar import FilterBar
 from ...workers import default_pool
 from .. import chrome
 from ..context import DemoContext, demo_context
@@ -56,6 +57,9 @@ PAGE_SIZE = 25
 #: The column picker's own width, so the toolbar keeps its shape when it opens.
 PICKER_WIDTH = 224
 
+#: The fields the filter bar offers as pills, as upstream's `FACETS` does.
+FACETS = ("sg_status_list",)
+
 
 class EntityTableDemo(QtWidgets.QWidget):
     """The toolbar of toggles, and the table under it."""
@@ -71,6 +75,7 @@ class EntityTableDemo(QtWidgets.QWidget):
             if context.live
             else None
         )
+        self._scope = scope
         self._source = create_entity_source(
             EntitySourceOptions(
                 client=context.client,
@@ -154,8 +159,19 @@ class EntityTableDemo(QtWidgets.QWidget):
         self._picker.value_changed.connect(self._pick_columns)
         columns.addWidget(self._picker)
 
+        # The filter bar is the toolbar's leading control, ahead of the column picker.
+        self._filters = FilterBar(
+            entity_type="Version",
+            context=context,
+            facets=list(FACETS),
+            base_filter=scope,
+            size="sm",
+            parent=self,
+        )
+        self._filters.filters_changed.connect(self._on_filters)
+
         self._sort = _sort_picker(context, self)
-        self.table.set_toolbar_start(self._columns_box)
+        self.table.set_toolbar_start(self._filters, self._columns_box)
         if self._sort is not None:
             self._sort.sort_changed.connect(self._on_sort_keys)
             self.table.set_toolbar_end(self._sort)
@@ -209,6 +225,10 @@ class EntityTableDemo(QtWidgets.QWidget):
 
     # --- the toggles ----------------------------------------------------------------------
 
+    def _on_filters(self, value: object) -> None:
+        """The bar's own group, under the scope the live site needs."""
+        self.table.set_filters(_scoped(self._scope, value))
+
     def _on_group(self, on: bool) -> None:
         self.table.set_group_by("sg_status_list" if on else None)
         self._collapse.setEnabled(on)
@@ -219,6 +239,15 @@ class EntityTableDemo(QtWidgets.QWidget):
 
     def _on_sort_keys(self, keys: object) -> None:
         self.table.set_sort(to_sort_specs(list(keys or [])))
+
+
+def _scoped(scope: Any, value: Any) -> Any:
+    """The bar's filter, with the project scope over it when a live site needs one."""
+    if scope is None:
+        return value
+    if value is None:
+        return scope
+    return group("and", [scope, value])
 
 
 def _radio(

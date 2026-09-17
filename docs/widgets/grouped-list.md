@@ -11,6 +11,7 @@ draws the pagination footer. The list defaults to `more`. A group's count is the
 it, so a boundary a reader can see is worth more here than one that passes under them while they
 read.
 
+A header's count follows its label in the same line, a gap away, so the two read as one heading.
 A page whose first rows carry the value the last header carries grows that group rather than opening
 a second one, and a group shut before the page arrived is still shut after it. A page that fails
 leaves its rows and puts one error line under them with a retry.

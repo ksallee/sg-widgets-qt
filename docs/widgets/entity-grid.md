@@ -66,13 +66,18 @@ The grid is one tab stop: Tab moves into the tile the cursor is on, and the arro
 
 ::props{name="entity-grid" kind="keyboard"}
 
+One press opens a tile, as Enter does: a wall of pictures is browsed by looking, and a tile is
+opened by the press that reaches it. The selection box keeps a press of its own, so taking a tile
+never opens it.
+
 A disabled row takes no keys and no click: the arrows step over it and the cursor never lands on it.
 
 ## Anatomy
 
 The tile follows the thumbnail view of the Flow PT web app and the asset grid of Frame.io: the
 picture first and at one aspect, the state on the picture rather than under it, one line of name and
-one of metadata, and the controls only while the pointer or the focus is on the tile.
+one of metadata, and the controls only while the pointer or the focus is on the tile. The state is
+the status glyph alone inside its pill, never its name: a long status name would cross the picture.
 
 ## API behaviour
 

@@ -106,6 +106,11 @@ column spec forces it for that column.
 
 ## Column menu
 
+A sortable header says so before anything sorts by it: the up-and-down chevron stands at half
+strength where the sort arrow will, and the arrow replaces it on the column the set is sorted by.
+A header that cannot be sorted carries no mark. The label wears the row's own type step at medium
+weight, so `size` moves the two together.
+
 With `column_menu`, every header carries a menu: sort ascending, sort descending, clear sort and
 hide column. It is off by default: a header sorts on a press, and the column picker in the toolbar
 is where columns are shown and hidden.
@@ -144,7 +149,9 @@ which is emitted on every page forever (006_pagination). The "of N" in the range
 the range reading "n to m" (020_summarize).
 
 Grouping collapses the loaded rows under headers, and the group path leads the source's sort so a
-group is not split across pages. A count is the rows loaded under that header, and a page that
+group is not split across pages. The count follows the heading's value in the same line, a gap
+away, because a heading spans the table and a count at its far edge would read as a column of its
+own. A count is the rows loaded under that header, and a page that
 opens on the value the last header carries grows that group rather than opening a second one.
 
 `collapsed` is a mode with exceptions rather than a list of ids, so Collapse all covers the headers
