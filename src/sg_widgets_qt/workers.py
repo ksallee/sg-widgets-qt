@@ -173,12 +173,12 @@ class Job(QObject):
 
     @Slot(object)
     def _deliver_result(self, value: object) -> None:
-        if self.live and self._on_result is not None:
+        if not self._state.gone and self.live and self._on_result is not None:
             self._on_result(value)
 
     @Slot(object)
     def _deliver_error(self, error: object) -> None:
-        if self.live and self._on_error is not None:
+        if not self._state.gone and self.live and self._on_error is not None:
             self._on_error(error)
 
     @Slot()
@@ -221,6 +221,21 @@ class JobPool(QObject):
         self._pool.setMaxThreadCount(max_threads)
         self._lock = threading.Lock()
         self._live: set[Job] = set()
+        # The pool going (its owner window closed) retires every job still in flight, so no
+        # answer reaches a callback whose widgets are gone. The closure holds the set, not the
+        # pool, since the pool's wrapper may already be dead when `destroyed` fires.
+        live = self._live
+        lock = self._lock
+
+        def retire_all(*_args: object) -> None:
+            with lock:
+                jobs = list(live)
+                live.clear()
+            for job in jobs:
+                job._state.gone = True
+                job.cancel()
+
+        self.destroyed.connect(retire_all)
 
     @property
     def pool(self) -> QThreadPool:
