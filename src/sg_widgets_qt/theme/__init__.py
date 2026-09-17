@@ -22,6 +22,9 @@ from pathlib import Path
 from qtpy import QtCore, QtGui, QtWidgets
 
 __all__ = [
+    "BUNDLED_FONTS",
+    "MONO_FAMILY",
+    "ensure_fonts",
     "PALETTES",
     "RADII",
     "TOKENS",
@@ -300,6 +303,24 @@ class Theme:
         return replace(self, **changes)  # type: ignore[arg-type]
 
 
+_FONTS_DIR = Path(__file__).resolve().parent / "fonts"
+_FONTS_LOADED = False
+#: The families the palettes name, shipped as variable TrueType files under the OFL beside this
+#: module, so a palette wears its own face on a host that has none of them installed.
+BUNDLED_FONTS = ("Geist", "Geist Mono", "Montserrat", "Open Sans", "Outfit")
+MONO_FAMILY = "Geist Mono"
+
+
+def ensure_fonts() -> None:
+    """Register the bundled families with the font database, once, when an application exists."""
+    global _FONTS_LOADED
+    if _FONTS_LOADED or QtGui.QGuiApplication.instance() is None:
+        return
+    _FONTS_LOADED = True
+    for path in sorted(_FONTS_DIR.glob("*.ttf")):
+        QtGui.QFontDatabase.addApplicationFont(str(path))
+
+
 def theme_for(
     palette: str = _DEFAULT_PALETTE,
     dark: bool = False,
@@ -314,6 +335,9 @@ def theme_for(
     override = RADII.get(radius)
     if override is not None:
         values["radius"] = override
+    if not values.get("font_mono"):
+        values["font_mono"] = MONO_FAMILY
+    ensure_fonts()
     return Theme(name=palette, dark=dark, reduced_motion=reduced_motion, **values)
 
 
@@ -373,7 +397,7 @@ def host_theme(palette: QtGui.QPalette | None = None) -> Theme:
         sidebar_ring=highlight.name(),
         radius=ground.radius,
         font_sans=_application_family(),
-        font_mono="",
+        font_mono=MONO_FAMILY,
         dark=dark,
         name=_HOST_NAME,
     )
@@ -510,6 +534,7 @@ theme_bus = ThemeBus()
 
 def apply_theme(root: QtWidgets.QWidget, theme: Theme) -> None:
     """Put a theme on one root widget: the widgets under it read it, and it wears the stylesheet."""
+    ensure_fonts()
     root.setProperty(_PROPERTY, theme)
     root.setStyleSheet(generate_qss(theme))
     theme_bus.changed.emit(root)
