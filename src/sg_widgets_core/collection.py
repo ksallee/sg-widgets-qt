@@ -594,7 +594,7 @@ class CollectionColumn:
 def resolve_columns(
     schema: SchemaService,
     entity_type: str,
-    columns: Sequence[Union[str, ColumnSpec]],
+    columns: Sequence[str | ColumnSpec],
 ) -> list[CollectionColumn]:
     """Fill in headers, data types and editability from the schema.
 
@@ -627,7 +627,7 @@ def resolve_columns(
     return out
 
 
-def to_column(spec: Union[str, CollectionColumn]) -> CollectionColumn:
+def to_column(spec: str | CollectionColumn) -> CollectionColumn:
     """A column from a bare path, for a row-anatomy prop that takes either.
 
     Nothing but the path is known, so the value renders as text and the column is

@@ -46,7 +46,7 @@ class RowAnatomy:
     """The six props of rule 9, as a widget holds them."""
 
     #: `False`, or the field name holding the image URL.
-    thumbnail: Union[str, bool, None] = None
+    thumbnail: str | bool | None = None
     #: The field shown as the main label. The display-name chain answers it when absent.
     label_field: str | None = None
     #: The muted line under the label.

@@ -14,7 +14,7 @@ import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from dataclasses import field as dc_field
-from typing import Any, Union
+from typing import Any
 
 from .client import EntityRow
 from .collection import SortSpec, SourceFilters, row_key, to_wire_group
@@ -259,7 +259,7 @@ def expand_all() -> CollapseState:
     return CollapseState(all=False, except_=[])
 
 
-def as_collapse_state(value: Union[Sequence[str], CollapseState, None]) -> CollapseState:
+def as_collapse_state(value: Sequence[str] | CollapseState | None) -> CollapseState:
     """A caller's value as a state.
 
     A bare key list is the open mode with those keys shut, and a mode written without

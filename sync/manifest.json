@@ -18,6 +18,32 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "RestClient is ShotgunClient in shotgun_client.py"
     },
+    "core/collection": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/collection.ts": "9c761e5b88f8fb83da53ed879f275695c9f2b7b72bb019ef4aa39efcd9f322e0",
+        "packages/core/test/collection.test.ts": "259acffe6d14f70e9ea9dd2484dc62eeeec272190aa163ea48c436a3aa7a9ada"
+      },
+      "ported": [
+        "src/sg_widgets_core/collection.py",
+        "tests/core/test_collection.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Synchronous: a read calls the client. An InFlight record carries the ticket and the filter a read started under, so a stale page and a stale count are dropped; the Qt layer runs the read on a thread. 'subscribe' answers an unsubscribe callable. PagingModel.from is 'from_'."
+    },
+    "core/collection-state": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/collection-state.ts": "39899a032cb360f5bd4c2d2bcd19fcad08140477660e0547cfda86d770748aff",
+        "packages/core/test/collection-state.test.ts": "8a77cb22e6a48c7734c7ea45fd74f99cc079e7e94d851dfdea9d043d04ab03f2"
+      },
+      "ported": [
+        "src/sg_widgets_core/collection_state.py",
+        "tests/core/test_collection_state.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "CollapseState.except is 'except_'. 'as_collapse_state' takes a key list or a CollapseState."
+    },
     "core/context": {
       "status": "complete",
       "upstream": {
@@ -43,6 +69,19 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "ParseResult is the pair ParseValue and ParseError. timeZoneName with no zone answers the running process's zone abbreviation, which is what the standard library spells."
+    },
+    "core/entity-card": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/entity-card.ts": "e10425823dcdeae2f24a68dfbe835f53a8c50aa5c8108aa0989769d9f9ba454d",
+        "packages/core/test/entity-card.test.ts": "920581df8b7118b1b3a3c46710995db1bc3c42e49fabcf39228ace5c22e9d5b1"
+      },
+      "ported": [
+        "src/sg_widgets_core/entity_card.py",
+        "tests/core/test_entity_card.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Synchronous: the Qt layer runs the read on a thread. The status badge is an EntityCardStatus dataclass."
     },
     "core/field-icons": {
       "status": "complete",
@@ -122,6 +161,32 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "Every method is ported. The mulberry32 PRNG is ported bit for bit, so seed 1 reproduces the upstream ids, codes, statuses and dates exactly. A row is EntityRow(type, id, values), one flat map with relationships as {type, id, name} dicts and dotted fields under their literal key, so the tests read row.values where upstream reads attributes and relationships. latency_ms is a time.sleep and mutable state is guarded by one threading.RLock."
     },
+    "core/paging": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/paging.ts": "74bcd0f5a21d734fb62ebfca80e01cba30c57ce82291acf3477b84214f2967a1",
+        "packages/core/test/paging.test.ts": "5e7c9b696df914b3a977a29d17563ffcc2e5e523bfdb295f1a523e0b33492a53"
+      },
+      "ported": [
+        "src/sg_widgets_core/paging.py",
+        "tests/core/test_paging.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "core/picker": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/picker.ts": "404e068fc0cc5bfc7a29302eae09398be94b980230c500eb3b74ff69a01fad20",
+        "packages/core/test/picker.test.ts": "713539f45fff6b8ce2ae18c639987b52f7a021a2e81a5b0db3218f74dac5b022"
+      },
+      "ported": [
+        "src/sg_widgets_core/picker.py",
+        "tests/core/test_picker.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Synchronous and without timers: begin/fetch_page/deliver split the read so the Qt layer can debounce and run fetch_page on a thread, and a stale ticket is dropped. flatten_row reads the one flat EntityRow.values."
+    },
     "core/picker-keys": {
       "status": "partial",
       "upstream": {
@@ -187,6 +252,19 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "Intl has no standard-library equal: LOCALES holds the medium date pattern, the short time pattern and the number marks for en-US, en-GB, fr-FR, de-DE and ja-JP, and an unknown locale formats as en-US. currentPlatform reads sys.platform, not a browser navigator."
+    },
+    "core/row": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/row.ts": "2a40fce9134691ea61019009f0d19a7e2e89ef8d6a662831d147fbdae6ce8321",
+        "packages/core/test/row.test.ts": "09aa5d89ef0c370f1ab9b5eb89deb36e54652d86d12e268bbdb64a9cf9aacde5"
+      },
+      "ported": [
+        "src/sg_widgets_core/row.py",
+        "tests/core/test_row.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "RowAnatomy is a dataclass; 'row_secondary' takes any row with an id and a values map, as RowValues."
     },
     "core/schema": {
       "status": "complete",
@@ -305,6 +383,54 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "The memoised promise is a table behind a threading.Lock, so two threads asking at once cost one read; by_code answers a Mapping."
+    },
+    "core/tree": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/tree.ts": "2c0db8b31e8ca4db87aa1dbbb30b5b76a6e2bbc7274ae67a60803360a33db548",
+        "packages/core/test/tree.test.ts": "4fdcd4ed439622923624cee9ee413e373f64db173070d7deba7abbecfdefd52c"
+      },
+      "ported": [
+        "src/sg_widgets_core/tree.py",
+        "tests/core/test_tree.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Synchronous: the loader and the searcher are called, and sg_widgets_qt.workers runs them on a thread. A search holds a RequestGate ticket in place of the upstream cancellation token. select() takes an additive keyword rather than an options record."
+    },
+    "demos/hello": {
+      "status": "complete",
+      "upstream": {
+        "apps/site/src/demos/hello/Demo.tsx": "089ffb156ca2854641f2f180b340f418a8be9ae5ba0bb1dd3c298ca7699bc723"
+      },
+      "ported": [
+        "src/sg_widgets_qt/showcase/demos/hello.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "demos/showcase": {
+      "status": "complete",
+      "upstream": {
+        "apps/site/src/components/Demo.astro": "0013d6fd8c2c18a7cf6a22c272709b929a5417a0ed386fef9d70bccb186a7caa",
+        "apps/site/src/components/DemoToolbar.astro": "80e646514a17641e71a4a50259ddea7f54573a15962fa257e96da128d571f8e3",
+        "apps/site/src/components/demo-prefs.ts": "894f5130f7bc337985fe218c39d086f7e2091fae3d94374a1892f88a90758ce8",
+        "apps/site/src/demos/_shared/client.ts": "ab123d81456c043397965250fec1fe373528b02b8f322b6bae1559dc02a15ab4",
+        "apps/site/src/demos/_shared/live.ts": "5d87dcef65edcfc5a430f726b657e6501599acdf45d71844abda2090f74f2e51",
+        "apps/site/astro.config.mjs": "a301d655be0a7def4d1ee2a04bbaea31a88379cdc0666b0250492e8d6441568c",
+        "tools/qa.mjs": "dbdcbd57ba284cb9136ca0c3918ccbf8ab0911ba77bdd3449d6b4ec7d1e4a524"
+      },
+      "ported": [
+        "src/sg_widgets_qt/showcase/__main__.py",
+        "src/sg_widgets_qt/showcase/prefs.py",
+        "src/sg_widgets_qt/showcase/context.py",
+        "src/sg_widgets_qt/showcase/window.py",
+        "src/sg_widgets_qt/showcase/page.py",
+        "src/sg_widgets_qt/showcase/stage.py",
+        "src/sg_widgets_qt/showcase/markdown.py",
+        "tools/qa.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
     },
     "docs/checkbox-editor": {
       "status": "partial",
