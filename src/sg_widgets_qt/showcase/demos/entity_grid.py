@@ -81,7 +81,7 @@ class EntityGridDemo(QtWidgets.QWidget):
         for step in SIZES:
             made = chrome.toggle(step, size="sm", parent=sizes)
             made.setObjectName(f"grid-size-{step}")
-            made.toggled.connect(lambda _on, value=step: self._set_size(value))
+            made.toggled.connect(lambda on, value=step: self._on_size(value, on))
             self._sizes[step] = made
             picks.addWidget(made)
         self._sizes["md"].set_checked(True)
@@ -149,10 +149,27 @@ class EntityGridDemo(QtWidgets.QWidget):
     def set_size(self, size: str) -> None:
         self._set_size(size if size in SIZES else "md")
 
+    def _on_size(self, step: str, on: bool) -> None:
+        """One toggle reports going down and coming up; only the first is a pick.
+
+        Setting the other toggles up is reported for each of them, and a report read as a
+        pick sets the rest up again, which never returns.
+        """
+        if not on:
+            if not any(made.checked for made in self._sizes.values()):
+                made = self._sizes[step]
+                made.blockSignals(True)
+                made.set_checked(True)
+                made.blockSignals(False)
+            return
+        self._set_size(step)
+
     def _set_size(self, step: str) -> None:
         self.grid.set_size(step)
         for value, made in self._sizes.items():
+            made.blockSignals(True)
             made.set_checked(value == step)
+            made.blockSignals(False)
 
     def _on_open(self, row: object) -> None:
         self._opened.set_text(f"opened {row.type} {row.id}")  # type: ignore[union-attr]

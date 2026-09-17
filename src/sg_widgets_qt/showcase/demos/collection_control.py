@@ -23,6 +23,7 @@ from ...primitives.checkbox import Checkbox
 from ...primitives.list_view import GUTTER
 from ...primitives.roles import Roles
 from ...primitives.row_delegate import ROW_PAD_X, ROW_PAD_Y, RowDelegate
+from ...primitives.scroll_latch import WheelLatch
 from ...primitives.scrollbar import install_overlay_scrollbars
 from ...primitives.skeleton import Skeleton
 from ...theme import theme_of, with_alpha
@@ -63,6 +64,32 @@ class _QueueModel(CollectionModel):
         return super().data(index, role)
 
 
+class _SelectAllBox(Checkbox):
+    """The header's box: tri state to read, two state to press.
+
+    The partial step says that some of the loaded rows are taken; it is never somewhere a
+    press lands, so the box goes straight from on to off the way the table's header does.
+    `Checkbox.toggle` cycles through partial when it is tri state, which would leave a minus
+    over nothing selected.
+    """
+
+    #: The reader pressed the box. Carries whether every loaded row is now wanted.
+    picked = QtCore.Signal(bool)
+
+    def toggle(self) -> None:
+        self.picked.emit(self.check_state != 2)
+
+    def show_state(self, value: int) -> None:
+        """Wear the tri state the selection is in, without reporting it as a press.
+
+        `set_check_state` emits `toggled`, so writing the selection's own state back would
+        be read as a press and the selection it describes would be dropped.
+        """
+        self.blockSignals(True)
+        self.set_check_state(value)
+        self.blockSignals(False)
+
+
 class _Head(QtWidgets.QWidget):
     """The head over the rows: the select-all box, the column names, and the rule under it."""
 
@@ -72,7 +99,7 @@ class _Head(QtWidgets.QWidget):
         line = QtWidgets.QHBoxLayout(self)
         line.setContentsMargins(ROW_PAD_X, ROW_PAD_Y, ROW_PAD_X + GUTTER, ROW_PAD_Y)
         line.setSpacing(COLLECTION_GAP)
-        self.box = Checkbox(parent=self)
+        self.box = _SelectAllBox(parent=self)
         self.box.setAccessibleName("Select all loaded rows")
         self.box.set_tri_state(True)
         line.addWidget(self.box)
@@ -108,7 +135,15 @@ class _Rows(QtWidgets.QListView):
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setViewportMargins(0, 0, GUTTER, 0)
+        self._latch = WheelLatch(self, more=lambda: self._demo.control.snapshot().has_more)
         install_overlay_scrollbars(self)
+
+    def wheelEvent(self, event: QtGui.QWheelEvent) -> None:  # noqa: N802
+        """A gesture that reached the edge, or a page on its way, keeps the wheel off the page."""
+        if self._latch.keeps(event):
+            event.accept()
+            return
+        super().wheelEvent(event)
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         index = self.indexAt(
@@ -178,7 +213,7 @@ class CollectionControlDemo(QtWidgets.QWidget):
         inner.setContentsMargins(0, 0, 0, 0)
         inner.setSpacing(0)
         self._head = _Head(box)
-        self._head.box.toggled.connect(self.control.toggle_all)
+        self._head.box.picked.connect(self.control.toggle_all)
         inner.addWidget(self._head)
         self.view = _Rows(self)
         self.view.setModel(self.control.model)
@@ -271,6 +306,8 @@ class CollectionControlDemo(QtWidgets.QWidget):
         return True
 
     def _on_selection(self, rows: object) -> None:
+        chosen = self.control.all_selected
+        self._head.box.show_state(2 if chosen.all else 1 if chosen.some else 0)
         self._count.set_text(f"{len(rows or [])} selected")  # type: ignore[arg-type]
 
     def _on_scrolled(self, _value: int) -> None:
@@ -304,7 +341,7 @@ class CollectionControlDemo(QtWidgets.QWidget):
         )
         chosen = self.control.all_selected
         # The box carries the numbers `Qt.CheckState` does: 0 off, 1 partial, 2 on.
-        self._head.box.set_check_state(2 if chosen.all else 1 if chosen.some else 0)
+        self._head.box.show_state(2 if chosen.all else 1 if chosen.some else 0)
         self.footer.set_pager(self.control.pager)
         self.footer.set_loading(state.status == "loading")
         waiting = self.control.take_pending_cursor()

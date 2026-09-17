@@ -266,6 +266,10 @@ class FieldDisplay(ThemedWidget):
     def _clear(self) -> None:
         for part in self._parts:
             self._row.removeWidget(part)
+            # Hidden before it is let go: a widget reparented to None is a top-level window,
+            # and one Qt never saw explicitly hidden shows itself as a stray window over the
+            # page for the turn of the loop it takes `deleteLater` to run.
+            part.hide()
             part.setParent(None)
             part.deleteLater()
         self._parts = []
@@ -430,7 +434,10 @@ class FieldEditor(QtWidgets.QWidget):
         self._control: QtWidgets.QWidget | None = None
         self._popover: Popover | None = None
         self._popup: QtWidgets.QWidget | None = None
-        self._original: Any = None
+        # A caller can mount the half already in edit mode, as a table cell does, and no
+        # `_enter` then records what the session opened on: a cancel would restore None and
+        # the caller holding the draft would write the field empty.
+        self._original: Any = value
         self._live_error: str | None = None
         self._write_ticket = Ticket()
         self._writing = False
@@ -835,6 +842,7 @@ class FieldEditor(QtWidgets.QWidget):
             self._popup = None
         if self._control is not None:
             self._column.removeWidget(self._control)
+            self._control.hide()
             self._control.setParent(None)
             self._control.deleteLater()
             self._control = None

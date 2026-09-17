@@ -217,3 +217,24 @@ def test_one_press_opens_a_tile_and_the_box_keeps_its_own(context, qtbot):
     grid.on_tile_pressed(index, box)
     assert len(opened) == 1
     assert [ref.id for ref in grid.selection] == [grid.control.rows[1].id]
+
+
+def test_the_cursor_survives_the_page_the_scroller_appended(context, qtbot):
+    """A page reset the model and took the current index with it, so the ring went out.
+
+    End puts the cursor on the last loaded tile, which is also what asks for the next page in
+    `scroll`: the cursor the reader left must still be there once the tiles arrive.
+    """
+    grid = _grid(context, qtbot, paging="scroll")
+    grid.view.setFocus(Qt.FocusReason.TabFocusReason)
+    grid.view.setCurrentIndex(grid.model.index(0, 0))
+    held = len(grid.control.rows)
+
+    grid.view.keyPressEvent(
+        QKeyEvent(QtCore.QEvent.Type.KeyPress, int(Qt.Key.Key_End), Qt.KeyboardModifier.NoModifier)
+    )
+    settle(grid, grid.control.binding)
+
+    assert len(grid.control.rows) > held, "the end of the loaded tiles asked for a page"
+    assert grid.view.currentIndex().isValid()
+    assert grid.view.currentIndex().row() == held - 1

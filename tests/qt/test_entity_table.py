@@ -388,3 +388,99 @@ def test_a_cell_holding_an_editor_paints_no_value_of_its_own(context, qtbot):
     assert len(ink) <= 2, "only the ground and the rule are left under the editor"
     table.close_editor()
     assert painted() == plain
+
+
+def _head_press(table: EntityTable, column: int) -> None:
+    """A press in the middle of one header section, the way a reader presses it."""
+    from qtpy.QtTest import QTest
+
+    header = table._header
+    QTest.mouseClick(
+        header.viewport(),
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        QtCore.QPoint(
+            header.sectionViewportPosition(column) + header.sectionSize(column) // 2,
+            header.height() // 2,
+        ),
+    )
+
+
+def test_the_header_box_follows_the_selection_and_a_second_press_clears_it(context, qtbot):
+    """The header's tri state is written when the selection moves, not only when a page lands.
+
+    Taking a row moves no snapshot, so a box synced on `changed` alone never drew itself
+    full, and the press that should have cleared the selection took every row again.
+    """
+    table = _table(context, qtbot, selectable=True)
+    assert table.control.rows
+
+    _head_press(table, 0)
+    assert len(table.selection) == len(table.control.rows)
+    assert table._header._all is True
+
+    _head_press(table, 0)
+    assert table.selection == []
+    assert table._header._all is False
+    assert table._header._some is False
+
+    table.control.toggle(table.control.rows[0])
+    assert table._header._some is True
+    assert table._header._all is False
+
+
+def test_the_header_box_reports_the_selection_once(context, qtbot):
+    """`selection_changed` still reaches the caller, once per move."""
+    table = _table(context, qtbot, selectable=True)
+    seen: list = []
+    table.selection_changed.connect(seen.append)
+    _head_press(table, 0)
+    assert len(seen) == 1
+    assert len(seen[0]) == len(table.control.rows)
+
+
+@pytest.mark.parametrize("placement", ["popover", "inline"])
+def test_escape_in_a_cell_editor_restores_the_value_and_takes_the_editor_off(
+    context, qtbot, placement
+):
+    """Escape cancels: the cell keeps what it held and no editor is left mounted on it.
+
+    A half mounted straight in edit mode records nothing to restore unless it is given the
+    value it opened on, so a cancel used to hand the table `None` and the write emptied the
+    field. An inline half that closed itself was left on the cell for ever.
+    """
+    from qtpy.QtGui import QKeyEvent as _QKeyEvent
+
+    table = _table(context, qtbot, editable=True, editor_placement=placement)
+    row = table.control.rows[0]
+    key = table.model.key_of(row)
+    before = cell_value(row, "code")
+    index = table._index_of(key, "code")
+    table.open_editor(index)
+    assert table.is_editing(key, "code")
+
+    editor = table.view.indexWidget(index)
+    assert editor is not None
+    QtWidgets.QApplication.sendEvent(
+        editor,
+        _QKeyEvent(QtCore.QEvent.Type.KeyPress, int(Qt.Key.Key_Escape), Qt.KeyboardModifier.NoModifier),
+    )
+    settle(table, table.control.binding)
+
+    assert table._editing is None
+    assert table.view.indexWidget(table._index_of(key, "code")) is None
+    assert cell_value(table.control.rows[0], "code") == before
+
+
+def test_a_cell_editor_mounted_in_edit_mode_knows_what_to_restore(context, qtbot):
+    """The half the table mounts holds the cell's value as the one a cancel puts back."""
+    from sg_widgets_qt.widgets.field_editor import FieldEditor
+
+    table = _table(context, qtbot, editable=True, editor_placement="inline")
+    row = table.control.rows[0]
+    index = table._index_of(table.model.key_of(row), "code")
+    table.open_editor(index)
+    editor = table.view.indexWidget(index)
+    assert isinstance(editor, FieldEditor)
+    assert editor._original == cell_value(row, "code")
+    table.close_editor()

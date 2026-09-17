@@ -263,6 +263,8 @@ class EntityGrid(QtWidgets.QWidget):
         self._size = size if size in ENTITY_GRID_SIZE_VALUES else "md"
         self._density = density if density in ENTITY_GRID_DENSITY_VALUES else "default"
         self._selectable = bool(selectable)
+        #: True once the reader put the cursor somewhere, so a page can put it back.
+        self._cursor_placed = False
         self._virtualize_after = int(virtualize_after)
         self._site_url = site_url
         self._status_field: Any = None
@@ -739,6 +741,7 @@ class EntityGrid(QtWidgets.QWidget):
     def _focus(self, index: int) -> None:
         if index < 0:
             return
+        self._cursor_placed = True
         self.control.set_cursor(index)
         self.view.setCurrentIndex(self.model.index(index, 0))
         self.view.scrollTo(
@@ -788,6 +791,12 @@ class EntityGrid(QtWidgets.QWidget):
         waiting = self.control.take_pending_cursor()
         if waiting >= 0:
             self._focus(waiting)
+        elif self._cursor_placed and not self.view.currentIndex().isValid():
+            # A page appended by the scroller resets the model, which takes the current
+            # index with it: the cursor the reader left is put back where it stood. Only
+            # a grid the reader has moved the cursor on gets one back, so a page landing
+            # never draws a ring on a grid nobody has reached.
+            self._focus(self.control.active)
         self._fit()
         self.view.viewport().update()
 
