@@ -1,0 +1,113 @@
+{
+  "name": "text-editor",
+  "page": "text-editor",
+  "declares": null,
+  "props": [
+    {
+      "name": "value",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "The stored string. Two-way in Svelte."
+    },
+    {
+      "name": "on_value_change",
+      "type": "`(value: string | null) => void`",
+      "py_type": "`Callable[[Optional[str]], None]`",
+      "default": "—",
+      "meaning": "Called when the input commits."
+    },
+    {
+      "name": "field",
+      "type": "`FieldSchema | null`",
+      "py_type": "`Optional[FieldSchema]`",
+      "default": "`null`",
+      "meaning": "Supplies the accessible label and the required flag."
+    },
+    {
+      "name": "multiline",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Renders a textarea."
+    },
+    {
+      "name": "rows",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`3`",
+      "meaning": "Rows of the textarea."
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`"
+    },
+    {
+      "name": "readonly",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`"
+    },
+    {
+      "name": "invalid",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Forced invalid state."
+    },
+    {
+      "name": "error",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "A message from the caller, shown in place of the parse error."
+    },
+    {
+      "name": "on_error_change",
+      "type": "`(error: string | null) => void`",
+      "py_type": "`Callable[[Optional[str]], None]`",
+      "default": "—",
+      "meaning": "Called when the parse error appears or clears."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—"
+    },
+    {
+      "name": "error_message",
+      "type": "`(message: string) => ReactNode` / `Snippet<[string]>`",
+      "py_type": "`Callable[[str], ReactNode]` / `Snippet[tuple[str]]`",
+      "default": "—",
+      "meaning": "Renders the message. Default is a small destructive line under the control.",
+      "owner": "value-editor"
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Control height.",
+      "owner": "value-editor"
+    }
+  ],
+  "events": [],
+  "slots": [],
+  "keyboard": [
+    {
+      "key": "`Enter`",
+      "does": "Commits, on a single-line input."
+    },
+    {
+      "key": "`Escape`",
+      "does": "Restores the stored value."
+    },
+    {
+      "key": "`Tab`",
+      "does": "Commits by leaving the control."
+    }
+  ]
+}

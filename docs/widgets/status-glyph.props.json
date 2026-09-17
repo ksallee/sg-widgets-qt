@@ -1,0 +1,38 @@
+{
+  "name": "status-glyph",
+  "page": "status-badge",
+  "declares": null,
+  "props": [
+    {
+      "name": "status",
+      "type": "`StatusRecord | null`",
+      "py_type": "`Optional[StatusRecord]`",
+      "default": "`null`",
+      "meaning": "The resolved `Status` row. A plain `list` field has none, so it draws no icon."
+    },
+    {
+      "name": "site_url",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "The site the stock sprite is served from, for icons the package does not bundle."
+    },
+    {
+      "name": "fallback",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Draw the dot for a status that names no icon, so every row carries a leading mark."
+    },
+    {
+      "name": "on_color",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "The glyph sits on the status colour, which is its own ground in both schemes, so the sprite is left as it is."
+    }
+  ],
+  "events": [],
+  "slots": [],
+  "keyboard": []
+}

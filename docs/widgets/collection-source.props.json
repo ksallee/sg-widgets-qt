@@ -1,0 +1,55 @@
+{
+  "name": "collection-source",
+  "page": "collection-control",
+  "declares": {
+    "react": "CollectionSourceOptions",
+    "svelte": "CollectionSourceOptions"
+  },
+  "props": [
+    {
+      "name": "source",
+      "type": "`EntitySource`",
+      "py_type": "`EntitySource`",
+      "default": "—",
+      "meaning": "The rows, the filter, the sort and the page behind them."
+    },
+    {
+      "name": "paging",
+      "type": "`'pages' | 'more' | 'scroll'`",
+      "py_type": "`Literal['pages', 'more', 'scroll']`",
+      "default": "—",
+      "meaning": "How the set is walked. The source's mode follows it rather than the other way round."
+    },
+    {
+      "name": "sort",
+      "type": "`SortSpec[]`",
+      "py_type": "`list[SortSpec]`",
+      "default": "—",
+      "meaning": "The source's sort, two-way."
+    },
+    {
+      "name": "on_sort_change",
+      "type": "`(sort: SortSpec[]) => void`",
+      "py_type": "`Callable[[list[SortSpec]], None]`",
+      "default": "—",
+      "meaning": "React: the source's sort changed. Svelte writes it back through `sort`."
+    },
+    {
+      "name": "filters",
+      "type": "`FilterNode | WireGroup | null`",
+      "py_type": "`Optional[FilterNode | WireGroup]`",
+      "default": "—",
+      "meaning": "The source's filter, two-way."
+    },
+    {
+      "name": "on_filters_change",
+      "type": "`(filters: FilterNode | WireGroup | null) => void`",
+      "py_type": "`Callable[[Optional[FilterNode | WireGroup]], None]`",
+      "default": "—",
+      "meaning": "React: the source's filter changed. Svelte writes it back through `filters`."
+    }
+  ],
+  "events": [],
+  "slots": [],
+  "keyboard": []
+}

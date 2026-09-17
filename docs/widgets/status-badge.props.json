@@ -1,0 +1,96 @@
+{
+  "name": "status-badge",
+  "page": "status-badge",
+  "declares": null,
+  "props": [
+    {
+      "name": "code",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "required",
+      "meaning": "The stored status code. An empty code renders nothing."
+    },
+    {
+      "name": "status",
+      "type": "`StatusRecord | null`",
+      "py_type": "`Optional[StatusRecord]`",
+      "default": "`null`",
+      "meaning": "The resolved Status row. Supplies the name, colour and icon."
+    },
+    {
+      "name": "field",
+      "type": "`FieldSchema | null`",
+      "py_type": "`Optional[FieldSchema]`",
+      "default": "`null`",
+      "meaning": "Fallback label source, through its display values."
+    },
+    {
+      "name": "variant",
+      "type": "`'both' | 'icon' | 'text' | 'glyph'`",
+      "py_type": "`Literal['both', 'icon', 'text', 'glyph']`",
+      "default": "`'both'`",
+      "meaning": "Icon-only and glyph keep the label as screen-reader text and a tooltip."
+    },
+    {
+      "name": "size",
+      "type": "`'xs' | 'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['xs', 'sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Heights 5, 6, 8 and 10."
+    },
+    {
+      "name": "color",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Paints the badge in the status colour instead of the neutral surface."
+    },
+    {
+      "name": "label",
+      "type": "`'name' | 'code'`",
+      "py_type": "`Literal['name', 'code']`",
+      "default": "`'name'`",
+      "meaning": "Which of the two the badge shows. The other one is the tooltip."
+    },
+    {
+      "name": "site_url",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "The site the stock sprite is served from. Needed only for a sprite cell outside the status icon set."
+    },
+    {
+      "name": "removable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Draws a remove control inside the pill, after the label. `variant=\"icon\"` and `variant=\"glyph\"` have no room for it and ignore this."
+    },
+    {
+      "name": "on_remove",
+      "type": "`(code: string) => void`",
+      "py_type": "`Callable[[str], None]`",
+      "default": "—",
+      "meaning": "Fires with the code when the remove control is pressed."
+    },
+    {
+      "name": "remove_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`Remove <label>`",
+      "meaning": "The accessible name of the remove control."
+    }
+  ],
+  "events": [],
+  "slots": [],
+  "keyboard": [
+    {
+      "key": "<kbd>Tab</kbd>",
+      "does": "Reaches the remove control of a removable badge. The badge itself is not focusable"
+    },
+    {
+      "key": "<kbd>Enter</kbd> / <kbd>Space</kbd>",
+      "does": "Removes, from that control"
+    }
+  ]
+}

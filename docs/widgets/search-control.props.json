@@ -1,0 +1,200 @@
+{
+  "name": "search-control",
+  "page": "search-control",
+  "declares": null,
+  "props": [
+    {
+      "name": "load",
+      "type": "`(request) => Promise<answer>`",
+      "py_type": "`Callable[[Any], Any]`",
+      "default": "—",
+      "meaning": "The read behind the list. Takes the query and the page, answers the rows and `hasMore`."
+    },
+    {
+      "name": "query",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`''`",
+      "meaning": "What the caret holds. Two-way in Svelte."
+    },
+    {
+      "name": "on_query_change",
+      "type": "`(query: string) => void`",
+      "py_type": "`Callable[[str], None]`",
+      "default": "—",
+      "meaning": "React: called when the caret changes."
+    },
+    {
+      "name": "request",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`''`",
+      "meaning": "What the read depends on besides the query. A change reads again at once."
+    },
+    {
+      "name": "enabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`true`",
+      "meaning": "Nothing is read while this is off."
+    },
+    {
+      "name": "reads_empty",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "An empty query reads too, rather than emptying the list."
+    },
+    {
+      "name": "paging",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "A further page is asked for on a load-more row under the rows."
+    },
+    {
+      "name": "debounce_ms",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`250`",
+      "meaning": "The pause before a typed query is asked for."
+    },
+    {
+      "name": "shell",
+      "type": "`'command' | 'dialog' | 'bare'`",
+      "py_type": "`Literal['command', 'dialog', 'bare']`",
+      "default": "`'command'`",
+      "meaning": "What is drawn around the list."
+    },
+    {
+      "name": "command_class",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Classes on the command box."
+    },
+    {
+      "name": "on_key_down",
+      "type": "`(event, items) => void`",
+      "py_type": "`Callable[[Any, Any], None]`",
+      "default": "—",
+      "meaning": "Keys the wrapper owns, on the command box, with the rows they act on. Spelled `onkeydown` in Svelte."
+    },
+    {
+      "name": "open",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Whether the dialog is showing. Two-way in Svelte."
+    },
+    {
+      "name": "on_open_change",
+      "type": "`(open: boolean) => void`",
+      "py_type": "`Callable[[bool], None]`",
+      "default": "—"
+    },
+    {
+      "name": "title",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Search'`",
+      "meaning": "The dialog's accessible name."
+    },
+    {
+      "name": "description",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "The line under it."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Search…'`"
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No match'`",
+      "meaning": "Shown when the read answered nothing."
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "The accessible name of the skeletons."
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "what the read said",
+      "meaning": "Shown in place of the failed read's own message."
+    },
+    {
+      "name": "error_slot",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`'search-error'`",
+      "meaning": "The `data-slot` of the error line."
+    },
+    {
+      "name": "loading_slot",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`'search-loading'`",
+      "meaning": "The `data-slot` of the skeleton block."
+    },
+    {
+      "name": "empty_slot",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`'search-empty'`",
+      "meaning": "The `data-slot` of the empty line."
+    },
+    {
+      "name": "skeleton_lines",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`3`",
+      "meaning": "How many rows the skeletons stand in for."
+    },
+    {
+      "name": "skeleton_lead",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'h-6 w-10 shrink-0'`",
+      "meaning": "The leading slot of a skeleton row."
+    }
+  ],
+  "events": [],
+  "slots": [
+    {
+      "name": "rows",
+      "receives": "the rows read, the query and whether a read is in flight",
+      "draws": "The rows of the list, as items of the command box or as plain rows under a bare shell."
+    },
+    {
+      "name": "empty",
+      "receives": "nothing",
+      "draws": "Drawn in place of the empty line."
+    }
+  ],
+  "keyboard": [
+    {
+      "key": "`ArrowDown` / `ArrowUp`",
+      "does": "Moves the highlight, through a load-more page."
+    },
+    {
+      "key": "`Enter`",
+      "does": "Takes the highlighted row, or reads the next page on the load-more row."
+    },
+    {
+      "key": "`Escape`",
+      "does": "With a query, clears it and the rows and keeps the caret in the box. With no query, the shell takes it: a dialog or a popover closes, and the inline box does nothing."
+    }
+  ]
+}

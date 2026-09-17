@@ -34,7 +34,7 @@ says what differs.
 
 ## Rules
 
-- Python 3.9 is the floor. `from __future__ import annotations` in every module. Modern syntax in
+- Python 3.9 is the floor. `from __future__ import annotations` in every module. Modern syntax (`X | None`, `list[str]`) in
   annotations only; nothing evaluated at runtime may need 3.10 (`match`, `X | Y` in `isinstance`,
   `list[str]()`, `zip(strict=)`, `str.removeprefix` is fine, `dataclass(slots=)` is not).
 - Qt through `qtpy` only. Never import `PySide6`, `PySide2`, `PyQt5` or `PyQt6` directly. Code runs

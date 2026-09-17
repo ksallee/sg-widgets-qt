@@ -1,0 +1,246 @@
+{
+  "name": "status-multi-picker",
+  "page": "status-multi-picker",
+  "declares": null,
+  "props": [
+    {
+      "name": "search_placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Search statuses…'`",
+      "meaning": "Placeholder of the search box."
+    },
+    {
+      "name": "summary",
+      "type": "`'chips' | 'ellipsis' | 'count'`",
+      "py_type": "`Literal['chips', 'ellipsis', 'count']`",
+      "default": "`'ellipsis'`",
+      "meaning": "How many of the selection the control shows."
+    },
+    {
+      "name": "badge",
+      "type": "`'both' | 'icon' | 'text'`",
+      "py_type": "`Literal['both', 'icon', 'text']`",
+      "default": "`'both'`",
+      "meaning": "What one selected status is drawn as."
+    },
+    {
+      "name": "max",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`0`",
+      "meaning": "Badges drawn before the rest becomes `+n`. `0` lets the row fit what it can, and `badge=\"icon\"` draws twice as many."
+    },
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "required",
+      "meaning": "The widget context. The options and the status table are read through it, once per page.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "entity_type",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "required",
+      "meaning": "The type whose status field is offered.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "project_id",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "—",
+      "meaning": "Offer the codes this project allows.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "project_ids",
+      "type": "`number[]`",
+      "py_type": "`list[int]`",
+      "default": "—",
+      "meaning": "Offer the codes every one of these projects allows.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "field",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "status field",
+      "meaning": "A list or status field other than the type's own.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "value",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "`[]`",
+      "meaning": "The selected codes. `bind:value` in Svelte, `value` with `onValueChange` in React."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Select statuses'`",
+      "meaning": "Shown with nothing selected."
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No match'`",
+      "meaning": "Shown when the search matches nothing."
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "Names the skeletons a read stands behind, for a screen reader.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Shown in place of what the failed read said.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "clearable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "the field",
+      "meaning": "Offers a control that clears the value. Unset, it follows the field: a mandatory one is never clearable.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "readonly",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Keeps full contrast and drops the chevron, the popup and the clear control.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Greys the control and takes it out of the tab order.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "invalid",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Sets `aria-invalid` and the destructive ring.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "show_code",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`true`",
+      "meaning": "Draws the code as a row's right-aligned secondary, when it says more than the label.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "secondary",
+      "type": "`(option) => string`",
+      "py_type": "`Callable[[Any], str]`",
+      "default": "the code",
+      "meaning": "A row's right-aligned value, of the caller's own making.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "sub_label",
+      "type": "`(option) => string`",
+      "py_type": "`Callable[[Any], str]`",
+      "default": "—",
+      "meaning": "The muted line under a row's label.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "site_url",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "the context's",
+      "meaning": "Passed to every badge, for a sprite cell outside the status icon set.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Control height: 7, 8 and 9.",
+      "owner": "status-picker"
+    },
+    {
+      "name": "open",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Whether the popup is showing. Two-way in Svelte.",
+      "owner": "status-picker"
+    }
+  ],
+  "events": [
+    {
+      "name": "value_changed",
+      "payload": "`string[]`",
+      "when": "A status was ticked or unticked."
+    },
+    {
+      "name": "open_changed",
+      "payload": "`boolean`",
+      "when": "The popup opened or closed.",
+      "owner": "status-picker"
+    }
+  ],
+  "slots": [],
+  "keyboard": [
+    {
+      "key": "<kbd>Space</kbd>, <kbd>Enter</kbd>",
+      "does": "On the chevron, opens the list"
+    },
+    {
+      "key": "any text",
+      "does": "Narrows the rows, from the caret under `chips` and from the popup's search box otherwise"
+    },
+    {
+      "key": "<kbd>Home</kbd> <kbd>End</kbd>",
+      "does": "First and last row"
+    },
+    {
+      "key": "<kbd>Space</kbd>, <kbd>Enter</kbd>, <kbd>↓</kbd>",
+      "does": "Opens the list",
+      "owner": "status-picker"
+    },
+    {
+      "key": "<kbd>↑</kbd> <kbd>↓</kbd>",
+      "does": "Moves the highlight and keeps it in view; the last row holds it rather than wrapping"
+    },
+    {
+      "key": "<kbd>Enter</kbd>",
+      "does": "Toggles the highlighted status; the list stays open"
+    },
+    {
+      "key": "<kbd>Backspace</kbd>",
+      "does": "In an empty search box, highlights the last chip; a second one removes it"
+    },
+    {
+      "key": "<kbd>Esc</kbd>",
+      "does": "Closes, keeps the selection and clears the query; on a closed control it does nothing"
+    },
+    {
+      "key": "<kbd>Tab</kbd>",
+      "does": "Leaves the control, or reaches the clear control when there is one",
+      "owner": "status-picker"
+    }
+  ]
+}

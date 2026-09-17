@@ -1,0 +1,218 @@
+{
+  "name": "global-search",
+  "page": "global-search",
+  "declares": null,
+  "props": [
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "required",
+      "meaning": "The widget context. Every read goes through it, so widgets on a page share one cache."
+    },
+    {
+      "name": "entity_types",
+      "type": "`string[] | Record<string, WireCondition[] | null>`",
+      "py_type": "`list[str] | dict[str, Optional[list[WireCondition]]]`",
+      "default": "Asset, Shot, Sequence, Task, Version, HumanUser, Project",
+      "meaning": "Types to search, with an optional filter each."
+    },
+    {
+      "name": "project_id",
+      "type": "`number | null`",
+      "py_type": "`Optional[int]`",
+      "default": "`null`",
+      "meaning": "Scopes every searched type that has a `project` field."
+    },
+    {
+      "name": "thumbnail",
+      "type": "`string | false`",
+      "py_type": "`str | Literal[False]`",
+      "default": "`'image'`",
+      "meaning": "Field holding the thumbnail URL. `false` hides the leading slot."
+    },
+    {
+      "name": "label_field",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "display-name chain",
+      "meaning": "Field holding the row label."
+    },
+    {
+      "name": "sub_label_field",
+      "type": "`string | CollectionColumn | null`",
+      "py_type": "`Optional[str | CollectionColumn]`",
+      "default": "`null`",
+      "meaning": "The muted line under the label. A resolved column renders it by type."
+    },
+    {
+      "name": "sub_label",
+      "type": "`(hit) => string`",
+      "py_type": "`Callable[[Any], str]`",
+      "default": "—",
+      "meaning": "The muted line of your own. Wins over `subLabelField`."
+    },
+    {
+      "name": "secondary_field",
+      "type": "`string | CollectionColumn | null`",
+      "py_type": "`Optional[str | CollectionColumn]`",
+      "default": "`null`",
+      "meaning": "The right-aligned value, drawn by its data type."
+    },
+    {
+      "name": "secondary",
+      "type": "`(hit) => string`",
+      "py_type": "`Callable[[Any], str]`",
+      "default": "—",
+      "meaning": "Right-aligned text of your own. Wins over `secondaryField`."
+    },
+    {
+      "name": "show_code",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Shows the row's `code` beside the label when the two differ."
+    },
+    {
+      "name": "fields",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "`[]`",
+      "meaning": "Extra fields to request, so your own sub-label or secondary can read them."
+    },
+    {
+      "name": "hotkey",
+      "type": "`boolean | string`",
+      "py_type": "`bool | str`",
+      "default": "`false`",
+      "meaning": "Opens the palette on Cmd/Ctrl+K; a string names another key in place of K."
+    },
+    {
+      "name": "inline",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Renders a combobox in the page instead of a dialog."
+    },
+    {
+      "name": "recents",
+      "type": "`EntityRef[]`",
+      "py_type": "`list[EntityRef]`",
+      "default": "`[]`",
+      "meaning": "Rows picked before, newest first, shown on an empty query."
+    },
+    {
+      "name": "recent_limit",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`5`",
+      "meaning": "How many recents survive a pick."
+    },
+    {
+      "name": "label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Search'`",
+      "meaning": "Text on the trigger."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Trigger heights 7, 8 and 9, and the row's leading slot."
+    },
+    {
+      "name": "open",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Whether the dialog is open."
+    },
+    {
+      "name": "on_open_change",
+      "type": "`(open: boolean) => void`",
+      "py_type": "`Callable[[bool], None]`",
+      "default": "—",
+      "owner": "search-control"
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Search…'`",
+      "meaning": "Text in the search input."
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No match'`",
+      "meaning": "Shown when a query matches nothing."
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "Names the skeletons a read stands behind, for a screen reader."
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Shown in place of what the failed read said."
+    }
+  ],
+  "events": [
+    {
+      "name": "select",
+      "payload": "`EntityRef`",
+      "when": "A row was picked."
+    },
+    {
+      "name": "recents_changed",
+      "payload": "`EntityRef[]`",
+      "when": "The recents list changed, the pick first."
+    },
+    {
+      "name": "open_changed",
+      "payload": "`boolean`",
+      "when": "The dialog opened or closed. Svelte also binds it with `bind:open`."
+    }
+  ],
+  "slots": [
+    {
+      "name": "trigger",
+      "receives": "`{ open }`, a function that opens the dialog. Replaces the default button."
+    }
+  ],
+  "keyboard": [
+    {
+      "key": "`Cmd/Ctrl` `K`",
+      "does": "Opens and closes the palette, when `hotkey` is on; the key `hotkey` names, when it is a string."
+    },
+    {
+      "key": "`Down` / `Up`",
+      "does": "Moves through the results, across group headings."
+    },
+    {
+      "key": "`Tab`",
+      "does": "Reaches the trigger; inside the palette focus stays in the input."
+    },
+    {
+      "key": "`ArrowDown` / `ArrowUp`",
+      "does": "Moves the highlight, through a load-more page.",
+      "owner": "search-control"
+    },
+    {
+      "key": "`Enter`",
+      "does": "Picks the highlighted row, or loads the next page on the last row."
+    },
+    {
+      "key": "`Escape`",
+      "does": "Closes the palette."
+    }
+  ]
+}

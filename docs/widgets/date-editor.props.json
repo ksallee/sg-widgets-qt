@@ -1,0 +1,128 @@
+{
+  "name": "date-editor",
+  "page": "date-editor",
+  "declares": null,
+  "props": [
+    {
+      "name": "value",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "The stored day. Two-way in Svelte."
+    },
+    {
+      "name": "on_value_change",
+      "type": "`(value: string | null) => void`",
+      "py_type": "`Callable[[Optional[str]], None]`",
+      "default": "—",
+      "meaning": "Called when the input commits or a day is picked."
+    },
+    {
+      "name": "field",
+      "type": "`FieldSchema | null`",
+      "py_type": "`Optional[FieldSchema]`",
+      "default": "`null`",
+      "meaning": "Supplies the accessible label and the required flag."
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`"
+    },
+    {
+      "name": "readonly",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Keeps the value readable and does not open the popover."
+    },
+    {
+      "name": "invalid",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Forced invalid state."
+    },
+    {
+      "name": "error",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "A message from the caller, shown in place of the parse error."
+    },
+    {
+      "name": "on_error_change",
+      "type": "`(error: string | null) => void`",
+      "py_type": "`Callable[[Optional[str]], None]`",
+      "default": "—",
+      "meaning": "Called when the parse error appears or clears."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'YYYY-MM-DD'`",
+      "meaning": "Shown on the button and in the typed day while the field is unset."
+    },
+    {
+      "name": "open",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Whether the calendar popover is showing. Two-way in Svelte."
+    },
+    {
+      "name": "error_message",
+      "type": "`(message: string) => ReactNode` / `Snippet<[string]>`",
+      "py_type": "`Callable[[str], ReactNode]` / `Snippet[tuple[str]]`",
+      "default": "—",
+      "meaning": "Renders the message. Default is a small destructive line under the control.",
+      "owner": "value-editor"
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Button height."
+    },
+    {
+      "name": "inline",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "The row form: the button takes the width of its value."
+    }
+  ],
+  "events": [
+    {
+      "name": "open_changed",
+      "payload": "`boolean`",
+      "when": "The calendar opened or closed."
+    }
+  ],
+  "slots": [],
+  "keyboard": [
+    {
+      "key": "`Enter`",
+      "does": "On the button, opens the popover. In the typed day, commits it and closes the popover."
+    },
+    {
+      "key": "`Escape`",
+      "does": "In the popover, restores the stored day and closes the popover."
+    },
+    {
+      "key": "`Space`",
+      "does": "Opens the popover, from the button."
+    },
+    {
+      "key": "`Tab`",
+      "does": "Moves from the typed day to the calendar."
+    },
+    {
+      "key": "arrows",
+      "does": "Move between days, inside the calendar."
+    }
+  ]
+}

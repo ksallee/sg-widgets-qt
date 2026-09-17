@@ -1,0 +1,24 @@
+{
+  "name": "field-error",
+  "page": "value-editor",
+  "declares": null,
+  "props": [
+    {
+      "name": "message",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "The message, or null when there is nothing to say."
+    },
+    {
+      "name": "error_message",
+      "type": "`(message: string) => ReactNode` / `Snippet<[string]>`",
+      "py_type": "`Callable[[str], ReactNode]` / `Snippet[tuple[str]]`",
+      "default": "—",
+      "meaning": "Renders the message. Default is a small destructive line under the control."
+    }
+  ],
+  "events": [],
+  "slots": [],
+  "keyboard": []
+}

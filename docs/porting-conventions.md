@@ -23,7 +23,7 @@ Python counterpart here. One rule per difference. Where the rule is silent, port
 | React component `EntityPicker` | class `EntityPicker(QWidget)` |
 | item name `entity-picker` | stays `entity-picker` in the manifest, the docs and the showcase |
 
-Every module starts with `from __future__ import annotations`.
+Every module starts with `from __future__ import annotations`. `from .x import *` lines in a package `__init__` carry `# noqa: F403`.
 
 ## Types
 
@@ -33,7 +33,7 @@ Every module starts with `from __future__ import annotations`.
 | `interface` describing a row the API answers | `@dataclass` too; `values: dict[str, Any]` where upstream has `attributes` plus `relationships` |
 | `type X = 'a' \| 'b'` | `X = Literal['a', 'b']` and `X_VALUES: tuple[X, ...] = ('a', 'b')` |
 | `Record<string, T>` | `dict[str, T]` |
-| `T \| null`, `T \| undefined`, `T?` | `Optional[T]`, default `None` |
+| `T \| null`, `T \| undefined`, `T?` | `T \| None` in annotations (safe on 3.9 under `from __future__ import annotations`; ruff UP045 rejects `Optional`), default `None`. Never `T \| None` at runtime. |
 | `unknown` | `Any` |
 | `Promise<T>` | `T`. Core is synchronous. The Qt layer runs it on a worker. |
 | `Map`, `Set` | `dict`, `set`; a `Map` whose order matters stays a `dict` |

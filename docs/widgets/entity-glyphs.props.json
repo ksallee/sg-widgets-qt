@@ -1,0 +1,9 @@
+{
+  "name": "entity-glyphs",
+  "page": "entity-chip",
+  "declares": false,
+  "props": [],
+  "events": [],
+  "slots": [],
+  "keyboard": []
+}

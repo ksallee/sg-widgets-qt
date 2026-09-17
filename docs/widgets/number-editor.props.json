@@ -1,0 +1,195 @@
+{
+  "name": "number-editor",
+  "page": "number-editor",
+  "declares": null,
+  "props": [
+    {
+      "name": "value",
+      "type": "`number | string | null`",
+      "py_type": "`Optional[int | float | str]`",
+      "default": "`null`",
+      "meaning": "The stored value. Two-way in Svelte."
+    },
+    {
+      "name": "on_value_change",
+      "type": "`(value: number | string | null) => void`",
+      "py_type": "`Callable[[Optional[int | float | str]], None]`",
+      "default": "—",
+      "meaning": "Called when the input commits."
+    },
+    {
+      "name": "data_type",
+      "type": "`'number' | 'float' | 'percent' | 'duration' | 'timecode' | 'currency'`",
+      "py_type": "`Literal['number', 'float', 'percent', 'duration', 'timecode', 'currency']`",
+      "default": "`'number'`",
+      "meaning": "Picks the parse, the format, the affix and the step."
+    },
+    {
+      "name": "field",
+      "type": "`FieldSchema | null`",
+      "py_type": "`Optional[FieldSchema]`",
+      "default": "`null`",
+      "meaning": "Supplies the accessible label and the required flag."
+    },
+    {
+      "name": "precision",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`6`",
+      "meaning": "Decimals kept on a float or a currency."
+    },
+    {
+      "name": "hours_per_day",
+      "type": "`number`",
+      "py_type": "`int | float`",
+      "default": "`8`",
+      "meaning": "The site's working day, for the day unit on a duration."
+    },
+    {
+      "name": "frame_rate",
+      "type": "`number`",
+      "py_type": "`int | float`",
+      "default": "—",
+      "meaning": "Frames per second, for the frame form of a timecode and its one-frame step."
+    },
+    {
+      "name": "symbol",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'$'`",
+      "meaning": "Shown before the value on a currency field."
+    },
+    {
+      "name": "min / max",
+      "type": "`number`",
+      "py_type": "`int | float`",
+      "default": "`0` and `100` on a percent, the 32-bit bounds elsewhere",
+      "meaning": "Range the value is held in."
+    },
+    {
+      "name": "step",
+      "type": "`number`",
+      "py_type": "`int | float`",
+      "default": "the data type's",
+      "meaning": "What one step moves."
+    },
+    {
+      "name": "scrub",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Name the control and let a drag across that name change the value."
+    },
+    {
+      "name": "label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "the field's display name",
+      "meaning": "The name over a scrub area."
+    },
+    {
+      "name": "locale",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "the runtime's",
+      "meaning": "Locale the value is written in."
+    },
+    {
+      "name": "hint",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Show the stored form under the control, such as the minutes behind a duration."
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`"
+    },
+    {
+      "name": "readonly",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`"
+    },
+    {
+      "name": "invalid",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Forced invalid state."
+    },
+    {
+      "name": "error",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "A message from the caller, shown in place of the parse error."
+    },
+    {
+      "name": "on_error_change",
+      "type": "`(error: string | null) => void`",
+      "py_type": "`Callable[[Optional[str]], None]`",
+      "default": "—",
+      "meaning": "Called when the parse error appears or clears."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—"
+    },
+    {
+      "name": "error_message",
+      "type": "`(message: string) => ReactNode` / `Snippet<[string]>`",
+      "py_type": "`Callable[[str], ReactNode]` / `Snippet[tuple[str]]`",
+      "default": "—",
+      "meaning": "Renders the message. Default is a small destructive line under the control.",
+      "owner": "value-editor"
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Control height.",
+      "owner": "value-editor"
+    },
+    {
+      "name": "inline",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Compact for one row: a fixed width for the data type, the steppers inside the input, no hint."
+    }
+  ],
+  "events": [],
+  "slots": [],
+  "keyboard": [
+    {
+      "key": "`Up` / `Down`",
+      "does": "Steps once."
+    },
+    {
+      "key": "`Shift` + `Up` / `Down`",
+      "does": "Steps ten times."
+    },
+    {
+      "key": "`Page Up` / `Page Down`",
+      "does": "Steps a hundred times."
+    },
+    {
+      "key": "`Enter`",
+      "does": "Commits."
+    },
+    {
+      "key": "`Escape`",
+      "does": "Restores the stored value."
+    },
+    {
+      "key": "`Tab`",
+      "does": "Commits by leaving the control."
+    }
+  ]
+}

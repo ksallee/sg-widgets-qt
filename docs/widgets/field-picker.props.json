@@ -1,0 +1,230 @@
+{
+  "name": "field-picker",
+  "page": "field-picker",
+  "declares": null,
+  "props": [
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "required",
+      "meaning": "The widget context. The schema is read through it, once per page."
+    },
+    {
+      "name": "entity_type",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "required",
+      "meaning": "The type the path starts on."
+    },
+    {
+      "name": "value",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`''`",
+      "meaning": "The dotted path. Empty when nothing is chosen."
+    },
+    {
+      "name": "on_value_change",
+      "type": "`(value: string) => void`",
+      "py_type": "`Callable[[str], None]`",
+      "default": "—",
+      "meaning": "Receives the new path, or the empty string on clear."
+    },
+    {
+      "name": "deep_links",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Allow descending through entity fields."
+    },
+    {
+      "name": "show_code",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Show the programmatic name beside the display name in each row."
+    },
+    {
+      "name": "max_depth",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`2`",
+      "meaning": "How many hops a path may take."
+    },
+    {
+      "name": "data_types",
+      "type": "`string | string[]`",
+      "py_type": "`str | list[str]`",
+      "default": "—",
+      "meaning": "Data types a field must have to be selected."
+    },
+    {
+      "name": "valid_types",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "—",
+      "meaning": "A field is selectable only if it links one of these."
+    },
+    {
+      "name": "exclude",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "—",
+      "meaning": "Full dotted paths to drop."
+    },
+    {
+      "name": "hide_paths",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "—",
+      "meaning": "Dotted prefixes to drop, along with everything beneath them."
+    },
+    {
+      "name": "filterable_only",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Drop the data types the API refuses in a filter."
+    },
+    {
+      "name": "extra_fields",
+      "type": "`{ name, displayName? }[]`",
+      "py_type": "`list[dict[str, Any]]`",
+      "default": "—",
+      "meaning": "Synthetic entries offered at the root only, labelled `computed`."
+    },
+    {
+      "name": "filter",
+      "type": "`(field, path) => boolean`",
+      "py_type": "`Callable[[Any, Any], bool]`",
+      "default": "—",
+      "meaning": "Your own visibility test over the schema and the candidate's full path."
+    },
+    {
+      "name": "close_on_select",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`true`",
+      "meaning": "Off keeps the popover open for the next pick."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Select a field'`",
+      "meaning": "Shown while nothing is chosen."
+    },
+    {
+      "name": "search_placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Search fields…'`",
+      "meaning": "Shown in the search box."
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No match'`",
+      "meaning": "Shown when the search matches nothing."
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "Names the skeletons a read stands behind, for a screen reader."
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Shown in place of what the failed read said."
+    },
+    {
+      "name": "clearable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`true`",
+      "meaning": "Show the clear control once a field is chosen."
+    },
+    {
+      "name": "readonly",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Keeps full contrast and removes the chevron and the clear control."
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`"
+    },
+    {
+      "name": "invalid",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Applies the invalid ring and `aria-invalid`."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`"
+    },
+    {
+      "name": "open",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Whether the popover is showing. Two-way in Svelte."
+    }
+  ],
+  "events": [
+    {
+      "name": "value_changed",
+      "payload": "`string`",
+      "when": "A field is chosen, or the clear control is pressed, which sends the empty string."
+    },
+    {
+      "name": "open_changed",
+      "payload": "`boolean`",
+      "when": "The popover opened or closed. Svelte also binds it with `bind:open`."
+    }
+  ],
+  "slots": [],
+  "keyboard": [
+    {
+      "key": "`Enter`, `Space`",
+      "does": "On the closed control, opens it."
+    },
+    {
+      "key": "`Down`, `Up`",
+      "does": "Move the cursor through the rows."
+    },
+    {
+      "key": "`Right`",
+      "does": "Descend into the highlighted field, or pick the highlighted target type."
+    },
+    {
+      "key": "`Left`",
+      "does": "Go back one level, or cancel the choice of target type."
+    },
+    {
+      "key": "`Enter`",
+      "does": "Choose the highlighted field. On a field that can only be descended into, descends."
+    },
+    {
+      "key": "`Backspace`",
+      "does": "In an empty search box, clears the value."
+    },
+    {
+      "key": "`Escape`",
+      "does": "Close, keeping the value."
+    }
+  ]
+}

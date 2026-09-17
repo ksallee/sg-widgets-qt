@@ -1,0 +1,194 @@
+{
+  "name": "entity-type-picker",
+  "page": "entity-type-picker",
+  "declares": null,
+  "props": [
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "required",
+      "meaning": "The widget context. The site's enabled types are read through it, once per page."
+    },
+    {
+      "name": "value",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "The chosen type code. Two-way in Svelte."
+    },
+    {
+      "name": "on_value_change",
+      "type": "`(value) => void`",
+      "py_type": "`Callable[[Any], None]`",
+      "default": "—",
+      "meaning": "Receives the code, or `null` on clear."
+    },
+    {
+      "name": "allow",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "—",
+      "meaning": "Codes on offer. Empty or absent means every enabled type."
+    },
+    {
+      "name": "deny",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "—",
+      "meaning": "Codes withheld, applied after `allow`."
+    },
+    {
+      "name": "show_code",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`true`",
+      "meaning": "Shows the code under the display name where the two differ."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Control height: 7, 8 and 9.",
+      "owner": "picker-control"
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "owner": "picker-control"
+    },
+    {
+      "name": "readonly",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Keeps full contrast and removes the chevron and the clear control."
+    },
+    {
+      "name": "invalid",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Applies the invalid ring and `aria-invalid`."
+    },
+    {
+      "name": "clearable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`true`",
+      "meaning": "Show the clear control once something is chosen."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Select an entity type'`",
+      "meaning": "Shown while nothing is chosen."
+    },
+    {
+      "name": "search_placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Search types…'`",
+      "meaning": "Shown in the search box."
+    },
+    {
+      "name": "open",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Whether the popup is showing. Two-way in Svelte.",
+      "owner": "picker-control"
+    },
+    {
+      "name": "on_open_change",
+      "type": "`(open: boolean) => void`",
+      "py_type": "`Callable[[bool], None]`",
+      "default": "—",
+      "owner": "picker-control"
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No match'`",
+      "meaning": "Shown when the search matches nothing."
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "Names the skeletons a read stands behind, for a screen reader."
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Shown in place of what the failed read said."
+    }
+  ],
+  "events": [
+    {
+      "name": "value_changed",
+      "payload": "`string | null`",
+      "when": "A type is chosen, or the clear control is pressed."
+    },
+    {
+      "name": "open_changed",
+      "payload": "`boolean`",
+      "when": "The popup opened or closed. Svelte also binds it with `bind:open`."
+    }
+  ],
+  "slots": [],
+  "keyboard": [
+    {
+      "key": "any text",
+      "does": "Narrows the rows, from the caret in the control."
+    },
+    {
+      "key": "`Enter`, `Space`",
+      "does": "On the chevron, opens the list."
+    },
+    {
+      "key": "`Down`, `Up`",
+      "does": "Move the cursor through the rows and keep it in view. The last row holds it rather than wrapping."
+    },
+    {
+      "key": "`ArrowDown` / `ArrowUp`",
+      "does": "Moves the highlight, and the list scrolls it into view.",
+      "owner": "picker-control"
+    },
+    {
+      "key": "`Enter`",
+      "does": "Choose the highlighted type and close the list."
+    },
+    {
+      "key": "`Escape`",
+      "does": "Close, keeping the value and clearing the query. On a closed picker it does nothing."
+    },
+    {
+      "key": "`Backspace`",
+      "does": "In an empty search box, clears the value."
+    },
+    {
+      "key": "`ArrowLeft` / `ArrowRight`",
+      "does": "On a chip, walks the row. `ArrowRight` past the last chip returns to the input.",
+      "owner": "picker-control"
+    },
+    {
+      "key": "`Delete`",
+      "does": "On a chip, removes it and leaves the caret on its neighbour.",
+      "owner": "picker-control"
+    },
+    {
+      "key": "`Tab`",
+      "does": "Leaves the control.",
+      "owner": "picker-control"
+    }
+  ]
+}

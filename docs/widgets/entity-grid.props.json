@@ -1,0 +1,258 @@
+{
+  "name": "entity-grid",
+  "page": "entity-grid",
+  "declares": null,
+  "props": [
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "required",
+      "meaning": "The widget context. Every tile reads its schema, its statuses and its links through it."
+    },
+    {
+      "name": "thumbnail",
+      "type": "`string | false`",
+      "py_type": "`str | Literal[False]`",
+      "default": "`'image'`",
+      "meaning": "Field holding the thumbnail URL. `false` leaves every tile on the placeholder."
+    },
+    {
+      "name": "label_field",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "Field shown as the tile's name. Defaults to the type's display name."
+    },
+    {
+      "name": "sub_label_field",
+      "type": "`string | CollectionColumn | null`",
+      "py_type": "`Optional[str | CollectionColumn]`",
+      "default": "`null`",
+      "meaning": "The left of the metadata line. A resolved column renders it by type."
+    },
+    {
+      "name": "sub_label",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "—",
+      "meaning": "The caller's own sub-label. Wins over `subLabelField`."
+    },
+    {
+      "name": "secondary_field",
+      "type": "`string | CollectionColumn | null`",
+      "py_type": "`Optional[str | CollectionColumn]`",
+      "default": "`null`",
+      "meaning": "The right of the metadata line."
+    },
+    {
+      "name": "secondary",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "—",
+      "meaning": "The caller's own text on the right. Wins over `secondaryField`."
+    },
+    {
+      "name": "show_code",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Show the row's `code` beside the name when the two differ."
+    },
+    {
+      "name": "statuses",
+      "type": "`Record<string, StatusRecord> | null`",
+      "py_type": "`Optional[dict[str, StatusRecord]]`",
+      "default": "`null`",
+      "meaning": "Status rows by code. Read through the context when not given."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Tile size and column minimum: 160, 224 or 288 pixels."
+    },
+    {
+      "name": "selectable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Draws a checkbox on each tile."
+    },
+    {
+      "name": "page_sizes",
+      "type": "`number[]`",
+      "py_type": "`list[int]`",
+      "default": "`[25, 50, 100]`",
+      "meaning": "Rows per page offered in the footer. `pages` only."
+    },
+    {
+      "name": "max_height",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'32rem'`",
+      "meaning": "Height of the scrolling body."
+    },
+    {
+      "name": "virtualize_after",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`100`",
+      "meaning": "Rows above which the grid draws only the tiles on screen."
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No rows'`",
+      "meaning": "Shown when the read returned nothing."
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Shown in place of what the failed read said."
+    },
+    {
+      "name": "density",
+      "type": "`'compact' | 'default'`",
+      "py_type": "`Literal['compact', 'default']`",
+      "default": "`'default'`",
+      "meaning": "Compact halves the gap between tiles."
+    },
+    {
+      "name": "source",
+      "type": "`EntitySource`",
+      "py_type": "`EntitySource`",
+      "default": "—",
+      "meaning": "The rows and the paging behind them."
+    },
+    {
+      "name": "paging",
+      "type": "`'pages' | 'more' | 'scroll'`",
+      "py_type": "`Literal['pages', 'more', 'scroll']`",
+      "default": "`'scroll'`",
+      "meaning": "How the set is walked: a page number, a load-more row, or the scroller."
+    },
+    {
+      "name": "sort",
+      "type": "`SortSpec[]`",
+      "py_type": "`list[SortSpec]`",
+      "default": "—",
+      "meaning": "The source's sort, two-way, so a SortPicker drops into `header`."
+    },
+    {
+      "name": "filters",
+      "type": "`FilterNode | WireGroup | null`",
+      "py_type": "`Optional[FilterNode | WireGroup]`",
+      "default": "—",
+      "meaning": "The source's filter, two-way, so a FilterBar drops into `header`."
+    },
+    {
+      "name": "selection",
+      "type": "`EntityRef[]`",
+      "py_type": "`list[EntityRef]`",
+      "default": "`[]`",
+      "meaning": "The selected rows, two-way. Names loaded rows only.",
+      "owner": "collection-control"
+    },
+    {
+      "name": "get_row_id",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "—",
+      "meaning": "How a row is keyed, in the DOM and in the selection. Default `Type:id`.",
+      "owner": "collection-control"
+    },
+    {
+      "name": "is_row_disabled",
+      "type": "`(row) => boolean`",
+      "py_type": "`Callable[[PickerRow], bool]`",
+      "default": "—",
+      "meaning": "True for a row the arrows skip and the selection refuses."
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "Names the skeletons a read stands behind, for a screen reader.",
+      "owner": "collection-control"
+    }
+  ],
+  "events": [
+    {
+      "name": "select",
+      "payload": "`EntityRow`",
+      "when": "A tile was activated, by click or by Enter."
+    },
+    {
+      "name": "sort_changed",
+      "payload": "`SortSpec[]`",
+      "when": "The source's sort changed."
+    },
+    {
+      "name": "filters_changed",
+      "payload": "`FilterNode | WireGroup | null`",
+      "when": "The source's filter changed."
+    },
+    {
+      "name": "selection_changed",
+      "payload": "`EntityRef[]`",
+      "when": "The selection changed."
+    }
+  ],
+  "slots": [
+    {
+      "name": "card",
+      "receives": "`{ row, id, index, selected, disabled, active }`",
+      "draws": "Draws one grid cell. The grid keeps the cell's box, its tab stop and its keys."
+    },
+    {
+      "name": "header",
+      "receives": "—",
+      "draws": "Region above the grid."
+    },
+    {
+      "name": "footer",
+      "receives": "—",
+      "draws": "Region below the footer."
+    }
+  ],
+  "keyboard": [
+    {
+      "key": "Tab",
+      "does": "Moves into the grid, then out of it."
+    },
+    {
+      "key": "Left, Right",
+      "does": "Moves the cursor one tile."
+    },
+    {
+      "key": "Up, Down",
+      "does": "Moves the cursor one row of tiles."
+    },
+    {
+      "key": "Home, End",
+      "does": "Moves to the first or the last tile."
+    },
+    {
+      "key": "Right, Down past the last tile",
+      "does": "In `more` and `scroll`, asks for the next page. The cursor stays where it is until the tiles arrive, then lands on the first of them."
+    },
+    {
+      "key": "Space",
+      "does": "Selects the tile, when the grid is selectable."
+    },
+    {
+      "key": "Enter",
+      "does": "Emits the select event."
+    },
+    {
+      "key": "Enter in the page number",
+      "does": "Goes to that page."
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "name": "thumbnail",
+  "page": "thumbnail",
+  "declares": null,
+  "props": [
+    {
+      "name": "src",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "The image field's value."
+    },
+    {
+      "name": "alt",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`''`",
+      "meaning": "Empty by default: a thumbnail beside a labelled row is decorative."
+    },
+    {
+      "name": "aspect",
+      "type": "`'16:9' | 'square'`",
+      "py_type": "`Literal['16:9', 'square']`",
+      "default": "`'16:9'`",
+      "meaning": "Sets the width for the chosen height."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg' | 'xl' | '2xl'`",
+      "py_type": "`Literal['sm', 'md', 'lg', 'xl', '2xl']`",
+      "default": "`'md'`",
+      "meaning": "Heights 6, 8, 10, 16 and 24. The first three sit in rows and cells; `xl` and `2xl` are for cards and detail panes."
+    },
+    {
+      "name": "entity_type",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "The row's entity type. Its glyph stands in where there is no picture; without it a plain picture glyph does."
+    },
+    {
+      "name": "playable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Draws a centred play badge over the image."
+    }
+  ],
+  "events": [],
+  "slots": [],
+  "keyboard": []
+}

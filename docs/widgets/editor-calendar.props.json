@@ -1,0 +1,9 @@
+{
+  "name": "editor-calendar",
+  "page": "value-editor",
+  "declares": false,
+  "props": [],
+  "events": [],
+  "slots": [],
+  "keyboard": []
+}

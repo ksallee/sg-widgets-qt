@@ -1,0 +1,113 @@
+{
+  "name": "filter-dialog",
+  "page": "filter-dialog",
+  "declares": null,
+  "props": [
+    {
+      "name": "entity_type",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "required",
+      "meaning": "Type the editor reads its fields on."
+    },
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "required",
+      "meaning": "The widget context. Every read goes through it, so widgets on a page share one cache."
+    },
+    {
+      "name": "value",
+      "type": "`FilterGroup`",
+      "py_type": "`FilterGroup`",
+      "default": "`emptyFilter()`",
+      "meaning": "The applied tree. Two-way in Svelte through `bind:value`."
+    },
+    {
+      "name": "hide_paths",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "`[]`",
+      "meaning": "Passed through to the editor."
+    },
+    {
+      "name": "label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Replaces both button labels."
+    },
+    {
+      "name": "title",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Filters'`",
+      "meaning": "Dialog title."
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Blocks both buttons."
+    },
+    {
+      "name": "open",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Whether the dialog is showing. Two-way in Svelte."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Launcher heights 7, 8 and 9. Passed to the editor inside."
+    }
+  ],
+  "events": [
+    {
+      "name": "changed",
+      "payload": "`FilterGroup`",
+      "when": "The tree was applied, by Apply, Clear all or the clear control, never while editing. Svelte also binds it with `bind:value`."
+    },
+    {
+      "name": "open_changed",
+      "payload": "`boolean`",
+      "when": "The dialog opened or closed. Svelte also binds it with `bind:open`."
+    }
+  ],
+  "slots": [
+    {
+      "name": "fieldChooser",
+      "receives": "`entityType`, the current `path`, `hidePaths`, `filterableOnly`, `disabled`, `onSelect(path)`",
+      "draws": "The field chooser, in place of FieldPicker."
+    },
+    {
+      "name": "valueEditor",
+      "receives": "`field`, `dataType`, `operator`, `value`, `arity`, `disabled`, `onChange(value)`",
+      "draws": "Every value control in the editor."
+    },
+    {
+      "name": "entityEditor",
+      "receives": "the same arguments as the value editor",
+      "draws": "The two entity pickers alone."
+    }
+  ],
+  "keyboard": [
+    {
+      "key": "`Enter`, `Space`",
+      "does": "Opens the dialog from the launcher."
+    },
+    {
+      "key": "`Tab`",
+      "does": "Cycles inside the dialog while it is open."
+    },
+    {
+      "key": "`Escape`",
+      "does": "Closes the dialog and drops the staged edits."
+    }
+  ]
+}

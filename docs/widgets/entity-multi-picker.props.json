@@ -1,0 +1,340 @@
+{
+  "name": "entity-multi-picker",
+  "page": "entity-multi-picker",
+  "declares": null,
+  "props": [
+    {
+      "name": "summary",
+      "type": "`'chips' | 'ellipsis' | 'count'`",
+      "py_type": "`Literal['chips', 'ellipsis', 'count']`",
+      "default": "`'ellipsis'`",
+      "meaning": "What the control shows for the selection."
+    },
+    {
+      "name": "max",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`0`",
+      "meaning": "Chips drawn before the rest becomes `+n`. `0` lets the row fit what it can."
+    },
+    {
+      "name": "entity_types",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "required",
+      "meaning": "Types to search. Several make the picker polymorphic.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "required",
+      "meaning": "The widget context. Every read goes through it, so widgets on a page share one cache.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "value",
+      "type": "`EntityRef[]`",
+      "py_type": "`list[EntityRef]`",
+      "default": "`[]`",
+      "meaning": "The chosen rows, in the order they were ticked. Two-way in Svelte."
+    },
+    {
+      "name": "label_field",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "display-name chain",
+      "meaning": "Field holding the row label.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "search_fields",
+      "type": "`string[] | ((query) => string[])`",
+      "py_type": "`list[str] | Callable[[str], list[str]]`",
+      "default": "`[]`",
+      "meaning": "Fields matched on top of the display-name chain. A function is called with the query.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "secondary_field",
+      "type": "`string | CollectionColumn | null`",
+      "py_type": "`Optional[str | CollectionColumn]`",
+      "default": "`null`",
+      "meaning": "Field shown right-aligned, drawn by its data type. A resolved column renders it by type.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "secondary",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "—",
+      "meaning": "Right-aligned text of your own. Wins over `secondaryField`.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "sub_label_field",
+      "type": "`string | CollectionColumn | null`",
+      "py_type": "`Optional[str | CollectionColumn]`",
+      "default": "`null`",
+      "meaning": "Field shown under the label. A resolved column renders it by type.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "sub_label",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "the type, when several are searched",
+      "meaning": "Computes the sub-label.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "thumbnail",
+      "type": "`string | false`",
+      "py_type": "`str | Literal[False]`",
+      "default": "`'image'`",
+      "meaning": "Field holding the thumbnail URL. `false` hides the leading slot.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "round_thumbnail",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Draws the thumbnail as a circle.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "show_code",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Shows the row's `code` beside the label when the two differ.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "site_url",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "the context's",
+      "meaning": "The site the status sprite is served from, for a secondary that is a status.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "fields",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "`[]`",
+      "meaning": "Extra fields to request.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "filters",
+      "type": "`FilterGroup | WireGroup | null`",
+      "py_type": "`Optional[FilterGroup | WireGroup]`",
+      "default": "`null`",
+      "meaning": "Pre-filter, merged into every search with `and`.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "project_id",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "—",
+      "meaning": "Scopes to one project.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "exclude",
+      "type": "`EntityRef[]`",
+      "py_type": "`list[EntityRef]`",
+      "default": "`[]`",
+      "meaning": "Rows kept out of the results, per type."
+    },
+    {
+      "name": "min_query_length",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`0`",
+      "meaning": "Under it the query carries no name condition.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "page_size",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`20`",
+      "meaning": "Rows a page, with a load more row under them.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "debounce_ms",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`250`",
+      "meaning": "Wait after the last keystroke before searching.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Control height: 7, 8 and 9.",
+      "owner": "picker-control"
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "owner": "picker-control"
+    },
+    {
+      "name": "readonly",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Keeps full contrast and drops the affordances.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "invalid",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Sets `aria-invalid` and the destructive ring.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "clearable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`true`",
+      "meaning": "Shows the clear-all control."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Search for an entity'`",
+      "meaning": "Shown in the control while nothing is chosen.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "search_placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Search…'`",
+      "meaning": "Shown in the query input once something is chosen.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "open",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Whether the popup is showing. Two-way in Svelte.",
+      "owner": "picker-control"
+    },
+    {
+      "name": "on_open_change",
+      "type": "`(open: boolean) => void`",
+      "py_type": "`Callable[[bool], None]`",
+      "default": "—",
+      "owner": "picker-control"
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No match'`",
+      "meaning": "Shown when a query matches nothing.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "Names the skeletons a read stands behind, for a screen reader.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Shown in place of what the failed read said.",
+      "owner": "entity-picker"
+    }
+  ],
+  "events": [
+    {
+      "name": "value_changed",
+      "payload": "`EntityRef[]`, `PickerRow[]`",
+      "when": "The selection changed."
+    },
+    {
+      "name": "error",
+      "payload": "`Error`",
+      "when": "A read failed. The list shows it inline as well.",
+      "owner": "entity-picker"
+    },
+    {
+      "name": "open_changed",
+      "payload": "`boolean`",
+      "when": "The popup opened or closed. Svelte also binds it with `bind:open`.",
+      "owner": "entity-picker"
+    }
+  ],
+  "slots": [],
+  "keyboard": [
+    {
+      "key": "any text",
+      "does": "Searches the server, from the caret under `chips` and from the popup's search box otherwise."
+    },
+    {
+      "key": "`Enter`, `Space`",
+      "does": "On the chevron, opens the list.",
+      "owner": "entity-picker"
+    },
+    {
+      "key": "`Up`, `Down`",
+      "does": "Moves the highlight through the rows and keeps it in view, including across a load more page. The last row holds it rather than wrapping.",
+      "owner": "entity-picker"
+    },
+    {
+      "key": "`ArrowDown` / `ArrowUp`",
+      "does": "Moves the highlight, and the list scrolls it into view.",
+      "owner": "picker-control"
+    },
+    {
+      "key": "`Enter`",
+      "does": "Ticks or unticks the highlighted row. The list stays open."
+    },
+    {
+      "key": "`Escape`",
+      "does": "Closes the list and clears the query. On a closed picker it does nothing.",
+      "owner": "entity-picker"
+    },
+    {
+      "key": "`Backspace`",
+      "does": "In an empty search box, highlights the last chip. A second one removes it. Any other key releases it."
+    },
+    {
+      "key": "`ArrowLeft` / `ArrowRight`",
+      "does": "On a chip, walks the row. `ArrowRight` past the last chip returns to the input.",
+      "owner": "picker-control"
+    },
+    {
+      "key": "`Delete`",
+      "does": "On a chip, removes it and leaves the caret on its neighbour.",
+      "owner": "picker-control"
+    },
+    {
+      "key": "`Tab`",
+      "does": "Moves through the chips' remove controls, then `+n`, the clear control and the chevron."
+    }
+  ]
+}

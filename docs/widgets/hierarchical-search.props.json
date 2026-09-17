@@ -1,0 +1,161 @@
+{
+  "name": "hierarchical-search",
+  "page": "hierarchical-search",
+  "declares": null,
+  "props": [
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "required",
+      "meaning": "The widget context. Every read goes through it, so widgets on a page share one cache."
+    },
+    {
+      "name": "root_path",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'/'`",
+      "meaning": "Where the tree starts. `/Project/70` scopes it to that project."
+    },
+    {
+      "name": "entity_types",
+      "type": "`string[] | Record<string, WireCondition[] | null>`",
+      "py_type": "`list[str] | dict[str, Optional[list[WireCondition]]]`",
+      "default": "Shot, Asset, Sequence, Task",
+      "meaning": "Types a search may end on."
+    },
+    {
+      "name": "thumbnail",
+      "type": "`string | false`",
+      "py_type": "`str | Literal[False]`",
+      "default": "`'image'`",
+      "meaning": "Field holding the thumbnail URL. A row with no picture falls back to its type glyph."
+    },
+    {
+      "name": "label_field",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Field holding the row label."
+    },
+    {
+      "name": "sub_label_field",
+      "type": "`string | CollectionColumn | null`",
+      "py_type": "`Optional[str | CollectionColumn]`",
+      "default": "`null`",
+      "meaning": "The muted line under the label. A resolved column renders it by type."
+    },
+    {
+      "name": "sub_label",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "—",
+      "meaning": "The muted line of your own. Wins over `subLabelField`."
+    },
+    {
+      "name": "secondary_field",
+      "type": "`string | CollectionColumn | null`",
+      "py_type": "`Optional[str | CollectionColumn]`",
+      "default": "`null`",
+      "meaning": "The right-aligned value, drawn by its data type."
+    },
+    {
+      "name": "secondary",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "—",
+      "meaning": "Right-aligned text of your own. Wins over `secondaryField`."
+    },
+    {
+      "name": "show_code",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Shows the row's `code` beside the label when the two differ."
+    },
+    {
+      "name": "fields",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "`[]`",
+      "meaning": "Extra fields to request, so your own sub-label or secondary can read them."
+    },
+    {
+      "name": "no_match_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No match'`",
+      "meaning": "Shown when a query matches nothing."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Row text, leading slot and glyphs."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Search the hierarchy…'`",
+      "meaning": "Text in the search input."
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No rows'`",
+      "meaning": "Shown when a level holds nothing."
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "Names the skeletons a read stands behind, for a screen reader."
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Shown in place of what the failed read said."
+    }
+  ],
+  "events": [
+    {
+      "name": "select",
+      "payload": "`EntityRef`, `EntityRef[]`",
+      "when": "A row was picked. The second argument is every row its path runs through, root first."
+    }
+  ],
+  "slots": [],
+  "keyboard": [
+    {
+      "key": "`Down` / `Up`",
+      "does": "Moves through the level."
+    },
+    {
+      "key": "`Right`",
+      "does": "Opens the level below the row."
+    },
+    {
+      "key": "`Left` / `Backspace`",
+      "does": "Goes back up one level."
+    },
+    {
+      "key": "`ArrowDown` / `ArrowUp`",
+      "does": "Moves the highlight, through a load-more page.",
+      "owner": "search-control"
+    },
+    {
+      "key": "`Enter`",
+      "does": "Picks the row, or opens it when it is not a searchable type."
+    },
+    {
+      "key": "`Escape`",
+      "does": "Clears the query."
+    }
+  ]
+}

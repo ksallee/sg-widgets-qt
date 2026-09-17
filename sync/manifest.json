@@ -1,0 +1,209 @@
+{
+  "upstream": {
+    "path": "~/dev/sg-widgets",
+    "branch": "dev",
+    "commit": "130d4633433cb26733fc5589c04dd56417afeeab"
+  },
+  "items": {
+    "core/client": {
+      "status": "partial",
+      "upstream": {
+        "packages/core/src/client.ts": "3e641c20c17964c54544e9e182b84198590ff1be24df3ba02c22204f4d9f5f94",
+        "packages/core/test/client.test.ts": "7ccb68c97eb3c8a41a85b635d823da51f7eba613140f9110cf9ad617e7742261"
+      },
+      "ported": [
+        "src/sg_widgets_core/client.py",
+        "tests/core/test_client.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "RestClient and RestClientOptions are in the adapter module; its 18 tests are skipped here with that reason."
+    },
+    "core/field-types": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/field-types.ts": "8490a0d05a9cc205732c99cba4e33635e6d1b9f88475e0bd23893a6a8a8cc905",
+        "packages/core/test/field-types.test.ts": "3a3ba5f12c85b49441c4098a666d0db322dde1b60f3fe9cdd4cb70663f792baf"
+      },
+      "ported": [
+        "src/sg_widgets_core/field_types.py",
+        "tests/core/test_field_types.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "core/filter": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/filter.ts": "dda13e4c18084512687ca2bfe300d6ef506d04ea5822cced1cf54594b207d5a3",
+        "packages/core/test/filter.test.ts": "dcc010a0f7d4c4f9ad9bdf10ecdd819fdbab2fba80fae10b5f2019d00afdd1b5"
+      },
+      "ported": [
+        "src/sg_widgets_core/filter.py",
+        "tests/core/test_filter.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "core/list-chrome": {
+      "status": "partial",
+      "upstream": {
+        "packages/core/src/list-chrome.ts": "199130ecc9ffba3d3169811b74ea75ef3d9175e3cc7a071775f09f8f0207cbc5",
+        "packages/core/test/list-chrome.test.ts": "560bcb610e7d6a52d18d0c6a69bcf8adfb31077768b98f0a1045918ceafc681c"
+      },
+      "ported": [
+        "src/sg_widgets_core/list_chrome.py",
+        "tests/core/test_list_chrome.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "markOverflow, watchOverflow and the two CSS variable names are not ported: DOM plumbing around overflow_edges. The Qt layer reads scroll_top, scroll_height and client_height off its view and repaints the edge fades."
+    },
+    "core/picker-keys": {
+      "status": "partial",
+      "upstream": {
+        "packages/core/src/picker-keys.ts": "c2b201f9ca497dc25e526d67062cb84e051d52cb492769690bee029abb664403",
+        "packages/core/test/picker-keys.test.ts": "916185373bcd28fbe3b1c992c96fc401189fc68de9fd654deca90533ad6e4790"
+      },
+      "ported": [
+        "src/sg_widgets_core/picker_keys.py",
+        "tests/core/test_picker_keys.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "focusChip, scrollHighlightedIntoView and watchHighlight are not ported: DOM plumbing with no decision. The Qt layer gives the caret to the chip an intent names and keeps the view scrolled to the highlighted row."
+    },
+    "core/schema": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/schema.ts": "858c8ff23a73a10e5e22ccf98c1893939557f9557b8e4a7725e5c5c67e8330bc",
+        "packages/core/test/status.test.ts": "4f221efccc35227a742d9a3cb9599481316ad0d8923cce15f6d6efe564cbddae"
+      },
+      "ported": [
+        "src/sg_widgets_core/schema.py",
+        "tests/core/test_schema.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Upstream has no schema.test.ts: the schema tests live in the schema blocks of status.test.ts."
+    },
+    "core/sortable": {
+      "status": "partial",
+      "upstream": {
+        "packages/core/src/sortable.ts": "7c3673c3d8eb79efa78abdd26b087a518e76766a94250924928a9bfb5acad19e",
+        "packages/core/test/sortable.test.ts": "d141aa951bc8721dec237abda90e93bb9d11d728873536473b15b66ed768d848"
+      },
+      "ported": [
+        "src/sg_widgets_core/sortable.py",
+        "tests/core/test_sortable.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The model, the announcements and the hit testing are ported. createSortableController, measureSortable, playSortableFlip and the two data attributes are not: pointer events, transforms, ResizeObserver and reduced motion, none of them tested upstream. The Qt layer runs the gesture on its item view and feeds SortableRect and SortablePoint in view coordinates."
+    },
+    "core/state": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/state.ts": "3a0f722ed8af67694d8c3758117d2ffe2c7db1935745744a5fde82b09bd4b8a9",
+        "packages/core/test/state.test.ts": "56afb1562d7be283f6db5907d1d630621f66f626b2721be12fa9b95ea2785b51"
+      },
+      "ported": [
+        "src/sg_widgets_core/state.py",
+        "tests/core/test_state.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "error_text(None) reads None, where the upstream renders null."
+    },
+    "core/status": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/status.ts": "c65e9418a7a3412a76f7582a1978646b1db58ba27145a7cd4aaca799b5a21997",
+        "packages/core/test/status.test.ts": "4f221efccc35227a742d9a3cb9599481316ad0d8923cce15f6d6efe564cbddae"
+      },
+      "ported": [
+        "src/sg_widgets_core/status.py",
+        "tests/core/test_status.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "core/status-icons": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/status-icons.ts": "1e5c6d0f577d91d076fc723cfe1c7451fc63dec3a764c922201283b4e4ee6ec8",
+        "packages/core/test/status-icons.test.ts": "3e6f5660d70b62c14a1f29ed359451aa0e1d4723f2fd82b20b8205d35d249dd5"
+      },
+      "ported": [
+        "src/sg_widgets_core/status_icons.py",
+        "tests/core/test_status_icons.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "docs/checkbox-editor": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/checkbox-editor.mdx": "33ed9f9ed562ce3ae04ab4ce0f653cbd621c3e8f3b4a4607c20f1e456b269ac3",
+        "apps/site/src/props/checkbox-editor.ts": "50657a6094be2a3b36e85aac9e7d55686db329b15d67428daba1b3c44bf140bf"
+      },
+      "ported": [
+        "docs/widgets/checkbox-editor.md",
+        "docs/widgets/checkbox-editor.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/props-export": {
+      "status": "complete",
+      "upstream": {
+        "apps/site/src/props/_types.ts": "49340cb9b07b66d8bebb07dcfc7ef4ed3b0d25233f7e0862d5141e4f184a2d49",
+        "apps/site/src/props/_resolve.ts": "948c8188b76549bc6d34064b072f93c85ca67e0006052e9c0b4a7c7f1c547ad1",
+        "apps/site/astro.config.mjs": "a301d655be0a7def4d1ee2a04bbaea31a88379cdc0666b0250492e8d6441568c"
+      },
+      "ported": [
+        "tools/export_props.mjs",
+        "tools/props_types.py",
+        "docs/widgets/_index.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "primitives/icons": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/entity-glyphs.ts": "6d327aafa5b096515ba6ff9779b69e7d3bdaf86aa978332a4733b39bb0bb3e8b"
+      },
+      "ported": [
+        "src/sg_widgets_qt/icons.py",
+        "tools/lucide.py",
+        "tests/qt/test_icons.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "primitives/theme": {
+      "status": "complete",
+      "upstream": {
+        "apps/site/src/styles/themes.css": "cefb501d8ffc9f6671ac3b9015a311fa8d5fdb8050888161b0d1a4777aecff67",
+        "apps/site/src/styles/global.css": "14bf6629d90421db449ca8c73a499708d60be1dfc967fd62b1ca8227586748fc",
+        "apps/site/src/components/demo-prefs.ts": "894f5130f7bc337985fe218c39d086f7e2091fae3d94374a1892f88a90758ce8"
+      },
+      "ported": [
+        "src/sg_widgets_qt/theme/__init__.py",
+        "src/sg_widgets_qt/theme/palettes.json",
+        "tools/export_palettes.py",
+        "tests/qt/test_theme.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "primitives/workers": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/search.ts": "424d93d61a8c3140f1e2c7c7bdb079b113812154971d97de490c23fcfe1c9c1b",
+        "packages/react/src/registry/sg/components/search-control.tsx": "270c8e239f6da79c29b6c60c130d57132aab4c26c02944edffc419ff0926392e"
+      },
+      "ported": [
+        "src/sg_widgets_qt/workers.py",
+        "tests/qt/test_workers.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    }
+  }
+}

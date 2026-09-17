@@ -1,0 +1,293 @@
+{
+  "name": "entity-tree",
+  "page": "entity-tree",
+  "declares": null,
+  "props": [
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "required",
+      "meaning": "The widget context. Every read goes through it, so widgets on a page share one cache."
+    },
+    {
+      "name": "root_path",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Where the tree starts, `/Project/<id>`."
+    },
+    {
+      "name": "seed_path",
+      "type": "`string | string[] | null`",
+      "py_type": "`Optional[str | list[str]]`",
+      "default": "`null`",
+      "meaning": "Opens the tree down to this path, or to the last entry of an incremental path."
+    },
+    {
+      "name": "checkable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Draws a checkbox per node and reports the checked rows."
+    },
+    {
+      "name": "selection_mode",
+      "type": "`'none' | 'single' | 'multiple'`",
+      "py_type": "`Literal['none', 'single', 'multiple']`",
+      "default": "`'single'`",
+      "meaning": "How many nodes may be selected at once."
+    },
+    {
+      "name": "selection",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "`[]`",
+      "meaning": "Paths of the selected nodes, two-way."
+    },
+    {
+      "name": "expanded",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "—",
+      "meaning": "Paths of the open nodes, two-way. Setting it opens exactly those, reading whatever level is not loaded."
+    },
+    {
+      "name": "is_row_disabled",
+      "type": "`(node) => boolean`",
+      "py_type": "`Callable[[Any], bool]`",
+      "default": "—",
+      "meaning": "True for a node the arrows skip and the selection refuses."
+    },
+    {
+      "name": "searchable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Shows an input that searches the project and opens the tree onto the hits."
+    },
+    {
+      "name": "search_placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Search'`",
+      "meaning": "Placeholder and label of that input."
+    },
+    {
+      "name": "expand_depth",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`3`",
+      "meaning": "Levels a whole-branch expansion opens."
+    },
+    {
+      "name": "thumbnail",
+      "type": "`string | false`",
+      "py_type": "`str | Literal[False]`",
+      "default": "`false`",
+      "meaning": "The image field to draw a thumbnail from."
+    },
+    {
+      "name": "label_field",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Field shown as the label, in place of the tree's own."
+    },
+    {
+      "name": "sub_label_field",
+      "type": "`string | CollectionColumn | null`",
+      "py_type": "`Optional[str | CollectionColumn]`",
+      "default": "`null`",
+      "meaning": "Field shown under the label. A resolved column renders it by type."
+    },
+    {
+      "name": "sub_label",
+      "type": "`(node) => string`",
+      "py_type": "`Callable[[Any], str]`",
+      "default": "—",
+      "meaning": "Muted line under the label. Wins over `subLabelField`."
+    },
+    {
+      "name": "secondary_field",
+      "type": "`string | CollectionColumn | null`",
+      "py_type": "`Optional[str | CollectionColumn]`",
+      "default": "`null`",
+      "meaning": "Right-aligned field, drawn by its data type. A resolved column renders it by type."
+    },
+    {
+      "name": "secondary",
+      "type": "`(node) => string`",
+      "py_type": "`Callable[[Any], str]`",
+      "default": "—",
+      "meaning": "Right-aligned text. Wins over `secondaryField`."
+    },
+    {
+      "name": "show_code",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Show the schema name beside the label on a node that stands for a type."
+    },
+    {
+      "name": "fields",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "`[]`",
+      "meaning": "Extra fields to request, so a caller's own sub-label or secondary can read them."
+    },
+    {
+      "name": "site_url",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "the context's",
+      "meaning": "The site the status sprite is served from."
+    },
+    {
+      "name": "label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Project hierarchy'`",
+      "meaning": "Accessible name of the tree."
+    },
+    {
+      "name": "max_height",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'24rem'`",
+      "meaning": "Height of the scrolling body."
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No rows'`",
+      "meaning": "Shown when the root has no children."
+    },
+    {
+      "name": "no_match_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No match'`",
+      "meaning": "Shown when a search matched no row."
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "Names the skeletons a read stands behind, for a screen reader."
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Shown in place of what the failed read said."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Row text, leading slot and glyphs, and the search input on the control ladder."
+    },
+    {
+      "name": "density",
+      "type": "`'compact' | 'default'`",
+      "py_type": "`Literal['compact', 'default']`",
+      "default": "`'default'`",
+      "meaning": "Compact halves the vertical row padding and draws a row chip and badge a step smaller."
+    }
+  ],
+  "events": [
+    {
+      "name": "select",
+      "payload": "`TreeNode`",
+      "when": "A node with nothing under it was chosen."
+    },
+    {
+      "name": "selection_changed",
+      "payload": "`string[]`",
+      "when": "The selected paths changed."
+    },
+    {
+      "name": "expanded_changed",
+      "payload": "`string[]`",
+      "when": "The open paths changed."
+    },
+    {
+      "name": "checked_changed",
+      "payload": "`EntityRef[]`",
+      "when": "The checked set changed. Only nodes that stand for a row are reported."
+    },
+    {
+      "name": "error",
+      "payload": "`Error`",
+      "when": "A read failed."
+    }
+  ],
+  "slots": [
+    {
+      "name": "row",
+      "receives": "`{ node, id, level, expanded, selected, disabled, match }`",
+      "draws": "Draws a row's contents: everything after the chevron and the checkbox."
+    },
+    {
+      "name": "header",
+      "receives": "—",
+      "draws": "Region above the search input."
+    },
+    {
+      "name": "footer",
+      "receives": "—",
+      "draws": "Region below the tree."
+    }
+  ],
+  "keyboard": [
+    {
+      "key": "Down",
+      "does": "Moves to the next visible node."
+    },
+    {
+      "key": "Up",
+      "does": "Moves to the previous visible node."
+    },
+    {
+      "key": "Right",
+      "does": "Opens a closed branch, else moves to its first child."
+    },
+    {
+      "key": "Left",
+      "does": "Closes an open branch, else moves to its parent."
+    },
+    {
+      "key": "Home",
+      "does": "Moves to the first node."
+    },
+    {
+      "key": "End",
+      "does": "Moves to the last visible node."
+    },
+    {
+      "key": "Space",
+      "does": "Toggles the node's checkbox."
+    },
+    {
+      "key": "Enter",
+      "does": "Selects the node."
+    },
+    {
+      "key": "*",
+      "does": "Opens every branch at the focus level, `expandDepth` levels deep."
+    },
+    {
+      "key": "Escape",
+      "does": "In the search input, clears it."
+    },
+    {
+      "key": "a–z, 0–9",
+      "does": "Moves to the next node whose label starts with what was typed. The same letter again walks the matches."
+    }
+  ]
+}

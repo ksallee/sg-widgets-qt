@@ -1,0 +1,45 @@
+{
+  "name": "state-line",
+  "page": "state-line",
+  "declares": null,
+  "props": [
+    {
+      "name": "state",
+      "type": "`'empty' | 'error'`",
+      "py_type": "`Literal['empty', 'error']`",
+      "default": "—",
+      "meaning": "Which state this is. An error is destructive, an empty state muted."
+    },
+    {
+      "name": "label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "The line to show. It truncates, and carries itself as a `title`."
+    },
+    {
+      "name": "icon",
+      "type": "`LucideIcon | null`",
+      "py_type": "`Optional[LucideIcon]`",
+      "default": "`null`",
+      "meaning": "The glyph in front of the line, drawn at `size-4`."
+    },
+    {
+      "name": "pad",
+      "type": "`'popover' | 'table' | 'none'`",
+      "py_type": "`Literal['popover', 'table', 'none']`",
+      "default": "`'popover'`",
+      "meaning": "The room around the line: `py-6` in a popup list, `py-10` in a body, and none under rows already drawn."
+    },
+    {
+      "name": "slot_name",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'state-line'`",
+      "meaning": "The `data-slot` this block carries."
+    }
+  ],
+  "events": [],
+  "slots": [],
+  "keyboard": []
+}

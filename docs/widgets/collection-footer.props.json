@@ -1,0 +1,45 @@
+{
+  "name": "collection-footer",
+  "page": "collection-control",
+  "declares": null,
+  "props": [
+    {
+      "name": "slot_name",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "The widget's own name, which prefixes every `data-slot` in the footer."
+    },
+    {
+      "name": "source",
+      "type": "`EntitySource`",
+      "py_type": "`EntitySource`",
+      "default": "—",
+      "meaning": "The source the page size, the arrows and the page number drive."
+    },
+    {
+      "name": "pager",
+      "type": "`PagingModel`",
+      "py_type": "`PagingModel`",
+      "default": "—",
+      "meaning": "The numbers to draw, from core's `describePaging`."
+    },
+    {
+      "name": "loading",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "—",
+      "meaning": "True while the set is being read: the arrows wait for it."
+    },
+    {
+      "name": "page_sizes",
+      "type": "`number[]`",
+      "py_type": "`list[int]`",
+      "default": "—",
+      "meaning": "The page sizes offered in `pages` mode."
+    }
+  ],
+  "events": [],
+  "slots": [],
+  "keyboard": []
+}

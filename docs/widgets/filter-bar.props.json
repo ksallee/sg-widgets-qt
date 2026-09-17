@@ -1,0 +1,121 @@
+{
+  "name": "filter-bar",
+  "page": "filter-bar",
+  "declares": null,
+  "props": [
+    {
+      "name": "base_filter",
+      "type": "`FilterGroup | WireGroup | null`",
+      "py_type": "`Optional[FilterGroup | WireGroup]`",
+      "default": "`null`",
+      "meaning": "Conditions every facet query carries, such as a project scope. Never edited by the bar."
+    },
+    {
+      "name": "entity_type",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "required",
+      "meaning": "Type the pills and the counts read on."
+    },
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "required",
+      "meaning": "The widget context. Every read goes through it, so widgets on a page share one cache."
+    },
+    {
+      "name": "facets",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "required",
+      "meaning": "Field names to offer as pills, in order."
+    },
+    {
+      "name": "labels",
+      "type": "`Record<string, string>`",
+      "py_type": "`dict[str, str]`",
+      "default": "`{}`",
+      "meaning": "A name per facet, for a field whose schema label is not what the page calls it."
+    },
+    {
+      "name": "max_values",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`2`",
+      "meaning": "Values a pill names before the rest reads as `+n`. `0` names every one."
+    },
+    {
+      "name": "value",
+      "type": "`FilterGroup`",
+      "py_type": "`FilterGroup`",
+      "default": "`emptyFilter()`",
+      "meaning": "The tree the pills write into. Two-way in Svelte through `bind:value`."
+    },
+    {
+      "name": "counts",
+      "type": "`FacetCounts`",
+      "py_type": "`FacetCounts`",
+      "default": "—",
+      "meaning": "The groups of a `_summarize` call grouped on one facet's field. Pass `facetCounts(context.client, entityType)`."
+    },
+    {
+      "name": "sample_size",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`200`",
+      "meaning": "Rows read for a tally: every facet without `counts`, and a facet the site refuses to group."
+    },
+    {
+      "name": "hide_paths",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "`[]`",
+      "meaning": "Passed through to the dialog."
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Blocks every pill."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Pill heights 7, 8 and 9."
+    }
+  ],
+  "events": [
+    {
+      "name": "changed",
+      "payload": "`FilterGroup`",
+      "when": "The tree changed, on every tick and on Apply in the dialog. Svelte also binds it with `bind:value`."
+    }
+  ],
+  "slots": [],
+  "keyboard": [
+    {
+      "key": "`Tab`",
+      "does": "Moves from pill to pill, and to a pill's remove control."
+    },
+    {
+      "key": "`Enter`, `Space`",
+      "does": "Opens the value list under the cursor."
+    },
+    {
+      "key": "`Arrow` keys",
+      "does": "Move the cursor in the open list."
+    },
+    {
+      "key": "`Enter`",
+      "does": "Ticks and unticks the value under the cursor."
+    },
+    {
+      "key": "`Escape`",
+      "does": "Closes the open list."
+    }
+  ]
+}

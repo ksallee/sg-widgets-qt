@@ -1,0 +1,85 @@
+{
+  "name": "collection-control",
+  "page": "collection-control",
+  "declares": {
+    "react": "CollectionControlOptions",
+    "svelte": "CollectionControlOptions"
+  },
+  "props": [
+    {
+      "name": "source",
+      "type": "`EntitySource`",
+      "py_type": "`EntitySource`",
+      "default": "—",
+      "meaning": "The rows, the filter, the sort and the page behind them."
+    },
+    {
+      "name": "paging",
+      "type": "`'pages' | 'more' | 'scroll'`",
+      "py_type": "`Literal['pages', 'more', 'scroll']`",
+      "default": "—",
+      "meaning": "How the set is walked: a page number, a load-more row, or the scroller. The source follows it."
+    },
+    {
+      "name": "sort",
+      "type": "`SortSpec[]`",
+      "py_type": "`list[SortSpec]`",
+      "default": "—",
+      "meaning": "The source's sort, two-way."
+    },
+    {
+      "name": "filters",
+      "type": "`FilterNode | WireGroup | null`",
+      "py_type": "`Optional[FilterNode | WireGroup]`",
+      "default": "—",
+      "meaning": "The source's filter, two-way."
+    },
+    {
+      "name": "selection",
+      "type": "`EntityRef[]`",
+      "py_type": "`list[EntityRef]`",
+      "default": "`[]`",
+      "meaning": "The selected rows, two-way. Names loaded rows only."
+    },
+    {
+      "name": "get_row_id",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "—",
+      "meaning": "How a row is keyed, in the DOM and in the selection. Default `Type:id`."
+    },
+    {
+      "name": "is_row_disabled",
+      "type": "`(row) => boolean`",
+      "py_type": "`Callable[[PickerRow], bool]`",
+      "default": "—",
+      "meaning": "True for a row the selection refuses and the cursor skips."
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "Names the skeletons a read stands behind, for a screen reader."
+    }
+  ],
+  "events": [
+    {
+      "name": "sort_changed",
+      "payload": "`SortSpec[]`",
+      "when": "React: the source’s sort changed. Svelte writes it back through `sort`."
+    },
+    {
+      "name": "filters_changed",
+      "payload": "`FilterNode | WireGroup | null`",
+      "when": "React: the source’s filter changed. Svelte writes it back through `filters`."
+    },
+    {
+      "name": "selection_changed",
+      "payload": "`EntityRef[]`",
+      "when": "React: the selection changed. Svelte writes it back through `selection`."
+    }
+  ],
+  "slots": [],
+  "keyboard": []
+}

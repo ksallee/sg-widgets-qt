@@ -1,0 +1,325 @@
+{
+  "name": "entity-table",
+  "page": "entity-table",
+  "declares": null,
+  "props": [
+    {
+      "name": "columns",
+      "type": "`CollectionColumn[]`",
+      "py_type": "`list[CollectionColumn]`",
+      "default": "—",
+      "meaning": "Columns in display order, from `resolveColumns`. Two-way: hiding one writes the shorter list back."
+    },
+    {
+      "name": "statuses",
+      "type": "`Record<string, StatusRecord> | null`",
+      "py_type": "`Optional[dict[str, StatusRecord]]`",
+      "default": "`null`",
+      "meaning": "Status rows by code, for status cells."
+    },
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "—",
+      "meaning": "The widget context. Cells render with its preferences, a cell editor reads through it, and an entity cell links to the row's page when it carries a site."
+    },
+    {
+      "name": "project_id",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "—",
+      "meaning": "The project the columns were resolved with. Scopes a status, list or entity cell editor."
+    },
+    {
+      "name": "precision",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "—",
+      "meaning": "Decimals a float cell keeps."
+    },
+    {
+      "name": "symbol",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'$'`",
+      "meaning": "Shown before the value in a currency cell."
+    },
+    {
+      "name": "density",
+      "type": "`'compact' | 'default'`",
+      "py_type": "`Literal['compact', 'default']`",
+      "default": "`'default'`",
+      "meaning": "Compact halves the vertical cell padding and draws a cell chip and badge a step smaller."
+    },
+    {
+      "name": "selectable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Draws a checkbox column."
+    },
+    {
+      "name": "group_by",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "Collapses rows under headers of a shared value at this path."
+    },
+    {
+      "name": "collapsed",
+      "type": "`string[] | CollapseState`",
+      "py_type": "`list[str] | CollapseState`",
+      "default": "`expandAll()`",
+      "meaning": "Which group headers are shut, two-way. A bare id list is the open mode with those ids shut."
+    },
+    {
+      "name": "editable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Lets an editable cell open an editor."
+    },
+    {
+      "name": "editor_for",
+      "type": "`(dataType) => Component | null`",
+      "py_type": "`Callable[[Any], Optional[Component]]`",
+      "default": "—",
+      "meaning": "The editor a cell opens, by data type. A type it does not answer for opens FieldEditor."
+    },
+    {
+      "name": "editor_placement",
+      "type": "`'inline' | 'popover'`",
+      "py_type": "`Literal['inline', 'popover']`",
+      "default": "per data type",
+      "meaning": "Where every cell editor opens. A column's own `editorPlacement` wins over it."
+    },
+    {
+      "name": "show_code",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Show the programmatic field path beside the header's display name."
+    },
+    {
+      "name": "column_menu",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "A menu on every header: sort, hide and pin left."
+    },
+    {
+      "name": "page_sizes",
+      "type": "`number[]`",
+      "py_type": "`list[int]`",
+      "default": "`[25, 50, 100]`",
+      "meaning": "Rows per page offered in the footer. `pages` only."
+    },
+    {
+      "name": "max_height",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'28rem'`",
+      "meaning": "Height of the scrolling body."
+    },
+    {
+      "name": "virtualize_after",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`100`",
+      "meaning": "Rows above which the body is virtualised."
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No rows'`",
+      "meaning": "Shown when the read returned nothing."
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Shown in place of what the failed read said."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Row text and header height: `text-xs`/`h-9`, `text-sm`/`h-10`, `text-base`/`h-11`."
+    },
+    {
+      "name": "source",
+      "type": "`EntitySource`",
+      "py_type": "`EntitySource`",
+      "default": "—",
+      "meaning": "The rows, the filter, the sort and the page behind them.",
+      "owner": "collection-control"
+    },
+    {
+      "name": "paging",
+      "type": "`'pages' | 'more' | 'scroll'`",
+      "py_type": "`Literal['pages', 'more', 'scroll']`",
+      "default": "`'pages'`",
+      "meaning": "How the set is walked: a page number, a load-more row, or the scroller."
+    },
+    {
+      "name": "sort",
+      "type": "`SortSpec[]`",
+      "py_type": "`list[SortSpec]`",
+      "default": "—",
+      "meaning": "The source's sort, two-way.",
+      "owner": "collection-control"
+    },
+    {
+      "name": "filters",
+      "type": "`FilterNode | WireGroup | null`",
+      "py_type": "`Optional[FilterNode | WireGroup]`",
+      "default": "—",
+      "meaning": "The source's filter, two-way.",
+      "owner": "collection-control"
+    },
+    {
+      "name": "selection",
+      "type": "`EntityRef[]`",
+      "py_type": "`list[EntityRef]`",
+      "default": "`[]`",
+      "meaning": "The selected rows, two-way. Names loaded rows only.",
+      "owner": "collection-control"
+    },
+    {
+      "name": "get_row_id",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "—",
+      "meaning": "How a row is keyed, in the DOM and in the selection. Default `Type:id`.",
+      "owner": "collection-control"
+    },
+    {
+      "name": "is_row_disabled",
+      "type": "`(row) => boolean`",
+      "py_type": "`Callable[[PickerRow], bool]`",
+      "default": "—",
+      "meaning": "True for a row that cannot be selected or edited."
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "Names the skeletons a read stands behind, for a screen reader.",
+      "owner": "collection-control"
+    }
+  ],
+  "events": [
+    {
+      "name": "columns_changed",
+      "payload": "`CollectionColumn[]`",
+      "when": "A column was hidden from its header menu."
+    },
+    {
+      "name": "collapsed_changed",
+      "payload": "`CollapseState`",
+      "when": "A group header was opened or shut."
+    },
+    {
+      "name": "sort_changed",
+      "payload": "`SortSpec[]`",
+      "when": "The source's sort changed, from a header or from the prop."
+    },
+    {
+      "name": "filters_changed",
+      "payload": "`FilterNode | WireGroup | null`",
+      "when": "The source's filter changed."
+    },
+    {
+      "name": "selection_changed",
+      "payload": "`EntityRef[]`",
+      "when": "The selection changed."
+    }
+  ],
+  "slots": [
+    {
+      "name": "toolbarStart",
+      "receives": "—",
+      "draws": "Left region of the toolbar above the table."
+    },
+    {
+      "name": "toolbarEnd",
+      "receives": "—",
+      "draws": "Right region of the toolbar above the table."
+    },
+    {
+      "name": "row",
+      "receives": "`{ row, id, index, selected, disabled, columns }`",
+      "draws": "Draws the cells of one row. The table keeps the row's box."
+    },
+    {
+      "name": "cell",
+      "receives": "`{ row, id, column, value, disabled }`",
+      "draws": "Draws one cell's contents. Ignored where `row` is given."
+    },
+    {
+      "name": "groupHeader",
+      "receives": "`{ value, column, count, expanded, id }`",
+      "draws": "Draws a group header's contents, after its chevron."
+    },
+    {
+      "name": "editorFor",
+      "receives": "`dataType`",
+      "draws": "The component a cell opens for that data type."
+    }
+  ],
+  "keyboard": [
+    {
+      "key": "Tab",
+      "does": "Moves through toolbar, header buttons, column menus, checkboxes, editable cells and the footer."
+    },
+    {
+      "key": "Enter, Space on a header",
+      "does": "Sorts by that column, ascending, then descending, then unsorted."
+    },
+    {
+      "key": "Enter, Space on a column menu",
+      "does": "Opens it; arrows walk it, Escape closes it."
+    },
+    {
+      "key": "Enter on an editable cell",
+      "does": "Opens the editor."
+    },
+    {
+      "key": "Enter in an editor",
+      "does": "Commits the value. In a textarea it adds a line, and Cmd or Ctrl with Enter commits."
+    },
+    {
+      "key": "Escape in an editor",
+      "does": "Cancels and restores the value."
+    },
+    {
+      "key": "a press outside an editor",
+      "does": "Commits the value."
+    },
+    {
+      "key": "Enter, Escape, Save, Cancel in a popover editor",
+      "does": "The same: Enter and Save commit, Escape and Cancel restore."
+    },
+    {
+      "key": "Space on a checkbox",
+      "does": "Toggles the row, or every loaded row from the header."
+    },
+    {
+      "key": "ArrowDown, ArrowUp in the body",
+      "does": "Moves the cursor down or up the same column, over the rows it can land on."
+    },
+    {
+      "key": "ArrowDown on the last loaded row",
+      "does": "In `more` and `scroll`, asks for the next page. The cursor stays where it is until the rows arrive, then lands on the first of them."
+    },
+    {
+      "key": "Enter in the page number",
+      "does": "Goes to that page."
+    }
+  ]
+}

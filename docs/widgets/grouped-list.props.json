@@ -1,0 +1,300 @@
+{
+  "name": "grouped-list",
+  "page": "grouped-list",
+  "declares": null,
+  "props": [
+    {
+      "name": "group_by",
+      "type": "`CollectionColumn`",
+      "py_type": "`CollectionColumn`",
+      "default": "—",
+      "meaning": "Column the rows are grouped on. The source is sorted on it. Not read with `groupKey`. One of the two is required."
+    },
+    {
+      "name": "group_key",
+      "type": "`(row) => unknown`",
+      "py_type": "`Callable[[PickerRow], Any]`",
+      "default": "—",
+      "meaning": "The value a row groups under, derived from the row and compared by its JSON text. The source's sort is left as the caller set it."
+    },
+    {
+      "name": "group_label",
+      "type": "`(value) => string`",
+      "py_type": "`Callable[[Any], str]`",
+      "default": "—",
+      "meaning": "The header's text for a derived key; not read with `groupBy`. Without it the key reads as its own display name."
+    },
+    {
+      "name": "thumbnail",
+      "type": "`string | false`",
+      "py_type": "`str | Literal[False]`",
+      "default": "`false`",
+      "meaning": "Field holding the thumbnail URL."
+    },
+    {
+      "name": "label_field",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "Field shown as the row's label. Defaults to the type's display name."
+    },
+    {
+      "name": "sub_label_field",
+      "type": "`string | CollectionColumn | null`",
+      "py_type": "`Optional[str | CollectionColumn]`",
+      "default": "`null`",
+      "meaning": "The muted line under the label. A resolved column renders it by type."
+    },
+    {
+      "name": "sub_label",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "—",
+      "meaning": "The caller's own sub-label. Wins over `subLabelField`."
+    },
+    {
+      "name": "secondary_field",
+      "type": "`string | CollectionColumn | null`",
+      "py_type": "`Optional[str | CollectionColumn]`",
+      "default": "`null`",
+      "meaning": "The right-aligned value at the end of the row."
+    },
+    {
+      "name": "secondary",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "—",
+      "meaning": "The caller's own right-aligned text. Wins over `secondaryField`."
+    },
+    {
+      "name": "show_code",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Show the row's `code` beside the label when the two differ."
+    },
+    {
+      "name": "details",
+      "type": "`CollectionColumn[]`",
+      "py_type": "`list[CollectionColumn]`",
+      "default": "`[]`",
+      "meaning": "Extra values drawn under the label. The source must already read their paths."
+    },
+    {
+      "name": "statuses",
+      "type": "`Record<string, StatusRecord> | null`",
+      "py_type": "`Optional[dict[str, StatusRecord]]`",
+      "default": "`null`",
+      "meaning": "Status rows by code."
+    },
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "—",
+      "meaning": "The widget context. Values render with its preferences, and an entity value links to the row's page when it carries a site."
+    },
+    {
+      "name": "density",
+      "type": "`'compact' | 'default'`",
+      "py_type": "`Literal['compact', 'default']`",
+      "default": "`'default'`",
+      "meaning": "Compact halves the vertical row padding and draws a row chip and badge a step smaller."
+    },
+    {
+      "name": "selectable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Draws a checkbox on each row."
+    },
+    {
+      "name": "collapsed",
+      "type": "`string[] | CollapseState`",
+      "py_type": "`list[str] | CollapseState`",
+      "default": "`expandAll()`",
+      "meaning": "Which groups are shut, two-way. A bare key list is the open mode with those keys shut."
+    },
+    {
+      "name": "page_sizes",
+      "type": "`number[]`",
+      "py_type": "`list[int]`",
+      "default": "`[25, 50, 100]`",
+      "meaning": "Rows per page offered in the footer. `pages` only."
+    },
+    {
+      "name": "max_height",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'28rem'`",
+      "meaning": "Height of the scrolling body."
+    },
+    {
+      "name": "virtualize_after",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`100`",
+      "meaning": "Rows and headers above which the list draws only the lines on screen."
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No rows'`",
+      "meaning": "Shown when the read returned nothing."
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Shown in place of what the failed read said."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Row text and thumbnail. A compact row takes the step below."
+    },
+    {
+      "name": "source",
+      "type": "`EntitySource`",
+      "py_type": "`EntitySource`",
+      "default": "—",
+      "meaning": "The rows and the order behind them."
+    },
+    {
+      "name": "paging",
+      "type": "`'pages' | 'more' | 'scroll'`",
+      "py_type": "`Literal['pages', 'more', 'scroll']`",
+      "default": "`'more'`",
+      "meaning": "How the set is walked: a page number, a load-more row, or the scroller."
+    },
+    {
+      "name": "sort",
+      "type": "`SortSpec[]`",
+      "py_type": "`list[SortSpec]`",
+      "default": "—",
+      "meaning": "The source's sort, two-way, so a SortPicker drops into `header`."
+    },
+    {
+      "name": "filters",
+      "type": "`FilterNode | WireGroup | null`",
+      "py_type": "`Optional[FilterNode | WireGroup]`",
+      "default": "—",
+      "meaning": "The source's filter, two-way, so a FilterBar drops into `header`."
+    },
+    {
+      "name": "selection",
+      "type": "`EntityRef[]`",
+      "py_type": "`list[EntityRef]`",
+      "default": "`[]`",
+      "meaning": "The selected rows, two-way. Names loaded rows only.",
+      "owner": "collection-control"
+    },
+    {
+      "name": "get_row_id",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "—",
+      "meaning": "How a row is keyed, in the DOM and in the selection. Default `Type:id`.",
+      "owner": "collection-control"
+    },
+    {
+      "name": "is_row_disabled",
+      "type": "`(row) => boolean`",
+      "py_type": "`Callable[[PickerRow], bool]`",
+      "default": "—",
+      "meaning": "True for a row that cannot be selected or reached by Tab."
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "Names the skeletons a read stands behind, for a screen reader.",
+      "owner": "collection-control"
+    }
+  ],
+  "events": [
+    {
+      "name": "select",
+      "payload": "`EntityRow`",
+      "when": "A row was activated, when `selectable` is off."
+    },
+    {
+      "name": "collapsed_changed",
+      "payload": "`CollapseState`",
+      "when": "A group was opened or shut."
+    },
+    {
+      "name": "sort_changed",
+      "payload": "`SortSpec[]`",
+      "when": "The source's sort changed."
+    },
+    {
+      "name": "filters_changed",
+      "payload": "`FilterNode | WireGroup | null`",
+      "when": "The source's filter changed."
+    },
+    {
+      "name": "selection_changed",
+      "payload": "`EntityRef[]`",
+      "when": "The selection changed."
+    }
+  ],
+  "slots": [
+    {
+      "name": "leading",
+      "receives": "`EntityRow`",
+      "draws": "Fixed-size slot at the start of the row, when `thumbnail` is not the one wanted: an avatar, a status glyph."
+    },
+    {
+      "name": "row",
+      "receives": "`{ row, id, index, selected, disabled }`",
+      "draws": "Draws a row's contents. The list keeps the row's box."
+    },
+    {
+      "name": "groupHeader",
+      "receives": "`{ value, column, count, collapsed, id }`",
+      "draws": "Draws a group header's contents, after its chevron. `column` is `null` for a derived key."
+    },
+    {
+      "name": "header",
+      "receives": "—",
+      "draws": "Region above the list."
+    },
+    {
+      "name": "footer",
+      "receives": "—",
+      "draws": "Region below the footer."
+    }
+  ],
+  "keyboard": [
+    {
+      "key": "Tab",
+      "does": "Moves through group headers, checkboxes, rows and the footer."
+    },
+    {
+      "key": "Enter, Space on a header",
+      "does": "Collapses or expands the group."
+    },
+    {
+      "key": "Enter, Space on a row",
+      "does": "Selects it, or emits the select event."
+    },
+    {
+      "key": "ArrowDown, ArrowUp on a row",
+      "does": "Moves the cursor one row."
+    },
+    {
+      "key": "ArrowDown on the last loaded row",
+      "does": "In `more` and `scroll`, asks for the next page. The cursor stays where it is until the rows arrive, then lands on the first of them."
+    },
+    {
+      "key": "Enter in the page number",
+      "does": "Goes to that page."
+    }
+  ]
+}

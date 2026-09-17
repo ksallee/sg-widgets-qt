@@ -1,0 +1,294 @@
+{
+  "name": "list-picker",
+  "page": "list-picker",
+  "declares": null,
+  "props": [
+    {
+      "name": "value",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "The stored string. Two-way in Svelte."
+    },
+    {
+      "name": "on_value_change",
+      "type": "`(value: string | null) => void`",
+      "py_type": "`Callable[[Optional[str]], None]`",
+      "default": "—",
+      "meaning": "Called on every change."
+    },
+    {
+      "name": "field",
+      "type": "`FieldSchema | null`",
+      "py_type": "`Optional[FieldSchema]`",
+      "default": "`null`",
+      "meaning": "Supplies the valid values, the labels and the hidden values."
+    },
+    {
+      "name": "project_id",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "—",
+      "meaning": "Given, the field's hidden values are removed from the list."
+    },
+    {
+      "name": "options",
+      "type": "`{ code, label }[]`",
+      "py_type": "`list[dict[str, Any]]`",
+      "default": "—",
+      "meaning": "The set on offer, of the caller's own making. Wins over the field."
+    },
+    {
+      "name": "show_code",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Draws the stored string as a row's right-aligned secondary, where it says more than the label."
+    },
+    {
+      "name": "secondary",
+      "type": "`(option) => string`",
+      "py_type": "`Callable[[Any], str]`",
+      "default": "the value",
+      "meaning": "A row's right-aligned value, of the caller's own making."
+    },
+    {
+      "name": "sub_label",
+      "type": "`(option) => string`",
+      "py_type": "`Callable[[Any], str]`",
+      "default": "—",
+      "meaning": "The muted line under a row's label."
+    },
+    {
+      "name": "load_error",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "What a caller's read failed with, drawn in place of the list."
+    },
+    {
+      "name": "slot",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'list-picker'`",
+      "meaning": "The `data-slot` prefix every part of this picker carries."
+    },
+    {
+      "name": "picker",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'list'`",
+      "meaning": "The `data-picker` the popup carries."
+    },
+    {
+      "name": "searchable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Offers a search box, which narrows the set in the browser."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Control height: 7, 8 and 9.",
+      "owner": "picker-control"
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Greys the control and takes it out of the tab order."
+    },
+    {
+      "name": "readonly",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Keeps full contrast and drops the chevron, the popup and the clear control."
+    },
+    {
+      "name": "invalid",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Sets `aria-invalid` and the destructive ring."
+    },
+    {
+      "name": "clearable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "the field",
+      "meaning": "Offers a control that clears the value. Unset, it follows the field: a mandatory one is never clearable."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Choose'`",
+      "meaning": "Shown while the field is unset."
+    },
+    {
+      "name": "search_placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Search values…'`",
+      "meaning": "Placeholder of the search box."
+    },
+    {
+      "name": "open",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Whether the popup is showing. Two-way in Svelte.",
+      "owner": "picker-control"
+    },
+    {
+      "name": "on_open_change",
+      "type": "`(open: boolean) => void`",
+      "py_type": "`Callable[[bool], None]`",
+      "default": "—",
+      "owner": "picker-control"
+    },
+    {
+      "name": "loading",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "A caller's read is in flight: skeletons, and the control is inert."
+    },
+    {
+      "name": "error",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "A message from the caller, drawn under the control."
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No rows'`",
+      "meaning": "Shown when the list offers nothing."
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "Names the skeletons a read stands behind, for a screen reader."
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Shown in place of what the failed read said."
+    },
+    {
+      "name": "clear_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Clear the selection'`",
+      "owner": "picker-control"
+    },
+    {
+      "name": "trigger_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Show the options'`",
+      "owner": "picker-control"
+    }
+  ],
+  "events": [
+    {
+      "name": "error_changed",
+      "payload": "`string | null`",
+      "when": "The message changed."
+    }
+  ],
+  "slots": [
+    {
+      "name": "mark",
+      "receives": "the option",
+      "draws": "A row's leading mark. Given, every row carries one."
+    },
+    {
+      "name": "valueChip",
+      "receives": "the chosen string",
+      "draws": "The control's value, in place of plain text."
+    },
+    {
+      "name": "errorMessage",
+      "receives": "the message",
+      "draws": "The line under the control."
+    }
+  ],
+  "keyboard": [
+    {
+      "key": "<kbd>Space</kbd>, <kbd>Enter</kbd>, <kbd>↓</kbd>",
+      "does": "Opens the list"
+    },
+    {
+      "key": "<kbd>↑</kbd> <kbd>↓</kbd>",
+      "does": "Move the highlight"
+    },
+    {
+      "key": "typing",
+      "does": "Narrows the list, where the picker is searchable"
+    },
+    {
+      "key": "<kbd>Enter</kbd>",
+      "does": "Chooses the highlighted row and closes"
+    },
+    {
+      "key": "<kbd>Backspace</kbd>",
+      "does": "In an empty search box, clears the value"
+    },
+    {
+      "key": "<kbd>Esc</kbd>",
+      "does": "Closes the list and keeps the value"
+    },
+    {
+      "key": "<kbd>Tab</kbd>",
+      "does": "Leaves the control, or reaches the clear control when there is one"
+    },
+    {
+      "key": "`ArrowDown` / `ArrowUp`",
+      "does": "Moves the highlight, and the list scrolls it into view.",
+      "owner": "picker-control"
+    },
+    {
+      "key": "`Enter`",
+      "does": "Takes the highlighted row. A multi picker keeps the popup open.",
+      "owner": "picker-control"
+    },
+    {
+      "key": "`Escape`",
+      "does": "Closes the popup and clears the query. On a closed picker it does nothing.",
+      "owner": "picker-control"
+    },
+    {
+      "key": "`Backspace`",
+      "does": "In an empty query: takes the caret to the last chip of a multi picker; clears a single one.",
+      "owner": "picker-control"
+    },
+    {
+      "key": "`ArrowLeft` / `ArrowRight`",
+      "does": "On a chip, walks the row. `ArrowRight` past the last chip returns to the input.",
+      "owner": "picker-control"
+    },
+    {
+      "key": "`Delete`",
+      "does": "On a chip, removes it and leaves the caret on its neighbour.",
+      "owner": "picker-control"
+    },
+    {
+      "key": "`Tab`",
+      "does": "Leaves the control.",
+      "owner": "picker-control"
+    }
+  ]
+}

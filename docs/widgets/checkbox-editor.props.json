@@ -1,0 +1,100 @@
+{
+  "name": "checkbox-editor",
+  "page": "checkbox-editor",
+  "declares": null,
+  "props": [
+    {
+      "name": "error_message",
+      "type": "`(message: string) => ReactNode`",
+      "py_type": "`Callable[[str], ReactNode]`",
+      "default": "—",
+      "meaning": "Draws the line under the control."
+    },
+    {
+      "name": "value",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "The stored boolean. Two-way in Svelte."
+    },
+    {
+      "name": "on_value_change",
+      "type": "`(value: boolean) => void`",
+      "py_type": "`Callable[[bool], None]`",
+      "default": "—",
+      "meaning": "Called on every change."
+    },
+    {
+      "name": "field",
+      "type": "`FieldSchema | null`",
+      "py_type": "`Optional[FieldSchema]`",
+      "default": "`null`",
+      "meaning": "Supplies the accessible label."
+    },
+    {
+      "name": "labels",
+      "type": "`{ on: string; off: string }`",
+      "py_type": "`dict[str, str]`",
+      "default": "`{ on: 'Yes', off: 'No' }`",
+      "meaning": "The word shown beside the switch."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Row height."
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`"
+    },
+    {
+      "name": "readonly",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Keeps full contrast and refuses the change."
+    },
+    {
+      "name": "invalid",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`"
+    },
+    {
+      "name": "error",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "A message from the caller."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Used as the accessible label when there is no field."
+    }
+  ],
+  "events": [
+    {
+      "name": "error_changed",
+      "payload": "`string | null`",
+      "when": "The message changed."
+    }
+  ],
+  "slots": [],
+  "keyboard": [
+    {
+      "key": "`Space`",
+      "does": "Toggles the switch."
+    },
+    {
+      "key": "`Tab`",
+      "does": "Moves off the control."
+    }
+  ]
+}

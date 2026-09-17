@@ -44,7 +44,6 @@ packages = ["src/sg_widgets_core", "src/sg_widgets_qt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-qt_api = "pyside6"
 addopts = "-q"
 filterwarnings = ["ignore::DeprecationWarning"]
 

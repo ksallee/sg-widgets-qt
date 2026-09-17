@@ -1,0 +1,186 @@
+{
+  "name": "status-picker",
+  "page": "status-picker",
+  "declares": null,
+  "props": [
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "required",
+      "meaning": "The widget context. The options and the status table are read through it, once per page."
+    },
+    {
+      "name": "entity_type",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "required",
+      "meaning": "The type whose status field is offered."
+    },
+    {
+      "name": "project_id",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "—",
+      "meaning": "Offer the codes this project allows."
+    },
+    {
+      "name": "project_ids",
+      "type": "`number[]`",
+      "py_type": "`list[int]`",
+      "default": "—",
+      "meaning": "Offer the codes every one of these projects allows."
+    },
+    {
+      "name": "field",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "status field",
+      "meaning": "A list or status field other than the type's own."
+    },
+    {
+      "name": "value",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "The selected code. `bind:value` in Svelte, `value` with `onValueChange` in React."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Select a status'`",
+      "meaning": "Shown with no selection."
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No rows'`",
+      "meaning": "Shown when the field offers nothing."
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "Names the skeletons a read stands behind, for a screen reader."
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Shown in place of what the failed read said."
+    },
+    {
+      "name": "clearable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "the field",
+      "meaning": "Offers a control that clears the value. Unset, it follows the field: a mandatory one is never clearable."
+    },
+    {
+      "name": "readonly",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Keeps full contrast and drops the chevron, the popup and the clear control."
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Greys the control and takes it out of the tab order."
+    },
+    {
+      "name": "invalid",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Sets `aria-invalid` and the destructive ring."
+    },
+    {
+      "name": "show_code",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`true`",
+      "meaning": "Draws the code as a row's right-aligned secondary, when it says more than the label."
+    },
+    {
+      "name": "secondary",
+      "type": "`(option) => string`",
+      "py_type": "`Callable[[Any], str]`",
+      "default": "the code",
+      "meaning": "A row's right-aligned value, of the caller's own making."
+    },
+    {
+      "name": "sub_label",
+      "type": "`(option) => string`",
+      "py_type": "`Callable[[Any], str]`",
+      "default": "—",
+      "meaning": "The muted line under a row's label."
+    },
+    {
+      "name": "site_url",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "the context's",
+      "meaning": "Passed to every badge, for a sprite cell outside the status icon set."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Control height: 7, 8 and 9."
+    },
+    {
+      "name": "open",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Whether the popup is showing. Two-way in Svelte."
+    }
+  ],
+  "events": [
+    {
+      "name": "value_changed",
+      "payload": "`string | null`",
+      "when": "A status was chosen, or the clear control was pressed."
+    },
+    {
+      "name": "open_changed",
+      "payload": "`boolean`",
+      "when": "The popup opened or closed."
+    }
+  ],
+  "slots": [],
+  "keyboard": [
+    {
+      "key": "<kbd>Space</kbd>, <kbd>Enter</kbd>, <kbd>↓</kbd>",
+      "does": "Opens the list"
+    },
+    {
+      "key": "<kbd>↑</kbd> <kbd>↓</kbd>",
+      "does": "Moves the highlight"
+    },
+    {
+      "key": "<kbd>Enter</kbd>",
+      "does": "Selects the highlighted status and closes"
+    },
+    {
+      "key": "<kbd>Backspace</kbd>",
+      "does": "In an empty search box, clears the status"
+    },
+    {
+      "key": "<kbd>Esc</kbd>",
+      "does": "Closes and keeps the selection"
+    },
+    {
+      "key": "<kbd>Tab</kbd>",
+      "does": "Leaves the control, or reaches the clear control when there is one"
+    }
+  ]
+}

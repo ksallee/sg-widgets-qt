@@ -1,0 +1,79 @@
+{
+  "start": [
+    "introduction",
+    "install"
+  ],
+  "core": [
+    "index",
+    "client",
+    "context"
+  ],
+  "overview": "index",
+  "widgets": [
+    {
+      "category": "Foundations",
+      "items": [
+        "thumbnail",
+        "user-avatar",
+        "text-editor",
+        "number-editor",
+        "checkbox-editor",
+        "date-editor",
+        "date-time-editor",
+        "url-editor",
+        "color-editor",
+        "picker-control",
+        "search-control",
+        "collection-control",
+        "value-editor",
+        "state-line"
+      ]
+    },
+    {
+      "category": "Display",
+      "items": [
+        "status-badge",
+        "entity-chip",
+        "entity-card",
+        "field-value",
+        "match-text"
+      ]
+    },
+    {
+      "category": "Pickers",
+      "items": [
+        "entity-picker",
+        "entity-multi-picker",
+        "user-picker",
+        "user-multi-picker",
+        "project-picker",
+        "project-multi-picker",
+        "status-picker",
+        "status-multi-picker",
+        "list-picker",
+        "list-multi-picker",
+        "entity-type-picker",
+        "entity-type-multi-picker",
+        "field-picker",
+        "column-picker",
+        "field-editor",
+        "global-search",
+        "hierarchical-search",
+        "context-selector"
+      ]
+    },
+    {
+      "category": "Queries and collections",
+      "items": [
+        "filter-editor",
+        "filter-dialog",
+        "filter-bar",
+        "sort-picker",
+        "entity-table",
+        "entity-grid",
+        "grouped-list",
+        "entity-tree"
+      ]
+    }
+  ]
+}

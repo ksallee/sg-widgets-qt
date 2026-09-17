@@ -1,0 +1,221 @@
+{
+  "name": "field-editor",
+  "page": "field-editor",
+  "declares": null,
+  "props": [
+    {
+      "name": "error_message",
+      "type": "`(message: string) => ReactNode`",
+      "py_type": "`Callable[[str], ReactNode]`",
+      "default": "—",
+      "meaning": "Draws the line under the control."
+    },
+    {
+      "name": "value",
+      "type": "`unknown`",
+      "py_type": "`Any`",
+      "default": "`null`",
+      "meaning": "The raw attribute value, as the API returned it. Two-way in Svelte."
+    },
+    {
+      "name": "on_value_change",
+      "type": "`(value: unknown) => void`",
+      "py_type": "`Callable[[Any], None]`",
+      "default": "—",
+      "meaning": "Called when the editor commits."
+    },
+    {
+      "name": "data_type",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "the schema's, then `'text'`",
+      "meaning": "Picks the editor."
+    },
+    {
+      "name": "field",
+      "type": "`FieldSchema | null`",
+      "py_type": "`Optional[FieldSchema]`",
+      "default": "`null`",
+      "meaning": "The field schema."
+    },
+    {
+      "name": "mode",
+      "type": "`'display' | 'edit'`",
+      "py_type": "`Literal['display', 'edit']`",
+      "default": "`'display'`",
+      "meaning": "Which half is showing. Two-way in Svelte, controlled in React."
+    },
+    {
+      "name": "on_mode_change",
+      "type": "`(mode) => void`",
+      "py_type": "`Callable[[Any], None]`",
+      "default": "—",
+      "meaning": "Called when the toggle moves."
+    },
+    {
+      "name": "editable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Turns the display half into a control that opens the editor."
+    },
+    {
+      "name": "editor_placement",
+      "type": "`'inline' | 'popover'`",
+      "py_type": "`Literal['inline', 'popover']`",
+      "default": "`'inline'`",
+      "meaning": "Where the editor opens: in place of the value, or in a popover anchored to it."
+    },
+    {
+      "name": "statuses",
+      "type": "`Record<string, StatusRecord> | null`",
+      "py_type": "`Optional[dict[str, StatusRecord]]`",
+      "default": "`null`",
+      "meaning": "Status rows by code, for the display half."
+    },
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "—",
+      "meaning": "The widget context: the site preferences, and what the display half reads."
+    },
+    {
+      "name": "hours_per_day",
+      "type": "`number`",
+      "py_type": "`int | float`",
+      "default": "the context's",
+      "meaning": "The site's working day, for durations."
+    },
+    {
+      "name": "locale",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "the context's, then the runtime's",
+      "meaning": "Passed to the display half."
+    },
+    {
+      "name": "time_zone",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "the context's, then the runtime's",
+      "meaning": "Zone a typed wall-clock time is read in."
+    },
+    {
+      "name": "frame_rate",
+      "type": "`number`",
+      "py_type": "`int | float`",
+      "default": "the context's",
+      "meaning": "Frames a second, for timecodes."
+    },
+    {
+      "name": "precision",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "—",
+      "meaning": "Decimals on a float."
+    },
+    {
+      "name": "symbol",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'$'`",
+      "meaning": "Shown before a currency value."
+    },
+    {
+      "name": "project_id",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "—",
+      "meaning": "Removes a list field's hidden values, and scopes a status or entity picker."
+    },
+    {
+      "name": "multiline",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`true` in a popover",
+      "meaning": "A textarea on a text field. In a textarea Enter adds a line and Cmd or Ctrl with Enter commits."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Control height."
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`"
+    },
+    {
+      "name": "readonly",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`"
+    },
+    {
+      "name": "invalid",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Forced invalid state."
+    },
+    {
+      "name": "error",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "A message from the caller."
+    },
+    {
+      "name": "on_error_change",
+      "type": "`(error: string | null) => void`",
+      "py_type": "`Callable[[Optional[str]], None]`",
+      "default": "—",
+      "meaning": "Called when the parse error appears or clears."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—"
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'empty'`",
+      "meaning": "Marker the display half shows for an unset value."
+    }
+  ],
+  "events": [],
+  "slots": [],
+  "keyboard": [
+    {
+      "key": "`Enter`",
+      "does": "Opens the editor from the display half; commits and closes it from the edit half."
+    },
+    {
+      "key": "`Space`",
+      "does": "Opens the editor from the display half."
+    },
+    {
+      "key": "`Escape`",
+      "does": "Cancels the edit and returns to the display half."
+    },
+    {
+      "key": "`Tab`",
+      "does": "Commits and returns to the display half, unless focus stays inside a popup the editor opened."
+    },
+    {
+      "key": "a press outside",
+      "does": "Commits and returns to the display half."
+    },
+    {
+      "key": "`Escape`, `Enter` in a popover",
+      "does": "Cancels and commits as they do in place; Save and Cancel do the same with the pointer."
+    }
+  ]
+}

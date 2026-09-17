@@ -1,0 +1,9 @@
+{
+  "name": "entity-fields",
+  "page": "filter-editor",
+  "declares": false,
+  "props": [],
+  "events": [],
+  "slots": [],
+  "keyboard": []
+}

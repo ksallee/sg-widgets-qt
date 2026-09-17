@@ -1,0 +1,357 @@
+{
+  "name": "picker-control",
+  "page": "picker-control",
+  "declares": null,
+  "props": [
+    {
+      "name": "slot",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "The `data-slot` prefix every part of this picker carries."
+    },
+    {
+      "name": "picker",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "The `data-picker` the popup carries."
+    },
+    {
+      "name": "multiple",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Several keys may be chosen at once."
+    },
+    {
+      "name": "keys",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "—",
+      "meaning": "The chosen keys, in order. A single picker passes none or one."
+    },
+    {
+      "name": "on_select",
+      "type": "`(keys: string[]) => void`",
+      "py_type": "`Callable[[list[str]], None]`",
+      "default": "—",
+      "meaning": "The keys the primitive settled on. The load-more row never reaches it."
+    },
+    {
+      "name": "labels",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "—",
+      "meaning": "One label per chosen key. The summary, the title and the measured row read it."
+    },
+    {
+      "name": "items",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "—",
+      "meaning": "React: the item keys the list offers, in order."
+    },
+    {
+      "name": "chips_slot",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`<slot>-chips`",
+      "meaning": "The `data-slot` of the chip row."
+    },
+    {
+      "name": "summary",
+      "type": "`'chips' | 'ellipsis' | 'count'`",
+      "py_type": "`Literal['chips', 'ellipsis', 'count']`",
+      "default": "`'chips'`",
+      "meaning": "What the control shows for the selection."
+    },
+    {
+      "name": "max",
+      "type": "`number`",
+      "py_type": "`int`",
+      "default": "`0`",
+      "meaning": "Chips drawn before the rest becomes `+n`. `0` fits what the row can."
+    },
+    {
+      "name": "chip_row",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "The value is a measured row of chips rather than one chip."
+    },
+    {
+      "name": "inline",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`true`",
+      "meaning": "The control holds the caret. A summary control keeps it in the popup."
+    },
+    {
+      "name": "token_input",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`true`",
+      "meaning": "The caret gives its room to the chips."
+    },
+    {
+      "name": "input_placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "What the caret shows."
+    },
+    {
+      "name": "searchable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`true`",
+      "meaning": "A summary control keeps a search row. A fixed set has nothing to search."
+    },
+    {
+      "name": "text_value",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "The filled value is plain text, so the control keeps the reading inset in both states."
+    },
+    {
+      "name": "row_key",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "size, summary and labels",
+      "meaning": "What the chips look like, so a change re-measures the row."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Control height: 7, 8 and 9."
+    },
+    {
+      "name": "disabled",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`"
+    },
+    {
+      "name": "inert",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`disabled`",
+      "meaning": "The primitive takes no input. Wider than disabled: a loading picker is inert too."
+    },
+    {
+      "name": "readonly",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`"
+    },
+    {
+      "name": "invalid",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`"
+    },
+    {
+      "name": "clearable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`true`",
+      "meaning": "The clear control is drawn once something is chosen."
+    },
+    {
+      "name": "placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`''`"
+    },
+    {
+      "name": "search_placeholder",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Search…'`"
+    },
+    {
+      "name": "open",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Whether the popup is showing. Two-way in Svelte."
+    },
+    {
+      "name": "on_open_change",
+      "type": "`(open: boolean) => void`",
+      "py_type": "`Callable[[bool], None]`",
+      "default": "—"
+    },
+    {
+      "name": "query",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`''`",
+      "meaning": "What the caret holds. Two-way in Svelte."
+    },
+    {
+      "name": "on_query_change",
+      "type": "`(query: string) => void`",
+      "py_type": "`Callable[[str], None]`",
+      "default": "—",
+      "meaning": "React: called when the caret changes."
+    },
+    {
+      "name": "on_remove_at",
+      "type": "`(index: number) => void`",
+      "py_type": "`Callable[[int], None]`",
+      "default": "—",
+      "meaning": "Remove the chip at `index`. Backspace walks the row through it."
+    },
+    {
+      "name": "on_clear",
+      "type": "`() => void`",
+      "py_type": "`Callable[[], None]`",
+      "default": "—"
+    },
+    {
+      "name": "anchored",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "The popup is as wide as the control it hangs off."
+    },
+    {
+      "name": "loading",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Skeleton rows in place of the list."
+    },
+    {
+      "name": "error",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "`null`",
+      "meaning": "The error line in place of the list."
+    },
+    {
+      "name": "empty",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "The empty line in place of the list."
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'No match'`"
+    },
+    {
+      "name": "loading_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Loading…'`",
+      "meaning": "The accessible name of the skeletons."
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "what the read said",
+      "meaning": "Shown in place of the failed read's own message."
+    },
+    {
+      "name": "has_more",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "A further page is there to be read, and the load-more row is drawn."
+    },
+    {
+      "name": "on_load_more",
+      "type": "`() => void`",
+      "py_type": "`Callable[[], None]`",
+      "default": "—",
+      "meaning": "Called by a press on the load-more row."
+    },
+    {
+      "name": "clear_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Clear the selection'`"
+    },
+    {
+      "name": "trigger_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Show the options'`"
+    },
+    {
+      "name": "overflow_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'Show all n selected'`",
+      "meaning": "The accessible name of the `+n` pill."
+    },
+    {
+      "name": "item_to_string_label",
+      "type": "`(value: string) => string`",
+      "py_type": "`Callable[[str], str]`",
+      "default": "—",
+      "meaning": "React: what the primitive writes into the input for an item."
+    },
+    {
+      "name": "control_props",
+      "type": "`Record<string, unknown>`",
+      "py_type": "`dict[str, Any]`",
+      "default": "—",
+      "meaning": "Attributes the control carries on top of the shared ones."
+    }
+  ],
+  "events": [],
+  "slots": [
+    {
+      "name": "chip",
+      "react": "renderChip",
+      "receives": "the chip's index, whether the caret is on it, whether the row hides it",
+      "draws": "One chip of the value. The chip under the caret wears the focus ring; a hidden one keeps its width."
+    },
+    {
+      "name": "rows",
+      "react": "renderItem",
+      "receives": "nothing in Svelte, the item key in React",
+      "draws": "The rows of the list, as items of the primitive."
+    }
+  ],
+  "keyboard": [
+    {
+      "key": "`ArrowDown` / `ArrowUp`",
+      "does": "Moves the highlight, and the list scrolls it into view."
+    },
+    {
+      "key": "`Enter`",
+      "does": "Takes the highlighted row. A multi picker keeps the popup open."
+    },
+    {
+      "key": "`Escape`",
+      "does": "Closes the popup and clears the query. On a closed picker it does nothing."
+    },
+    {
+      "key": "`Backspace`",
+      "does": "In an empty query: takes the caret to the last chip of a multi picker; clears a single one."
+    },
+    {
+      "key": "`ArrowLeft` / `ArrowRight`",
+      "does": "On a chip, walks the row. `ArrowRight` past the last chip returns to the input."
+    },
+    {
+      "key": "`Delete`",
+      "does": "On a chip, removes it and leaves the caret on its neighbour."
+    },
+    {
+      "key": "`Tab`",
+      "does": "Leaves the control."
+    }
+  ]
+}

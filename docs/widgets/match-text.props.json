@@ -1,0 +1,24 @@
+{
+  "name": "match-text",
+  "page": "match-text",
+  "declares": null,
+  "props": [
+    {
+      "name": "text",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "required",
+      "meaning": "The label to draw."
+    },
+    {
+      "name": "query",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`''`",
+      "meaning": "What was searched for. Its whitespace-separated words are the ones marked."
+    }
+  ],
+  "events": [],
+  "slots": [],
+  "keyboard": []
+}

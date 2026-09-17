@@ -1,0 +1,202 @@
+{
+  "name": "entity-card",
+  "page": "entity-card",
+  "declares": null,
+  "props": [
+    {
+      "name": "context",
+      "type": "`SgContext`",
+      "py_type": "`SgContext`",
+      "default": "—",
+      "meaning": "The widget context: the cached client, the schema, the site url and the preferences the card reads through."
+    },
+    {
+      "name": "client",
+      "type": "`SgClient`",
+      "py_type": "`SgClient`",
+      "default": "—",
+      "meaning": "A client, for an app with no context. One context is built per client and shared."
+    },
+    {
+      "name": "row",
+      "type": "`EntityRow | null`",
+      "py_type": "`Optional[EntityRow]`",
+      "default": "`null`",
+      "meaning": "A row you already read. Given, the card reads nothing."
+    },
+    {
+      "name": "entity",
+      "type": "`EntityRef | null`",
+      "py_type": "`Optional[EntityRef]`",
+      "default": "`null`",
+      "meaning": "The row to read, when no row is given."
+    },
+    {
+      "name": "fields",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "`[]`",
+      "meaning": "Field paths for the grid, in order. Dotted paths allowed. Card only."
+    },
+    {
+      "name": "variant",
+      "type": "`'card' | 'tile'`",
+      "py_type": "`Literal['card', 'tile']`",
+      "default": "`'card'`",
+      "meaning": "The stacked surface, or the thumbnail-first tile."
+    },
+    {
+      "name": "size",
+      "type": "`'sm' | 'md' | 'lg'`",
+      "py_type": "`Literal['sm', 'md', 'lg']`",
+      "default": "`'md'`",
+      "meaning": "Thumbnail 16, 16 and 24, with the gaps and name scale to match."
+    },
+    {
+      "name": "image_path",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'image'`",
+      "meaning": "The image field the thumbnail comes from."
+    },
+    {
+      "name": "label_field",
+      "type": "`string | null`",
+      "py_type": "`Optional[str]`",
+      "default": "the type’s display name",
+      "meaning": "Field shown as the name. Tile only."
+    },
+    {
+      "name": "sub_label_field",
+      "type": "`FieldSpec | null`",
+      "py_type": "`Optional[FieldSpec]`",
+      "default": "`null`",
+      "meaning": "The left of the tile’s metadata line: a path, or a resolved column so it renders by type."
+    },
+    {
+      "name": "sub_label",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "—",
+      "meaning": "The caller’s own sub-label. Wins over `subLabelField`."
+    },
+    {
+      "name": "secondary_field",
+      "type": "`FieldSpec | null`",
+      "py_type": "`Optional[FieldSpec]`",
+      "default": "`null`",
+      "meaning": "The right of the tile’s metadata line: a path, or a resolved column so it renders by type."
+    },
+    {
+      "name": "secondary",
+      "type": "`(row) => string`",
+      "py_type": "`Callable[[PickerRow], str]`",
+      "default": "—",
+      "meaning": "The caller’s own text on the right of the metadata line. Wins over `secondaryField`."
+    },
+    {
+      "name": "show_code",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Show the row’s `code` beside the name when the two differ. Tile only."
+    },
+    {
+      "name": "statuses",
+      "type": "`Record<string, StatusRecord> | null`",
+      "py_type": "`Optional[dict[str, StatusRecord]]`",
+      "default": "the context’s",
+      "meaning": "`Status` rows by code (probe 010)."
+    },
+    {
+      "name": "selectable",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Draws the tile’s selection checkbox and gives the tile a focus ring."
+    },
+    {
+      "name": "selected",
+      "type": "`boolean`",
+      "py_type": "`bool`",
+      "default": "`false`",
+      "meaning": "Whether the tile is taken."
+    },
+    {
+      "name": "site_url",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "the context's",
+      "meaning": "The site the name and every linked row point at."
+    },
+    {
+      "name": "hours_per_day",
+      "type": "`number`",
+      "py_type": "`int | float`",
+      "default": "the context's",
+      "meaning": "The site's working day. Durations then render in days."
+    },
+    {
+      "name": "locale",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "the context's, then the runtime's",
+      "meaning": "Used for dates and numbers."
+    },
+    {
+      "name": "time_zone",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "the context's, then the runtime's",
+      "meaning": "IANA zone a `date_time` is shown in."
+    },
+    {
+      "name": "frame_rate",
+      "type": "`number`",
+      "py_type": "`int | float`",
+      "default": "the context's",
+      "meaning": "Frames a second. A timecode then carries its frame digits."
+    },
+    {
+      "name": "empty_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "`'empty'`",
+      "meaning": "What a field with no value shows."
+    },
+    {
+      "name": "error_label",
+      "type": "`string`",
+      "py_type": "`str`",
+      "default": "—",
+      "meaning": "Shown in place of what the failed read said."
+    }
+  ],
+  "events": [
+    {
+      "name": "selected_changed",
+      "payload": "`boolean`",
+      "when": "The tile's checkbox was toggled."
+    }
+  ],
+  "slots": [
+    {
+      "name": "actions",
+      "draws": "The thumbnail's top-right corner, on hover or focus. Tile only."
+    }
+  ],
+  "keyboard": [
+    {
+      "key": "`Tab`",
+      "does": "On a card, moves to the name, when a site url is known, then to any link inside a field value. On a tile, moves to the checkbox and to the actions."
+    },
+    {
+      "key": "`Enter`",
+      "does": "Opens the row's page on the site, in a new tab."
+    },
+    {
+      "key": "`Space`",
+      "does": "Toggles the checkbox it is on."
+    }
+  ]
+}
