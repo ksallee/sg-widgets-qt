@@ -17,7 +17,7 @@ from sg_widgets_core.collection import (
     create_entity_source,
     resolve_columns,
 )
-from sg_widgets_core.collection_state import collapse_all, expand_all, to_sort_specs
+from sg_widgets_core.collection_state import collapse_all, expand_all, to_sort_keys, to_sort_specs
 from sg_widgets_core.filter import condition, group
 from sg_widgets_core.mock import MockCounts
 
@@ -174,6 +174,8 @@ class EntityTableDemo(QtWidgets.QWidget):
         self.table.set_toolbar_start(self._filters, self._columns_box)
         if self._sort is not None:
             self._sort.sort_changed.connect(self._on_sort_keys)
+            # A header click sorts through the table; the control in the toolbar follows it.
+            self.table.sort_changed.connect(self._on_table_sort)
             self.table.set_toolbar_end(self._sort)
 
         self._read_columns(list(SHOWN))
@@ -250,6 +252,10 @@ class EntityTableDemo(QtWidgets.QWidget):
 
     def _on_sort_keys(self, keys: object) -> None:
         self.table.set_sort(to_sort_specs(list(keys or [])))
+
+    def _on_table_sort(self, sort: object) -> None:
+        if self._sort is not None:
+            self._sort.set_value(to_sort_keys(list(sort or [])))
 
 
 def _scoped(scope: Any, value: Any) -> Any:

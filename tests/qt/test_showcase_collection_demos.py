@@ -145,3 +145,44 @@ def test_a_press_on_a_grid_size_toggle_picks_that_size_and_does_not_loop(grid_de
     QtWidgets.QApplication.processEvents()
     assert grid_demo.grid.size == "md"
     assert [one for one in SIZES if grid_demo._sizes[one].checked] == ["md"]
+
+
+def test_a_header_sort_shows_in_the_toolbar_s_sort_control(qtbot):
+    """The table's own sort travels back to the Sort control, so the two never disagree."""
+    from sg_widgets_core.collection import SortSpec
+    from sg_widgets_qt.showcase.context import demo_context
+    from sg_widgets_qt.showcase.demos import entity_table as demo
+
+    context = demo_context()
+    built = demo.build(context, None)
+    qtbot.addWidget(built)
+    built.show()
+    qtbot.waitUntil(lambda: built.table.control.rows != [], timeout=5000)
+    built.table.control.apply_sort([SortSpec(path="code", descending=True)])
+    qtbot.waitUntil(lambda: built.table.control.snapshot().sort == [SortSpec(path="code", descending=True)], timeout=5000)
+    keys = built._sort.value
+    assert [(k.field, k.direction) for k in keys] == [("code", "desc")]
+
+
+def test_the_wire_block_reads_in_dark(qtbot):
+    """The serialised filter's ink is the theme's foreground, on the dark `muted` ground too."""
+    from qtpy import QtWidgets
+
+    from sg_widgets_qt.showcase.demos._results import WireView
+    from sg_widgets_qt.theme import apply_theme, theme_for
+
+    root = QtWidgets.QWidget()
+    qtbot.addWidget(root)
+    apply_theme(root, theme_for("default", dark=True))
+    view = WireView(root)
+    view.set_text('{"logical_operator": "and"}')
+    root.resize(400, 120)
+    root.show()
+    qtbot.waitExposed(root)
+    ink = view.palette().color(view.palette().ColorGroup.Active, view.palette().ColorRole.Text)
+    assert ink.name() == theme_for("default", dark=True).foreground
+    shot = view.grab().toImage()
+    light = sum(
+        1 for x in range(shot.width()) for y in range(shot.height()) if shot.pixelColor(x, y).lightness() > 180
+    )
+    assert light > 50, "the text is drawn light on the dark ground"

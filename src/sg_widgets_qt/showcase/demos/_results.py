@@ -447,6 +447,17 @@ class WireView(QtWidgets.QPlainTextEdit):
         theme = theme_of(self)
         self.setFont(theme.font(12, mono=True))
         self.viewport().setAutoFillBackground(False)
+        # The ink is the palette's: a plain text document draws with `Text`, black by default.
+        palette = self.palette()
+        for colour_group in (
+            QtGui.QPalette.ColorGroup.Active,
+            QtGui.QPalette.ColorGroup.Inactive,
+            QtGui.QPalette.ColorGroup.Disabled,
+        ):
+            palette.setColor(colour_group, QtGui.QPalette.ColorRole.Text, theme.color("foreground"))
+            palette.setColor(colour_group, QtGui.QPalette.ColorRole.Base, QtGui.QColor(0, 0, 0, 0))
+        self.setPalette(palette)
+        self.viewport().setPalette(palette)
         self.update()
 
     def paintEvent(self, event: QtGui.QPaintEvent) -> None:  # noqa: N802
