@@ -32,11 +32,17 @@ Picking a field appends its path to the end of the list and clears the picker, w
 back for the next one. A path already chosen is off the list, so a column is never added twice.
 
 Each row carries a grip, the friendly path with the raw path in its tooltip, and a remove control.
+A read-only list is the labels alone: no grip, none of its inset, and no cross.
+
 A row is reordered by dragging its grip, which moves the row under the pointer as it crosses each
 neighbour's midpoint, or from the keyboard: Space on the list picks the row under the cursor up,
 the arrow keys move it, and Space drops it. Alt with an arrow key moves the row without picking it
 up, and Delete removes it. Every step is written to the list's accessible description, which is
 this port's live region.
+
+`value_changed` carries the new order once per gesture: a keyboard move emits on every arrow, a
+drag emits on the release alone and never while the rows are giving way, and a drag cancelled with
+`Escape` emits nothing at all.
 
 A link field carries a chevron that descends into the type it points at, and the breadcrumb above
 the search box goes back one level or all the way to the root. A link declaring several target

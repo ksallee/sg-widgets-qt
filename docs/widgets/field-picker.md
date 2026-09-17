@@ -44,8 +44,8 @@ against the full dotted path, so excluding a root field leaves a field of the sa
 alone.
 
 A link that declares one target type descends at once. One declaring several replaces the list with
-one row per type and asks which. A type already on the path is not offered again, and the path stops
-at `max_depth`.
+one row per type and asks which, and the search box asks `Which type?` while they are on show. A
+type already on the path is not offered again, and the path stops at `max_depth`.
 
 The closed control shows the friendly path, the display names joined with a chevron, never the raw
 one.
@@ -62,11 +62,14 @@ None.
 
 ::props{name="field-picker" kind="keyboard"}
 
-The search box clears on every hop, on every selection and on every close, and the control is never
-remounted, so focus stays where you are typing.
+The search box clears on every hop, on every selection and on every close — from the `Left` key
+and from the bar's own Back and Reset alike — and the control is never remounted, so focus stays
+where you are typing. The first row of the list is the cursor the moment the list opens, so `Right`
+or `Enter` on it acts without a `Down` first.
 
 A field list walks a path through links, so the popup carries a breadcrumb above the search row
-and a row that descends carries a chevron. `Left`, `Right` and `Enter` on a link belong to the
+and a row that descends carries a chevron at its trailing edge, drawn in the row's own drill column
+and pressed there. `Left`, `Right` and `Enter` on a link belong to the
 levels rather than to the flat list, which is why a descend never closes the popup. The picker
 contract of design rule 7 holds all the same, and `tests/qt/test_picker_contract.py` is the proof.
 

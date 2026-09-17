@@ -18,6 +18,7 @@ from qtpy.QtWidgets import QApplication
 
 __all__ = [
     "column_picker_dragging",
+    "drag_move",
     "column_picker_moved",
     "column_picker_stacked",
     "field_editor_committed",
@@ -43,6 +44,29 @@ DEEP_FIELD = "entity"
 
 #: How long a state waits for the schema behind it.
 SETTLE_MS = 12000
+
+
+def drag_move(widget, point) -> None:
+    """A move with the button still down, delivered the same way on Qt 5 and Qt 6.
+
+    `QTest.mouseMove` synthesises a move the platform may or may not carry the button on, so
+    the event is built with `LeftButton` held and sent straight to the widget.
+    """
+    from qtpy.QtCore import QPointF
+    from qtpy.QtGui import QMouseEvent
+
+    where = QPointF(float(point.x()), float(point.y()))
+    QApplication.sendEvent(
+        widget,
+        QMouseEvent(
+            QMouseEvent.Type.MouseMove,
+            where,
+            where,
+            Qt.MouseButton.NoButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        ),
+    )
 
 
 def press(widget, key: int, modifier=Qt.KeyboardModifier.NoModifier) -> None:
@@ -258,8 +282,8 @@ def column_picker_dragging(page, wait, find, prefs=None) -> dict:
         return {"verdict": "FAIL the chosen list has fewer than three rows"}
     start = _row_point(chosen, 2)
     QTest.mousePress(chosen.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, start)
-    QTest.mouseMove(chosen.viewport(), QPoint(start.x(), start.y() - 8))
-    QTest.mouseMove(chosen.viewport(), _row_point(chosen, 0))
+    drag_move(chosen.viewport(), QPoint(start.x(), start.y() - 8))
+    drag_move(chosen.viewport(), _row_point(chosen, 0))
     wait(200)
     return {
         "verdict": "PASS dragging" if chosen.carrying else "FAIL nothing is being carried",
@@ -338,7 +362,7 @@ def field_editor_popover(page, wait, find, prefs=None) -> dict:
         "width": popup.width(),
         "label": bool(label),
         "buttons": buttons,
-        "steps": [one.size_step for one in popup.findChildren(Button)],
+        "steps": [one.size for one in popup.findChildren(Button)],
     }
 
 

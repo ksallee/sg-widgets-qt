@@ -287,3 +287,102 @@ def test_a_value_keeps_its_own_newlines(qtbot, root, context, rows, loader):
     assert isinstance(value, _CardValue)
     assert value.hasHeightForWidth() is True
     assert value.heightForWidth(80) > value.heightForWidth(600)
+
+
+def test_the_header_skeleton_is_shaped_like_the_name_and_the_line_under_it(
+    qtbot, root, context, rows, loader
+):
+    """A skeleton stands in for what it replaces: three quarters for the name, half under it.
+
+    Upstream draws `w-3/4` and `w-1/2` there. A block that runs the whole header instead reads as
+    a loading bar rather than as the card that is coming.
+    """
+
+    class _NeverPool:
+        def submit(self, fn, *args, **kwargs):
+            return None
+
+    card = place(
+        root,
+        EntityCard(
+            context=context, row=rows[0], fields=FIELDS, pool=_NeverPool(), loader=loader
+        ),
+    )
+    QtWidgets.QApplication.processEvents()
+    blocks = [block for block in card.findChildren(Skeleton) if block.isVisible()]
+    picture = max(blocks, key=lambda block: block.height())
+    header = [
+        block
+        for block in blocks
+        if block is not picture and block.mapTo(card, block.rect().topLeft()).y() < picture.height()
+    ]
+    assert len(header) == 2
+    name, meta = sorted(header, key=lambda block: block.mapTo(card, block.rect().topLeft()).y())
+    room = name.parentWidget().parentWidget().width()
+    assert room > 0
+    assert 0.65 < name.width() / room < 0.85
+    assert 0.4 < meta.width() / room < 0.6
+
+
+def test_a_card_takes_its_selection_and_reports_only_a_change(qtbot, root, context, rows, loader):
+    """A collection owns the selection, so the card takes it and says when it moved."""
+    card = place(root, EntityCard(context=context, row=rows[0], fields=FIELDS, loader=loader))
+    settle(qtbot, card)
+    reported: list[bool] = []
+    card.selected_changed.connect(reported.append)
+    card.set_selected(True)
+    card.set_selected(True)
+    card.set_selected(False)
+    assert reported == [True, False]
+    assert card.selected is False
+
+
+def test_the_name_emits_clicked_and_addresses_the_row(qtbot, monkeypatch, root, context, rows, loader):
+    """A press on the name opens the row's own page and says so, and never leaves the test."""
+    card = place(root, EntityCard(context=context, row=rows[0], fields=FIELDS, loader=loader))
+    settle(qtbot, card)
+    opened: list[str] = []
+    monkeypatch.setattr(
+        QtGui.QDesktopServices, "openUrl", lambda url: opened.append(url.toString()) or True
+    )
+    fired: list[int] = []
+    card.clicked.connect(lambda: fired.append(1))
+    name = card.findChild(QtWidgets.QWidget, "entity-card-name")
+    assert name is not None
+    name._activate()
+    assert fired == [1]
+    assert card.url.startswith(SITE)
+    assert "/detail/" in card.url
+    assert opened == [card.url]
+
+
+def test_a_value_underlines_a_link_only_under_the_pointer(qtbot, root, context, rows, loader):
+    """A card is a stack of values: underlining every link turns the stack into a rule.
+
+    Upstream's link class carries `hover:underline` and no underline at rest, so a value that
+    happens to point somewhere reads as text until the pointer is on it.
+    """
+    card = place(root, EntityCard(context=context, row=rows[0], fields=FIELDS, loader=loader))
+    settle(qtbot, card)
+    linked = [value for value in card.values if value.kind in ("entity", "multi_entity")]
+    assert linked
+    value = linked[0]
+    value.resize(320, max(1, value.sizeHint().height()))
+    QtWidgets.QApplication.processEvents()
+
+    def drawn() -> QtGui.QImage:
+        picture = QtGui.QPixmap(value.size())
+        picture.fill(QtGui.QColor("white"))
+        value.render(picture)
+        return picture.toImage()
+
+    at_rest = drawn()
+    assert value._links, "the value drew no link to hover"
+    value._set_hovered_link(0)
+    QtWidgets.QApplication.processEvents()
+    hovered = drawn()
+    assert hovered != at_rest
+    # And the underline goes again once the pointer leaves the value.
+    value.on_hover_changed(False)
+    QtWidgets.QApplication.processEvents()
+    assert drawn() == at_rest

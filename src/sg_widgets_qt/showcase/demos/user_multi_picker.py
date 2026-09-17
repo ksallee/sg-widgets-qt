@@ -46,6 +46,19 @@ SIZES = ("sm", "md", "lg")
 STATES = (("disabled", "Disabled"), ("readonly", "Read-only"), ("invalid", "Invalid"))
 
 
+def narrow(widget: QtWidgets.QWidget) -> QtWidgets.QWidget:
+    """`max-w-80 w-full`: the control fills its box, and the box stops at 20rem.
+
+    `boxed` caps the control at 20rem and follows it with a spacer. A layout hands a child
+    carrying no stretch its size hint, so the control settled at its own width rather than at
+    the cap and the chip fit cut against the wrong room. The stretch is given here rather than
+    in `_pickers.boxed`, which demos outside this wave share.
+    """
+    holder = boxed(widget)
+    holder.layout().setStretch(0, 1)
+    return holder
+
+
 class UserMultiPickerDemo(QtWidgets.QWidget):
     """Every example, one under the other."""
 
@@ -115,7 +128,7 @@ class UserMultiPickerDemo(QtWidgets.QWidget):
             summaries.append(
                 field(
                     f"{summary}, at most 20rem",
-                    boxed(self._picker(value=FIVE, summary=summary, clearable=False)),
+                    narrow(self._picker(value=FIVE, summary=summary, clearable=False)),
                     name=f"{summary}-narrow",
                     parent=self,
                 )

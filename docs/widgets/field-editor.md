@@ -7,9 +7,11 @@ Shows a field value and turns it into the right editor for its data type.
 
 ## Install
 
-Importing this pulls the eight typed editors and the three pickers with it. The display half is
-drawn here from core's `field_text`, with a status badge, an entity chip and a row of chips where a
-value is not one line of text.
+Importing this pulls [FieldValue](field-value.md), the eight typed editors and the three pickers
+with it. The display half is FieldValue, the same widget a table cell draws, so a status is its
+badge, a link its chip, a multi-entity link a row of them, a url a link, a checkbox its mark, a
+colour its swatch and an image its thumbnail. While the half is editable the value takes no mouse
+of its own, so a press on it opens the editor rather than following the link under it.
 
 ```python
 from sg_widgets_qt.widgets.field_editor import FieldEditor
@@ -46,7 +48,11 @@ locked field never opens.
 
 Given an `entity`, the commit is written through `context.client.update` on a worker and the row is
 read back on the field that was written, and a failed write puts what the site said under the
-control. Without one the editor only emits `value_changed` and the caller writes.
+control, on the same `destructive` line a parse error takes. Without one the editor only emits
+`value_changed` and the caller writes.
+
+Input the editor refuses never emits: the control goes invalid, names the reason on that line, and
+the edit half stays open until what is typed parses or `Escape` puts the value back.
 
 ## Props
 
@@ -60,7 +66,8 @@ failed write said, and `None` when it clears.
 
 ## Slots
 
-`error_message` takes the message and answers a widget, drawn in whichever editor is showing.
+`error_message` takes the message and answers a widget. It draws the line under the display half
+and the one inside whichever editor is showing.
 
 ## Keyboard
 
@@ -69,8 +76,9 @@ failed write said, and `None` when it clears.
 Enter keeps the textarea of a multi-line text field open; leave it with `Tab`.
 
 With `editor_placement='popover'` the value stays where it is and the editor opens under it: the
-field's name, the control, then Cancel and Save. The popover is 288 pixels wide, or 384 for a
-multi-entity field. Focus lands in the control and returns to the value when the popover closes.
+field's name, the control, then Cancel and Save, each button on the step the editor's own `size`
+puts it on. The popover is 288 pixels wide, or 384 for a multi-entity field. It takes the caret, so
+focus lands in the control and returns to the value when the popover closes.
 `editor_placement=None` takes the placement core's `editor_placement_for` gives the data type.
 
 On a field whose editor is a button over a popup — a date, a date-time, a list, a status — Enter

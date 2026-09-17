@@ -24,7 +24,7 @@ from qtpy.QtTest import QTest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _wave_states import press, until  # noqa: E402
+from _wave_states import drag_move, press, until  # noqa: E402
 
 #: How far past the four-pixel threshold the drag travels before it is read as one.
 NUDGE = 8
@@ -88,8 +88,8 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
     QTest.mousePress(
         chosen.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, grip
     )
-    QTest.mouseMove(chosen.viewport(), QPoint(grip.x(), grip.y() - NUDGE))
-    QTest.mouseMove(chosen.viewport(), row_point(chosen, 0))
+    drag_move(chosen.viewport(), QPoint(grip.x(), grip.y() - NUDGE))
+    drag_move(chosen.viewport(), row_point(chosen, 0))
     mid = heard.take()
     carrying = chosen.carrying
     QTest.mouseRelease(
@@ -124,8 +124,8 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
     QTest.mousePress(
         chosen.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, grip
     )
-    QTest.mouseMove(chosen.viewport(), QPoint(grip.x(), grip.y() + NUDGE))
-    QTest.mouseMove(chosen.viewport(), row_point(chosen, 2))
+    drag_move(chosen.viewport(), QPoint(grip.x(), grip.y() + NUDGE))
+    drag_move(chosen.viewport(), row_point(chosen, 2))
     press(chosen, Qt.Key.Key_Escape)
     wait(200)
     cancelled = heard.take()

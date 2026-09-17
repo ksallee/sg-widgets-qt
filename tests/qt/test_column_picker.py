@@ -15,6 +15,27 @@ from sg_widgets_qt.widgets.column_picker import DUAL_BREAKPOINT, ColumnPicker
 from .test_picker_contract import PickerShape, check_contract, spin
 
 
+def drag_move(widget, point: QPoint) -> None:
+    """A move with the button still down, delivered the same way on Qt 5 and Qt 6.
+
+    `QTest.mouseMove` synthesises a move the platform may or may not carry the button on, so
+    the event is built with `LeftButton` held and sent straight to the widget.
+    """
+    from qtpy.QtCore import QPointF
+    from qtpy.QtGui import QMouseEvent
+
+    where = QPointF(float(point.x()), float(point.y()))
+    event = QMouseEvent(
+        QMouseEvent.Type.MouseMove,
+        where,
+        where,
+        Qt.MouseButton.NoButton,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    QApplication.sendEvent(widget, event)
+
+
 def search_caret(picker):
     from qtpy.QtWidgets import QLineEdit
 
@@ -252,9 +273,9 @@ def test_a_drag_emits_the_new_order_once_on_the_release(qtbot):
     third = chosen.visualRect(chosen.model().index(2, 0))
     grip = QPoint(third.left() + 12, third.center().y())
     QTest.mousePress(rows, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, grip)
-    QTest.mouseMove(rows, QPoint(grip.x(), grip.y() - 8))
+    drag_move(rows, QPoint(grip.x(), grip.y() - 8))
     first = chosen.visualRect(chosen.model().index(0, 0))
-    QTest.mouseMove(rows, QPoint(first.left() + 12, first.center().y()))
+    drag_move(rows, QPoint(first.left() + 12, first.center().y()))
     spin(qtbot, 20)
     assert heard == [], "the rows gave way but nothing was emitted before the release"
     assert chosen.paths != COLUMNS, "the rows never gave way"
@@ -279,9 +300,9 @@ def test_a_cancelled_drag_puts_the_row_back_and_emits_nothing(qtbot):
     first = chosen.visualRect(chosen.model().index(0, 0))
     grip = QPoint(first.left() + 12, first.center().y())
     QTest.mousePress(rows, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, grip)
-    QTest.mouseMove(rows, QPoint(grip.x(), grip.y() + 8))
+    drag_move(rows, QPoint(grip.x(), grip.y() + 8))
     third = chosen.visualRect(chosen.model().index(2, 0))
-    QTest.mouseMove(rows, QPoint(third.left() + 12, third.center().y()))
+    drag_move(rows, QPoint(third.left() + 12, third.center().y()))
     QTest.keyClick(chosen, Qt.Key.Key_Escape)
     spin(qtbot, 40)
     assert heard == []

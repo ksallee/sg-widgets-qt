@@ -75,7 +75,7 @@ DISPLAY_TEXT = 14
 LABEL_TEXT = 12
 
 #: `CONTROL_BUTTON` of `control-classes.ts`: the step the popover's Cancel and Save stand on.
-POPOVER_BUTTON: dict[str, str] = {"sm": "sm", "md": "md", "lg": "lg"}
+POPOVER_BUTTON: dict[str, str] = {"sm": "sm", "md": "default", "lg": "lg"}
 
 #: Between the chips of a multi-entity value.
 CHIP_GAP = 6
@@ -849,7 +849,7 @@ class FieldEditor(QtWidgets.QWidget):
         buttons.setContentsMargins(0, 0, 0, 0)
         buttons.setSpacing(8)
         buttons.addStretch(1)
-        step = POPOVER_BUTTON.get(self._size, "md")
+        step = POPOVER_BUTTON.get(self._size, "default")
         cancel = Button("Cancel", variant="ghost", size=step, parent=popup)
         cancel.setObjectName("field-editor-cancel")
         cancel.clicked.connect(lambda: self._close(restore=True))

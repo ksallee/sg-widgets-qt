@@ -37,6 +37,9 @@ FACE_BOX = QtCore.QSize(320, 32)
 #: How long the hover card is given past its own delay.
 CARD_GRACE_MS = 600
 
+#: What the card a chip previews is asked to show, where the demo names no preview of its own.
+PREVIEW: tuple[str, ...] = ("code", "sg_status_list")
+
 
 def state_name() -> str:
     wanted = os.environ.get("QA_STATE", "rest").strip().lower()
@@ -182,6 +185,12 @@ def drive(page, wait, find, prefs) -> dict:
         }
 
     if state == "preview":
+        # The demo names no preview, as upstream's does not; the prop is the value's own, so the
+        # drive arms it on the first linked value and then puts the pointer on its chip.
+        for value in found:
+            if value.kind in ("entity", "multi_entity"):
+                value.set_preview(list(PREVIEW))
+        wait(200)
         previewed = [
             chip
             for chip in find(EntityChip, all=True)

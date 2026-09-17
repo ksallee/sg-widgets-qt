@@ -231,7 +231,10 @@ class _CardValue(ThemedWidget):
         self._loader = loader if loader is not None else image_loader()
         self._links: list[_Link] = []
         self._cursor = 0
+        #: Which link the pointer is on, so that one alone is underlined.
+        self._hovered_link = -1
         self._child: QtWidgets.QWidget | None = None
+        self.setMouseTracking(True)
 
         policy = QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred
@@ -411,6 +414,33 @@ class _CardValue(ThemedWidget):
             # The row's own page and an attachment are outside this application.
             QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
+    def _link_at(self, point: QtCore.QPoint) -> int:
+        """Which link the pointer is on, or -1."""
+        for index, link in enumerate(self._links):
+            if link.rect.contains(point):
+                return index
+        return -1
+
+    def _set_hovered_link(self, index: int) -> None:
+        if index == self._hovered_link:
+            return
+        self._hovered_link = index
+        self.setCursor(
+            QtCore.Qt.CursorShape.PointingHandCursor
+            if index >= 0
+            else QtCore.Qt.CursorShape.ArrowCursor
+        )
+        self.update()
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
+        self._set_hovered_link(self._link_at(event.pos()) if self.isEnabled() else -1)
+        super().mouseMoveEvent(event)
+
+    def on_hover_changed(self, value: bool) -> None:
+        """The pointer left the value, so no link is under it any more."""
+        if not value:
+            self._set_hovered_link(-1)
+
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         if self.isEnabled() and event.button() == QtCore.Qt.MouseButton.LeftButton:
             for index, link in enumerate(self._links):
@@ -489,11 +519,16 @@ class _CardValue(ThemedWidget):
         painter.end()
 
     def _paint_runs(self, painter: QtGui.QPainter, theme: Theme, runs: list[tuple[str, str]]) -> None:
-        """The runs of a value on one line, each one its own link."""
-        font = theme.font(CARD_VALUE)
-        font.setUnderline(True)
+        """The runs of a value on one line, each one its own link.
+
+        A link reads as text until the pointer is on it, which is what upstream's link class does:
+        a card is a stack of values, and underlining every one of them turns it into a rule.
+        """
+        marked = theme.font(CARD_VALUE)
+        marked.setUnderline(True)
         plain = theme.font(CARD_VALUE)
-        metrics = QtGui.QFontMetrics(font)
+        # Both fonts measure the same, so the runs land in the same place under the pointer.
+        metrics = QtGui.QFontMetrics(plain)
         left = 0
         for index, (label, url) in enumerate(runs):
             if index > 0:
@@ -501,12 +536,12 @@ class _CardValue(ThemedWidget):
                 painter.setPen(theme.color("muted_foreground"))
                 separator = ", "
                 painter.drawText(left, metrics.ascent(), separator)
-                left += text_width(QtGui.QFontMetrics(plain), separator)
+                left += text_width(metrics, separator)
             room = max(0, self.width() - left)
             if room <= 0:
                 break
             shown = elide(metrics, label, room)
-            painter.setFont(font if url else plain)
+            painter.setFont(marked if url and index == self._hovered_link else plain)
             painter.setPen(theme.color("foreground"))
             painter.drawText(left, metrics.ascent(), shown)
             width = text_width(metrics, shown)

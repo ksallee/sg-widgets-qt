@@ -303,3 +303,149 @@ def test_the_display_half_draws_the_value_by_its_data_type(qtbot):
 
     unset = build(qtbot, value=None, field=schema("sg_department", "Department", "text"))
     assert unset.display.text() == ""
+
+
+def test_the_display_half_is_the_shared_field_value(qtbot):
+    """Upstream mounts `FieldValue` here, so a url is a link and a checkbox its own mark."""
+    from sg_widgets_qt.widgets.field_value import FieldValue
+
+    cases = {
+        "url": (
+            schema("sg_uploaded_movie", "Uploaded Movie", "url"),
+            {"url": "https://example.com/plate.mov", "name": "plate.mov", "link_type": "web"},
+        ),
+        "checkbox": (schema("flagged", "Flagged", "checkbox"), True),
+        "color": (schema("color", "Gantt Bar Color", "color"), "255,0,0"),
+    }
+    for data_type, (field, value) in cases.items():
+        editor = build(qtbot, value=value, field=field, editable=True)
+        shown = editor.display.findChild(FieldValue)
+        assert shown is not None, f"{data_type} draws no FieldValue"
+        assert shown.data_type == data_type
+    link = build(qtbot, value=cases["url"][1], field=cases["url"][0], editable=True)
+    assert link.display.findChild(FieldValue).url == "https://example.com/plate.mov"
+
+
+def test_an_editable_value_leaves_the_press_to_the_half_it_sits_in(qtbot):
+    """A url opens itself on a press; on an editable half the press opens the editor."""
+    from sg_widgets_qt.widgets.field_value import FieldValue
+
+    field = schema("sg_uploaded_movie", "Uploaded Movie", "url")
+    value = {"url": "https://example.com/plate.mov", "name": "plate.mov", "link_type": "web"}
+    editable = build(qtbot, value=value, field=field, editable=True)
+    shown = editable.display.findChild(FieldValue)
+    assert shown.testAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+    assert shown.focusPolicy() == Qt.FocusPolicy.NoFocus
+    plain = build(qtbot, value=value, field=field, editable=False)
+    other = plain.display.findChild(FieldValue)
+    assert not other.testAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+
+def test_the_popover_takes_the_caret_and_its_buttons_ride_the_ladder(qtbot):
+    from sg_widgets_qt.primitives.button import Button
+    from sg_widgets_qt.widgets.field_editor import POPOVER_BUTTON
+
+    for step in ("sm", "md", "lg"):
+        editor = build(
+            qtbot,
+            value="Plate delivered.",
+            field=schema("description", "Description", "text"),
+            editable=True,
+            editor_placement="popover",
+            size=step,
+        )
+        editor.set_mode("edit")
+        spin(qtbot, 60)
+        assert editor.popover is not None
+        refused = Qt.WindowType.WindowDoesNotAcceptFocus
+        assert not (editor.popover.windowFlags() & refused), "the caret cannot land inside"
+        popup = editor.popover.content()
+        buttons = popup.findChildren(Button)
+        assert [one.text for one in buttons[-2:]] == ["Cancel", "Save"]
+        assert {one.size for one in buttons[-2:]} == {POPOVER_BUTTON[step]}
+        assert popup.findChild(QWidget, "field-editor-label") is not None
+        editor.set_mode("display")
+        spin(qtbot, 20)
+
+
+def test_a_failed_write_says_so_in_destructive_under_the_control(qtbot):
+    from sg_widgets_qt.widgets.field_error import FIELD_ERROR_SLOT, FieldError
+
+    editor = build(
+        qtbot,
+        value="lighting",
+        field=schema("sg_department", "Department", "text"),
+        editable=True,
+    )
+    line = editor.findChild(FieldError, FIELD_ERROR_SLOT)
+    assert line is not None, "the line under the control is not the shared FieldError"
+    assert line.message is None
+    assert not line.isVisible()
+    editor.set_error("Permission denied.")
+    spin(qtbot, 20)
+    assert line.message == "Permission denied."
+    editor.set_error(None)
+    spin(qtbot, 20)
+    assert line.message is None
+
+
+def test_the_caller_s_own_renderer_draws_the_line_under_the_control(qtbot):
+    from sg_widgets_qt.widgets.field_error import FIELD_ERROR_SLOT, FieldError
+
+    made: list = []
+
+    def render(message: str):
+        widget = QWidget()
+        widget.setObjectName("caller-error")
+        made.append(message)
+        return widget
+
+    editor = build(
+        qtbot,
+        value="lighting",
+        field=schema("sg_department", "Department", "text"),
+        editable=True,
+        error="Refused.",
+        error_message=render,
+    )
+    line = editor.findChild(FieldError, FIELD_ERROR_SLOT)
+    spin(qtbot, 20)
+    assert made == ["Refused."]
+    assert line.findChild(QWidget, "caller-error") is not None
+
+
+def test_an_invalid_parse_keeps_the_edit_half_open_and_emits_nothing(qtbot):
+    """`field-editor-invalid-float.js`: invalid input never emits and the editor stays."""
+    editor = build(
+        qtbot,
+        value="1.777778",
+        field=schema("ratio", "Movie Aspect Ratio", "float"),
+        editable=True,
+        mode="edit",
+    )
+    heard: list = []
+    editor.value_changed.connect(heard.append)
+    caret = editor.control.findChild(QLineEdit)
+    type_into(caret, "not a number")
+    spin(qtbot, 20)
+    QTest.keyClick(caret, Qt.Key.Key_Return)
+    spin(qtbot, 60)
+    assert heard == []
+    assert editor.value == "1.777778"
+    assert editor.mode == "edit"
+    assert editor.control is not None
+    assert editor.control.message
+
+
+def test_the_list_editor_takes_the_caller_s_message_like_every_other(qtbot):
+    editor = build(
+        qtbot,
+        value="Type A",
+        field=schema("sg_version_type", "Version Type", "list", valid_values=["Type A", "Type B"]),
+        editable=True,
+        mode="edit",
+        error="Refused.",
+    )
+    spin(qtbot, 40)
+    assert editor.control is not None
+    assert editor.control.error == "Refused."

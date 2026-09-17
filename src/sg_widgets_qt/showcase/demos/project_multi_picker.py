@@ -15,7 +15,7 @@ from sg_widgets_core.picker import placeholder_name
 
 from ...widgets.project_multi_picker import ProjectMultiPicker
 from ..context import DemoContext
-from ._pickers import boxed, column, field, poll_ready, section
+from ._pickers import NARROW_WIDTH, boxed, column, field, poll_ready, section
 
 __all__ = ["build"]
 
@@ -25,6 +25,17 @@ SIZES = ("sm", "md", "lg")
 
 #: The three inert states, with the captions the upstream demo writes over them.
 STATES = (("disabled", "Disabled"), ("readonly", "Read-only"), ("invalid", "Invalid"))
+
+
+def narrow(picker: QtWidgets.QWidget) -> QtWidgets.QWidget:
+    """`max-w-80 w-full`: the control held to 20rem, so the chip fit has something to cut against.
+
+    `boxed` caps the width. A control with a stretch beside it is given its size hint rather
+    than the cap, so the floor is set here too and the box is the 20rem the upstream demo
+    measures; anything narrower would hide chips the upstream control still fits.
+    """
+    picker.setMinimumWidth(NARROW_WIDTH)
+    return boxed(picker, NARROW_WIDTH)
 
 
 class ProjectMultiPickerDemo(QtWidgets.QWidget):
@@ -109,7 +120,7 @@ class ProjectMultiPickerDemo(QtWidgets.QWidget):
             summaries.append(
                 field(
                     f"{summary}, at most 20rem",
-                    boxed(self._picker(value=preset, summary=summary, clearable=False)),
+                    narrow(self._picker(value=preset, summary=summary, clearable=False)),
                     name=f"{summary}-narrow",
                     parent=self,
                 )

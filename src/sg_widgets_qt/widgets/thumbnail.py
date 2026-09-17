@@ -246,7 +246,7 @@ class Thumbnail(ThemedWidget):
                 QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed
             )
             self.setFixedSize(box)
-        self._skeleton.setGeometry(QtCore.QRect(QtCore.QPoint(0, 0), self.size()))
+        self._skeleton.setGeometry(self.rect())
         self.updateGeometry()
         self.update()
 
