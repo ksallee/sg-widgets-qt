@@ -243,7 +243,9 @@ h2 {{ color: {foreground}; font-size: 18px; font-weight: 500; margin-top: 16px; 
 h3 {{ color: {foreground}; font-size: 15px; font-weight: 500; margin-top: 12px; margin-bottom: 8px; }}
 a {{ color: {primary}; text-decoration: none; }}
 ul {{ margin-top: 0px; margin-bottom: 12px; }}
-li {{ margin-bottom: 4px; line-height: 150%; }}
+li {{ color: {foreground}; margin-bottom: 4px; line-height: 150%; }}
+ul, ol {{ color: {foreground}; }}
+blockquote {{ color: {muted}; }}
 code {{ font-family: "{mono}"; font-size: 12px; background-color: {code_ground}; color: {foreground}; }}
 span.key {{ font-family: "{mono}"; font-size: 12px; background-color: {code_ground}; color: {foreground}; }}
 pre.code {{ font-family: "{mono}"; font-size: 12px; background-color: {code_ground};

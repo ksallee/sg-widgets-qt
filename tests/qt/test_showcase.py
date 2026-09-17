@@ -218,6 +218,6 @@ def test_prose_headings_take_the_foreground_in_dark(qtbot):
 
     dark = theme_for("default", dark=True)
     css = markdown.stylesheet(dark)
-    for tag in ("h1", "h2", "h3"):
+    for tag in ("h1", "h2", "h3", "li", "td"):
         rule = css[css.index(tag + " {") : css.index("}", css.index(tag + " {"))]
         assert dark.foreground in rule, tag
