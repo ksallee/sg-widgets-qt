@@ -14,21 +14,23 @@ from sg_widgets_qt.widgets.entity_tree import EntityTree
 
 ::demo{name="entity-tree" title="Entity Tree: a project seeded open to one shot, with checkboxes, a search, a thumbnail variant, and the three sizes beside a button"}
 
-```ts
-<EntityTree
-  context={context}
-  rootPath="/Project/70"
-  seedPath="/Project/70/Shot/sg_sequence/Sequence/100/id/862"
-  checkable
-  searchable
-/>
+```python
+tree = EntityTree(
+    context=context,
+    root_path="/Project/70",
+    seed_path="/Project/70/Shot/sg_sequence/Sequence/100/id/862",
+    checkable=True,
+    searchable=True,
+)
+tree.checked_changed.connect(store)
 ```
 
 ## Behaviour
 
 A node opens when it is clicked, when Right is pressed on it, or when a seed path runs through it.
 Opening reads one level and keeps it: a node closed and opened again costs nothing. The node being
-read carries `aria-busy` and shows a spinner in place of its chevron.
+read shows a spinner in place of its chevron. Every level runs on a worker and the rows it brings
+cross back on a queued signal, so the tree never reads on the thread it draws on.
 
 A checkbox propagates both ways. Checking a branch checks everything under it, including a level read
 after the box was ticked. Unchecking one child leaves the branch `mixed`, and it returns to `checked`
@@ -39,11 +41,17 @@ words match is placed in the tree, the branches above it are opened, matched row
 rest are dimmed. Clearing the input, or pressing Escape in it, restores the tree as it was.
 
 A whole branch opens at once on Alt-click or Cmd/Ctrl-click on its chevron, and on `*` for every
-branch at the focus level. Both read `expandDepth` levels below the node, with the node marked busy
+branch at the focus level. Both read `expand_depth` levels below the node, with the node marked busy
 until every one of them is in.
 
-Each level's rows are read once per type over the ids the level returned, so `subLabelField`,
-`secondaryField`, `thumbnail` and the status badge cost no read per row.
+Each level's rows are read once per type over the ids the level returned, so `sub_label_field`,
+`secondary_field`, `thumbnail` and the status badge cost no read per row.
+
+The view is a `QTreeView` over a model of the rows the engine says are visible, so a collapse is
+the engine dropping rows rather than the view hiding them, and the row is drawn by `picker_row`'s
+delegate with the chevron in front of it. The `row` render prop is that delegate: a caller that
+wants its own drawing subclasses the one the tree installs. A status takes the row's right-hand
+slot, and a `secondary_field` of the caller's own takes it instead.
 
 ## Props
 
@@ -78,7 +86,7 @@ That endpoint refuses the vendor content types every other POST on this API requ
 (post_hierarchy_expand).
 
 Which levels a project has is the site's own navigation configuration, not a fixed hierarchy: the
-probed site's shot path runs through the field name `sg_sequence` (post_hierarchy_search). `seedPath`
+probed site's shot path runs through the field name `sg_sequence` (post_hierarchy_search). `seed_path`
 is followed by taking whichever child is a prefix of it, never by parsing the path.
 `POST /hierarchy/_search` answers `incremental_path`, one entry per level, and that array is a seed
 path as it stands (post_hierarchy_search).
@@ -104,7 +112,7 @@ seed path is followed in either spelling (064_hierarchy_expand_buckets, post_hie
 
 ## Reference
 
-The model is this repo's own. headless-tree (`@headless-tree/core` 1.7.0) is the reference for the
+The model is core's own, shared with the web widgets. headless-tree (`@headless-tree/core` 1.7.0) is the reference for the
 lazy loader, the tri-state checkboxes and the type-ahead; Zag's tree-view (`@zag-js/tree-view` 1.43.3)
 for the state model and the ARIA, including `aria-checked="mixed"` and the roving tab stop; ReUI's
 Tree (ReUI 2.5.2) for the markup, the `--tree-indent` step and the row classes.

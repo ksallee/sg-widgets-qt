@@ -1690,8 +1690,17 @@ def _paint_tile_body(
 
 
 def _ready(o: CardTileOptions) -> None:
-    if o.on_ready is not None:
+    """Tell the view a picture landed, unless the view has gone.
+
+    A picture is read once and kept by url, so an answer can arrive after the tile that asked
+    for it was taken off the page; a deleted wrapper raises, and the answer is dropped.
+    """
+    if o.on_ready is None:
+        return
+    try:
         o.on_ready()
+    except RuntimeError:
+        return
 
 
 def tile_of(

@@ -39,6 +39,7 @@ from sg_widgets_core.state import NO_MATCH_LABEL
 
 from ..primitives.base import CONTROL_HEIGHT, ThemedWidget, elide, painter_for
 from ..primitives.button import Button
+from ..primitives.list_view import LIST_PAD
 from ..primitives.roles import Roles
 from ..primitives.row_delegate import RowDelegate
 from ..primitives.skeleton import Skeleton
@@ -53,6 +54,7 @@ __all__ = [
     "FieldLevels",
     "FieldOptionModel",
     "FieldPicker",
+    "FieldSkeletons",
     "PathLabel",
     "descend_hit",
     "extra_fields_of",
@@ -88,6 +90,17 @@ CHOOSING_PLACEHOLDER = "Which type?"
 LABEL_SKELETON_WIDTH = 128
 LABEL_SKELETON_HEIGHT = 16
 
+#: `h-5 w-2/3` over `h-3 w-1/4`, three rows at the row's own inset: the block a schema read
+#: stands behind, shaped like the two-line rows it replaces (field-picker.tsx:505-518).
+ROW_SKELETON_ROWS = 3
+ROW_SKELETON_GAP = 4
+ROW_SKELETON_PAD_X = 8
+ROW_SKELETON_PAD_Y = 6
+ROW_SKELETON_LABEL = 20
+ROW_SKELETON_SUB = 12
+ROW_SKELETON_LABEL_SHARE = 2.0 / 3.0
+ROW_SKELETON_SUB_SHARE = 1.0 / 4.0
+
 
 def extra_fields_of(value: Any) -> list[ExtraField]:
     """The synthetic entries a caller offered, from dataclasses or from plain maps."""
@@ -107,6 +120,40 @@ def schema_of(context: Any) -> Any:
     """The schema service a context reads through, or the object itself where it is one."""
     found = getattr(context, "schema", None)
     return found if found is not None else context
+
+
+class _SkeletonRow(QtWidgets.QWidget):
+    """One row of the block: a label bar over a shorter sub-label bar."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        column = QtWidgets.QVBoxLayout(self)
+        column.setContentsMargins(
+            ROW_SKELETON_PAD_X, ROW_SKELETON_PAD_Y, ROW_SKELETON_PAD_X, ROW_SKELETON_PAD_Y
+        )
+        column.setSpacing(ROW_SKELETON_GAP)
+        self._label = Skeleton(height=ROW_SKELETON_LABEL, parent=self)
+        self._sub = Skeleton(height=ROW_SKELETON_SUB, parent=self)
+        column.addWidget(self._label)
+        column.addWidget(self._sub)
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        room = max(0, self.width() - 2 * ROW_SKELETON_PAD_X)
+        self._label.setFixedWidth(int(room * ROW_SKELETON_LABEL_SHARE))
+        self._sub.setFixedWidth(int(room * ROW_SKELETON_SUB_SHARE))
+
+
+class FieldSkeletons(QtWidgets.QWidget):
+    """What a field list stands behind while the schema is read: three two-line rows."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        column = QtWidgets.QVBoxLayout(self)
+        column.setContentsMargins(LIST_PAD, LIST_PAD, LIST_PAD, LIST_PAD)
+        column.setSpacing(0)
+        for _ in range(ROW_SKELETON_ROWS):
+            column.addWidget(_SkeletonRow(self))
 
 
 def descend_hit(surface: Any, index: QModelIndex, point: QtCore.QPoint) -> bool:
@@ -320,9 +367,9 @@ class FieldLevels(QtCore.QObject):
 class FieldOptionModel(QtCore.QAbstractListModel):
     """The rows a field list draws: the fields of one type, or the targets of one link.
 
-    A row answers the roles `RowDelegate` paints: the display name with the matched runs and
-    the hops before it, the programmatic name beside it, the data type under it, the field
-    glyph in the leading slot, and a chevron on a row that descends.
+    A row answers the roles `RowDelegate` paints: the display name with the matched runs, the
+    programmatic name beside it, the data type under it, the field glyph in the leading slot,
+    and a chevron on a row that descends.
     """
 
     def __init__(
@@ -334,7 +381,6 @@ class FieldOptionModel(QtCore.QAbstractListModel):
         super().__init__(parent)
         self._rows: list[FieldOption] = []
         self._targets: list[str] = []
-        self._crumbs: list[str] = []
         self._query = ""
         self._chosen: list[str] = []
         self._show_code = bool(show_code)
@@ -420,6 +466,10 @@ class FieldOptionModel(QtCore.QAbstractListModel):
         if role == Roles.CODE:
             return option.name if self._show_code and option.name != option.display_name else ""
         if role == Roles.SUB_LABEL:
+            # A checkable list is the column picker's dual pane, whose row upstream draws on
+            # one line: the code stands in for the data type there (column-picker.tsx:542-549).
+            if self._checkable:
+                return ""
             return "computed" if option.computed else option.data_type
         if role == Roles.GLYPH:
             return icon_name_for(option.data_type)
@@ -443,7 +493,7 @@ class FieldOptionModel(QtCore.QAbstractListModel):
         if role == Roles.RUNS:
             return self._runs(target)
         if role == Roles.SUB_LABEL:
-            return "entity type"
+            return "" if self._checkable else "entity type"
         if role == Roles.GLYPH:
             return LINK_GLYPH
         if role == Roles.CHECKED:
@@ -455,13 +505,12 @@ class FieldOptionModel(QtCore.QAbstractListModel):
         return None
 
     def _runs(self, label: str) -> list[tuple[str, bool, bool]]:
-        """The label as runs: the hops muted before it, the matched words in DemiBold."""
-        runs: list[tuple[str, bool, bool]] = []
-        for crumb in self._crumbs:
-            runs.append((crumb, False, True))
-            runs.append((CRUMB_SEPARATOR, False, True))
-        runs.extend((run.text, run.match, False) for run in match_runs(label, self._query))
-        return runs
+        """The label as runs: the matched words in DemiBold, and nothing before them.
+
+        Upstream draws `row.displayName` alone; where the list stands is the breadcrumb bar's
+        to say, so a row never repeats the trail above it.
+        """
+        return [(run.text, run.match, False) for run in match_runs(label, self._query)]
 
     def flags(self, index: QModelIndex) -> Qt.ItemFlags:
         if not index.isValid():
@@ -696,6 +745,9 @@ class FieldPicker(QtWidgets.QWidget):
 
         self._model = FieldOptionModel(self, show_code=show_code)
         delegate = RowDelegate(None, size=self._size, thumbnail=True, indicator="tick")
+        # A data type has a glyph, not a picture, so it is drawn on its own rather than on the
+        # plate a row that expects a thumbnail falls back to.
+        delegate.set_bare_glyph(True)
         self._control = PickerControl(
             slot="field-picker",
             picker="field",
@@ -717,6 +769,8 @@ class FieldPicker(QtWidgets.QWidget):
             row_model=self._model,
             row_delegate=delegate,
             highlight_on_open=True,
+            loop=True,
+            loading_block=FieldSkeletons,
             parent=self,
         )
         delegate.setParent(self._control.list_surface())
@@ -1063,7 +1117,6 @@ class FieldPicker(QtWidgets.QWidget):
 
     def _refresh(self) -> None:
         query = self._control.query
-        self._model.set_crumbs(self._levels.crumbs())
         self._model.set_query(query)
         self._model.set_chosen([self._value] if self._value else [])
         self._model.set_rows(self._levels.rows(query), self._levels.targets(query))

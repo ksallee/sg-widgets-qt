@@ -49,6 +49,10 @@ class PickerShape:
     clearable: bool = True
     #: Spin the loop until the picker's rows have landed. A static picker needs none.
     settle: Callable[[], None] | None = None
+    #: The control holds what was picked. A caller that consumes a pick and clears the picker
+    #: — the column picker appends the path and empties the control for the next one — leaves
+    #: the keys where they were, so the clause is read on what the pick emitted instead.
+    keeps_value: bool = True
 
 
 def control_of(picker: Any) -> PickerControl:
@@ -217,7 +221,8 @@ def check_contract(qtbot: Any, picker: QWidget, shape: PickerShape) -> list:  # 
         before = list(control.keys)
         QTest.keyClick(target, Qt.Key.Key_Return)
         settle(shape, qtbot)
-        assert list(control.keys) != before, "Enter takes the highlighted row"
+        if shape.keeps_value:
+            assert list(control.keys) != before, "Enter takes the highlighted row"
         assert control.is_open is bool(shape.multiple), "a pick closes a single picker only"
         checked.append("pick")
 

@@ -69,7 +69,8 @@ def test_a_dotted_path_resolves_and_the_crumb_draws(qtbot):
     assert chips[0].parts[:-1] == ["Link"]
 
 
-def test_a_row_behind_a_hop_carries_its_crumb(qtbot):
+def test_a_row_behind_a_hop_is_its_label_alone(qtbot):
+    """The trail is the breadcrumb bar's to say; upstream draws `row.displayName` alone."""
     picker = build(qtbot)
     settled(qtbot, picker)
     picker.set_open(True)
@@ -82,9 +83,11 @@ def test_a_row_behind_a_hop_carries_its_crumb(qtbot):
     assert picker.breadcrumb.isVisibleTo(picker.control.popup())
     assert picker.breadcrumb.text().startswith("Version")
     model = picker.rows_model
-    runs = model.data(model.index(0, 0), Roles.RUNS)
-    # The hop is drawn muted before the label, which is the third item of a run.
-    assert runs[0] == ("Link", False, True)
+    index = model.index(0, 0)
+    runs = model.data(index, Roles.RUNS)
+    assert "".join(run[0] for run in runs) == model.data(index, Roles.LABEL)
+    assert CRUMB_SEPARATOR not in "".join(run[0] for run in runs)
+    assert not any(run[2] for run in runs), "a run is drawn muted before the label"
     assert model.keys()[0].startswith("entity.Shot.")
 
 
@@ -319,3 +322,48 @@ def test_the_first_row_is_the_cursor_the_moment_the_list_opens(qtbot):
     spin(qtbot, 60)
     assert picker.control.highlight_on_open is True
     assert picker.control.list_surface().highlighted() == 0
+
+
+def test_the_data_type_glyph_is_drawn_bare(qtbot):
+    """A field row has no picture to stand in for, so the glyph takes no plate."""
+    picker = build(qtbot)
+    assert picker.control.list_surface().row_delegate().bare_glyph is True
+
+
+def test_the_list_wraps_past_its_last_row(qtbot):
+    """Upstream's Command takes `loop`, so ArrowDown past the end comes back to the top."""
+    picker = build(qtbot)
+    settled(qtbot, picker)
+    picker.control.set_open(True)
+    spin(qtbot, 60)
+    surface = picker.control.list_surface()
+    rows = surface.row_count()
+    assert rows > 2
+    surface.set_highlight(rows - 1)
+    caret = search_caret(picker)
+    QTest.keyClick(caret, Qt.Key.Key_Down)
+    spin(qtbot, 20)
+    assert surface.highlighted() == 0, "the list held at its last row"
+    QTest.keyClick(caret, Qt.Key.Key_Up)
+    spin(qtbot, 20)
+    assert surface.highlighted() == rows - 1, "the list held at its first row"
+
+
+def test_a_schema_read_stands_behind_two_line_skeletons(qtbot):
+    """Upstream's block is a label bar over a sub-label bar, three times over."""
+    from sg_widgets_qt.primitives.skeleton import Skeleton
+    from sg_widgets_qt.widgets.field_picker import ROW_SKELETON_ROWS, FieldSkeletons
+
+    picker = build(qtbot, latency_ms=400)
+    picker.control.set_open(True)
+    spin(qtbot, 30)
+    block = picker.control.popup().findChild(FieldSkeletons)
+    assert block is not None, "the field list stands behind the shared single-bar block"
+    bars = block.findChildren(Skeleton)
+    assert len(bars) == ROW_SKELETON_ROWS * 2
+    block.resize(320, 200)
+    spin(qtbot, 20)
+    label, sub = bars[0], bars[1]
+    assert label.height() > sub.height(), "the two bars are the same step"
+    assert label.width() > sub.width(), "the sub-label bar is not the shorter one"
+    settled(qtbot, picker)

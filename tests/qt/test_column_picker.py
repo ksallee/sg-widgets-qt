@@ -251,12 +251,21 @@ def test_the_field_picker_keeps_the_contract(qtbot):
     inner.value_changed.disconnect()
     picked: list = []
     inner.value_changed.connect(picked.append)
+    # The pick is read on what the picker emitted: `keeps_value=False` leaves out the one
+    # clause that reads it back off a control this caller has already emptied.
     checked = check_contract(
         qtbot,
         inner,
-        PickerShape(inline=False, clearable=False, settle=lambda: spin(qtbot, 60)),
+        PickerShape(
+            inline=False,
+            clearable=False,
+            keeps_value=False,
+            settle=lambda: spin(qtbot, 60),
+        ),
     )
+    assert "pick" in checked, "the pick clause was skipped, not read another way"
     assert picked, "Enter took the highlighted field"
+    assert PickerShape().keeps_value is True, "a picker keeps its value unless it says otherwise"
     assert "press toggles" in checked
     assert "outside press" in checked
     assert "readonly" in checked
@@ -334,6 +343,41 @@ def test_a_read_only_row_keeps_no_room_for_a_grip(qtbot):
     picker.set_readonly(False)
     spin(qtbot, 20)
     assert picker.chosen_list.row_delegate().thumbnail is True
+
+
+def test_a_disabled_list_keeps_its_grip_and_cross_drawn_inert(qtbot):
+    """Upstream disables the two buttons rather than dropping them; only readonly drops them."""
+    from sg_widgets_qt.primitives.roles import Roles
+
+    picker = build(qtbot, value=COLUMNS, disabled=True)
+    labelled(qtbot, picker)
+    chosen = picker.chosen_list
+    assert chosen.row_delegate().thumbnail is True, "a disabled row lost the room for its grip"
+    index = chosen.model().index(0, 0)
+    assert index.data(Roles.GLYPH), "a disabled row lost its grip"
+    assert callable(index.data(Roles.PAINTER)), "a disabled row lost its cross"
+    assert not picker.isEnabled(), "a disabled list is not inert"
+    assert chosen.carrying is None
+    chosen.set_highlight(0)
+    QTest.keyClick(chosen, Qt.Key.Key_Space)
+    spin(qtbot, 20)
+    assert chosen.carrying is None, "a disabled list picked a row up"
+
+
+def test_the_dual_list_draws_a_row_on_one_line(qtbot):
+    """Upstream's dual row is a checkbox, a glyph, the label and the code: no sub-label."""
+    from sg_widgets_qt.primitives.roles import Roles
+
+    picker = build(qtbot, entity_type="Shot", layout="dual", value=[])
+    settled(qtbot, picker)
+    model = picker.available.list_surface().model()
+    subs = [model.index(row, 0).data(Roles.SUB_LABEL) for row in range(model.rowCount())]
+    assert not any(subs), "a dual row draws a data-type sub-label under its label"
+    assert picker.available.list_surface().row_delegate().bare_glyph is True
+    # The field picker's own list keeps it: only the checkable one is a single line.
+    inner = picker.field_picker.rows_model
+    inner.set_rows(picker.levels.rows(""))
+    assert inner.data(inner.index(0, 0), Roles.SUB_LABEL)
 
 
 def test_the_grip_is_drawn_bare_rather_than_on_a_picture_plate(qtbot):

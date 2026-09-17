@@ -90,17 +90,12 @@ class FilterDialog(QtWidgets.QWidget):
         line.setSpacing(0)
         self._line = line
 
+        # The count is part of the trigger, a chip inside its own border a glyph gap from the
+        # label, and the control that clears the filters a full step further out.
         self._launch = Button("", icon="list-filter", variant="outline", parent=self)
         self._launch.setObjectName("filter-launch")
         self._launch.clicked.connect(lambda: self.set_open(True))
         line.addWidget(self._launch)
-
-        # The count reads as part of the trigger, so it sits a glyph gap from its label and
-        # the control that clears the filters a full step further out.
-        line.addSpacing(COUNT_GAP)
-        self._count = Badge("", variant="secondary", parent=self)
-        self._count.setObjectName("filter-count")
-        line.addWidget(self._count)
         line.addSpacing(LAUNCH_GAP)
 
         self._clear = Button("", icon="trash-2", variant="ghost", parent=self)

@@ -55,6 +55,7 @@ from .. import icons
 from ..images import ImageLoader, image_loader
 from ..primitives.base import CONTROL_HEIGHT, THUMB_SIZE
 from ..primitives.input import Input
+from ..primitives.list_view import GUTTER
 from ..primitives.roles import Roles
 from ..primitives.row_delegate import LEAD_GLYPH, ROW_PAD_X, ROW_PAD_Y, RowDelegate
 from ..primitives.scrollbar import install_overlay_scrollbars
@@ -63,6 +64,7 @@ from ..theme import theme_of
 from ..workers import DEFAULT_DEBOUNCE_MS, Debounce, JobPool
 from .collection_control import COLLECTION_GAP
 from .entity_glyphs import entity_glyph
+from .entity_table import fit_body
 from .picker_row import status_painter
 from .state_line import StateLine
 
@@ -137,6 +139,16 @@ class _TreeBinding(QObject):
 
     def snapshot(self) -> TreeState:
         return self.engine.snapshot()
+
+    @property
+    def pool(self) -> JobPool:
+        """The one thread the engine is read on. A schema lookup beside it submits here too."""
+        return self._pool
+
+    @property
+    def busy(self) -> bool:
+        """True while a level, a seed walk or a search is still being read."""
+        return self._pool.running > 0
 
     def run(self, name: str, *args: Any) -> None:
         """Call one of the engine's methods on the pool."""
@@ -364,6 +376,9 @@ class _TreeView(QtWidgets.QTreeView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        # The gutter every list holds for its overlay scrollbar, so a status badge is never
+        # drawn under the bar.
+        self.setViewportMargins(0, 0, GUTTER, 0)
         install_overlay_scrollbars(self)
 
     def drawBranches(self, painter: QtGui.QPainter, rect: QRect, index: QModelIndex) -> None:  # noqa: N802
@@ -504,7 +519,8 @@ class EntityTree(QtWidgets.QWidget):
         self.view.setModel(self.model)
         self._delegate = _TreeDelegate(self)
         self.view.setItemDelegate(self._delegate)
-        self.view.setMaximumHeight(_height(max_height))
+        self._max_height = _height(max_height)
+        self.view.setMaximumHeight(self._max_height)
         self.view.setAccessibleName(label)
         body.addWidget(self.view)
         self._state = StateLine(pad="table", slot_name="entity-tree-state", parent=self._box)
@@ -762,10 +778,11 @@ class EntityTree(QtWidgets.QWidget):
     @property
     def max_height(self) -> int:
         """Height of the scrolling body, in pixels."""
-        return self.view.maximumHeight()
+        return self._max_height
 
     def set_max_height(self, value: int | str) -> None:
-        self.view.setMaximumHeight(_height(value))
+        self._max_height = _height(value)
+        self._fit()
 
     @property
     def empty_label(self) -> str:
@@ -972,9 +989,14 @@ class EntityTree(QtWidgets.QWidget):
         return None
 
     def _landed(self, url: str, pixmap: QtGui.QPixmap | None) -> None:
+        # A picture can land after the tree that asked for it has gone; a deleted wrapper
+        # raises, and the answer is dropped.
         if pixmap is not None and not pixmap.isNull():
             self._pixmaps[url] = pixmap
-        self.view.viewport().update()
+        try:
+            self.view.viewport().update()
+        except RuntimeError:
+            return
 
     # --- interaction ----------------------------------------------------------------------
 
@@ -1073,7 +1095,7 @@ class EntityTree(QtWidgets.QWidget):
             return
         self._types = key
         path = path_of(self._secondary_field)
-        self.binding._pool.submit(
+        self.binding.pool.submit(
             resolve_tree_fields,
             self._context.schema,
             self._context.statuses,
@@ -1130,7 +1152,12 @@ class EntityTree(QtWidgets.QWidget):
             if index.isValid():
                 self.view.setCurrentIndex(index)
                 self.view.scrollTo(index, QtWidgets.QAbstractItemView.ScrollHint.EnsureVisible)
+        self._fit()
         self.view.viewport().update()
+
+    def _fit(self) -> None:
+        rows = len(self.snapshot().rows)
+        fit_body(self.view, rows * max(1, self.view.sizeHintForRow(0)) + ROW_PAD_Y, self._max_height)
 
     def checked_refs(self) -> list[EntityRef]:
         """The rows whose boxes are fully checked."""

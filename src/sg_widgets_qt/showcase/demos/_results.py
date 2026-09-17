@@ -371,6 +371,9 @@ class WireView(QtWidgets.QPlainTextEdit):
     def set_text(self, text: str) -> None:
         """Write the serialised filter into the block."""
         self.setPlainText(text)
+        # A `max-h-64` block is as tall as its filter and never shorter: a column that runs
+        # past the page would otherwise take its slack out of the one widget that has any.
+        self.setFixedHeight(self.sizeHint().height())
         self.updateGeometry()
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802

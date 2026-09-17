@@ -24,19 +24,27 @@ from sg_widgets_qt.widgets.entity_grid import EntityGrid
 
 ::demo{name="entity-grid" title="Entity Grid: Versions at three tile sizes, a selectable grid, one with no picture, one with every third card disabled, and one drawing a card of the caller's own"}
 
-```ts
-const context = createSgContext({ client });
-const source = createEntitySource({
-  client: context.client,
-  entityType: 'Version',
-  fields: ['code', 'image', 'sg_status_list', 'user'],
-  pageSize: 12,
-});
-const [artist] = await resolveColumns(context.schema, 'Version', ['user']);
+```python
+context = create_sg_context(client)
+source = create_entity_source(EntitySourceOptions(
+    client=context.client,
+    entity_type="Version",
+    fields=["code", "image", "sg_status_list", "user"],
+    page_size=12,
+))
+grid = EntityGrid(source=source, context=context, secondary_field="user")
 ```
 
 The source reads the fields the tiles draw. The status badge needs the type's status field in that
-list; the metadata line needs whatever `subLabelField` and `secondaryField` name.
+list; the metadata line needs whatever `sub_label_field` and `secondary_field` name.
+
+A tile is drawn by a delegate rather than a widget per cell, through the same face EntityCard's
+`tile` variant draws through, so a grid cell and a card show the same row the same way. The `card`
+render prop is that delegate: a caller that wants its own cell subclasses it, or overrides
+`tile_of` to change what a tile reads. The flow is a `QListView` laying fixed tile widths out, 160,
+224 or 288 pixels by `size`, and only the tiles on screen are drawn at any length, so
+`virtualize_after` is kept for parity and changes nothing. `max_height` is pixels, with a `rem`
+string read at 16 pixels to the rem.
 
 ## Props
 

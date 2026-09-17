@@ -17,16 +17,20 @@ from sg_widgets_qt.widgets.entity_table import EntityTable
 
 Build the source and the columns once, then hand both to the table.
 
-```ts
-const context = createSgContext({ client });
-const source = createEntitySource({
-  client: context.client,
-  entityType: 'Version',
-  fields: ['code', 'entity', 'sg_status_list', 'image', 'description', 'user'],
-  pageSize: 25,
-});
-const columns = await resolveColumns(context.schema, 'Version', ['code', 'entity', 'sg_status_list']);
+```python
+context = create_sg_context(client)
+source = create_entity_source(EntitySourceOptions(
+    client=context.client,
+    entity_type="Version",
+    fields=["code", "entity", "sg_status_list", "image", "description", "user"],
+    page_size=25,
+))
+columns = resolve_columns(context.schema, "Version", ["code", "entity", "sg_status_list"])
+table = EntityTable(source=source, columns=columns, context=context)
 ```
+
+`resolve_columns` reads the schema, so it runs on a worker and the answer reaches the table
+through `set_columns`. The table draws its skeletons until it does.
 
 ## Paging
 
@@ -38,6 +42,9 @@ than two.
 | `pages` | The footer's pager: rows per page, a page number, and `n to m of N` once the set is counted. |
 | `more` | A load-more row under the last row. The footer counts what is loaded. |
 | `scroll` | The next page arrives when the scroller reaches the last loaded row. A skeleton row sits at the bottom while it does, and the footer counts what is loaded. |
+
+`max_height` is pixels here, and a `rem` string is read at 16 pixels to the rem, so the upstream
+value still says the same thing.
 
 The table defaults to `pages`. A table is read as a spreadsheet, where a row's place in the set is
 part of what it means, and a caller who walks to page 12 wants to come back to it.
@@ -60,69 +67,61 @@ rows and puts one error line under them with a retry.
 
 ::props{name="entity-table" kind="slots"}
 
+The four render props are Qt slots instead. `set_toolbar_start` and `set_toolbar_end` take the
+widgets either end of the toolbar; `row`, `cell` and `group_header` are the delegate, so a caller
+that wants its own drawing subclasses the one the table installs, or sets another on `table.view`.
+`editor_for` stays a callable keyword and takes a data type.
+
 `sort` and `filters` mirror the source, so a SortPicker, a FilterBar and a ColumnPicker drop into
 the toolbar and none of them reaches into `source`.
 
-```tsx
-<EntityTable
-  source={source}
-  columns={columns}
-  onColumnsChange={setColumns}
-  sort={toSortSpecs(sortKeys)}
-  filters={filter}
-  selection={selected}
-  onSelectionChange={setSelected}
-  toolbarStart={<FilterBar entityType="Version" context={context} facets={['sg_status_list']} value={filter} onChange={setFilter} />}
-  toolbarEnd={<SortPicker entityType="Version" context={context} value={sortKeys} onChange={setSortKeys} />}
-/>
+```python
+table = EntityTable(source=source, columns=columns, context=context, selectable=True)
+table.set_toolbar_start(FilterBar(entity_type="Version", context=context))
+table.set_toolbar_end(SortPicker(entity_type="Version", context=context))
+table.sort_changed.connect(store_sort)
+table.selection_changed.connect(store_selection)
 ```
 
-Bind a ColumnPicker to the same array the table holds and the two drive each other: hiding a column
+Bind a ColumnPicker to the same list the table holds and the two drive each other: hiding a column
 from its header menu removes it from the picker, and adding one there puts it back.
 
-```tsx
-<EntityTable
-  source={source}
-  columns={columns}
-  onColumnsChange={setColumns}
-  toolbarStart={
-    <ColumnPicker
-      context={context}
-      entityType="Version"
-      value={columns.map((column) => column.path)}
-      onValueChange={pickColumns}
-    />
-  }
-/>
+```python
+picker = ColumnPicker(context=context, entity_type="Version", value=[c.path for c in columns])
+picker.value_changed.connect(pick_columns)
+table.columns_changed.connect(lambda kept: picker.set_value([c.path for c in kept]))
+table.set_toolbar_start(picker)
 ```
 
-An editor is handed `value`, `dataType`, `field`, `commit` and `cancel`, and owns its own keys.
-Without `editorFor`, an editable cell opens the type's own control from the field-editor item: a
+An editor is handed `value`, `data_type`, `field`, `commit` and `cancel`, and owns its own keys.
+Without `editor_for`, an editable cell opens the type's own control from the field-editor item: a
 status cell opens StatusPicker, an entity cell EntityPicker and a multi-entity cell
-EntityMultiPicker, each reading through `context`. The cell editor takes `projectId`, `precision`,
+EntityMultiPicker, each reading through `context`. The cell editor takes `project_id`, `precision`,
 `symbol` and the context's site preferences.
 
 The editor opens in a popover anchored to the cell, carrying the field's name, the control and
 Cancel and Save, so a cell's width never squeezes it. A checkbox is one press and stays in the cell.
-`editorPlacement` on the table forces one or the other everywhere, and `editorPlacement` on a column
-spec forces it for that column.
+`editor_placement` on the table forces one or the other everywhere, and `editor_placement` on a
+column spec forces it for that column.
 
 ## Column menu
 
-With `columnMenu`, every header carries a menu: sort ascending, sort descending, clear sort, hide
-column, and pin left. It is off by default: a header sorts on a press, and the column picker in the
-toolbar is where columns are shown and hidden.
+With `column_menu`, every header carries a menu: sort ascending, sort descending, clear sort and
+hide column. It is off by default: a header sorts on a press, and the column picker in the toolbar
+is where columns are shown and hidden.
 The sort entries are inert on a column the schema says cannot be sorted. Hiding writes the shorter
-column list back through `columns`. Pinning sticks the column to the start of the scrolling body.
+column list back through `columns_changed`. Pin left is not here: a frozen column needs a second
+view over the same model, and no caller has asked for one.
 
 ## Keyboard
 
 ::props{name="entity-table" kind="keyboard"}
 
-An editable cell says so: it washes to `bg-accent/50` under the pointer and under the keyboard
-cursor, and its tooltip reads "Double-click or press Enter to edit". A double-click opens the editor
-too. A press inside a popup the editor opened — a calendar, a status list, a picker's results —
-leaves the cell open. A header drags onto another to reorder, and its right edge drags to resize.
+An editable cell says so: it washes to `accent` at half strength under the pointer and under the
+keyboard cursor, and its tooltip reads "Double-click or press Enter to edit". A double-click opens
+the editor too. A press inside a popup the editor opened, a calendar, a status list or a picker's
+results, leaves the cell open. A header's right edge drags to resize. A header does not drag to
+reorder here: the column picker in the toolbar is what orders the columns.
 
 A disabled row takes no keys, no click and no checkbox, and none of its cells opens an editor.
 
@@ -163,4 +162,9 @@ write names one field of one row.
 Column sizing, resizing, ordering and grouping are TanStack Table's (`@tanstack/table-core` 9.2.4).
 The markup, the classes and the anatomy of the toolbar, the pagination footer and the column menu
 follow ReUI's Base UI data grid (ReUI 2.5.2).
-::qt-note
+
+Here none of that is a library. The rows, the columns and the group headings are one
+`QAbstractTableModel`, `CollectionModel`, which the grid and the grouped list share; the view is a
+`QTableView` with `TableSurface`'s header and a cell delegate that draws every value through
+`paint_field_value`. Sizing and resizing are the header's own, and only the rows on screen are ever
+drawn, so `virtualize_after` is kept for parity and changes nothing.

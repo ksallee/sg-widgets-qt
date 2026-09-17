@@ -15,7 +15,8 @@ the page draws disabled or readonly takes the state clauses alone, as upstream's
 
 Beside them the page's own behaviours, each one an upstream drive:
 
-    mandatory-clear    a control the caller refuses a clear keeps its value and its chevron
+    mandatory-clear    a control the caller refuses a clear keeps its value and its chevron,
+                       unless the caller consumes the pick and clears the control itself
     pick-releases-chip a pick made with a chip armed frees it and Backspace reaches the new one
     arrow-scroll       the highlight stays in the list across a load-more page and back
     multi-picker-fit   a narrow summary control fits whole chips, counts the rest, opens on `+n`
@@ -90,6 +91,29 @@ def controls_of(page, find) -> list:
     return found
 
 
+def consumes_pick(control: PickerControl) -> bool:
+    """True where the caller takes a pick away and clears the picker for the next one.
+
+    `docs/widgets/column-picker.md`: picking a field appends its path to the chosen list and
+    clears the picker, so the control is empty again a turn after Enter. The pick still has to
+    close the list and keep the rest of the contract; only the clause that reads the value back
+    off the control is left out, and `tools/drives/column-picker-contract.py` reads it on the
+    signal instead.
+    """
+    try:
+        from sg_widgets_qt.widgets.column_picker import ColumnPicker
+    except ImportError:
+        return False
+    walk = control.parentWidget()
+    for _ in range(6):
+        if walk is None:
+            return False
+        if isinstance(walk, ColumnPicker):
+            return True
+        walk = walk.parentWidget()
+    return False
+
+
 def shape_of(control: PickerControl, wait) -> PickerShape:
     """The clauses a control's own props say apply to it."""
     return PickerShape(
@@ -97,6 +121,7 @@ def shape_of(control: PickerControl, wait) -> PickerShape:
         inline=control.inline,
         searchable=control.searchable if not control.inline else True,
         clearable=control.clearable,
+        keeps_value=not consumes_pick(control),
         settle=lambda: wait(SETTLE_MS if control.row_model() is not None else 60),
     )
 
@@ -150,7 +175,11 @@ def state_clauses(control: PickerControl, wait, note) -> None:
 
 def mandatory_clear(controls, note) -> str:
     """`picker-mandatory-clear.js`: a control refused a clear keeps its value and its chevron."""
-    refused = [(owner, control) for owner, control in controls if not control.clearable]
+    refused = [
+        (owner, control)
+        for owner, control in controls
+        if not control.clearable and not consumes_pick(control)
+    ]
     if not refused:
         return "no control refuses a clear on this page"
     for _owner, control in refused:

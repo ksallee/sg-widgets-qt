@@ -55,6 +55,7 @@ from sg_widgets_core.status import StatusRecord
 from .. import icons
 from ..images import ImageLoader, image_loader
 from ..primitives.base import THUMB_SIZE, elide
+from ..primitives.list_view import GUTTER
 from ..primitives.roles import Roles
 from ..primitives.row_delegate import CODE_TEXT, ROW_PAD_X, ROW_PAD_Y, RowDelegate
 from ..primitives.scrollbar import install_overlay_scrollbars
@@ -62,7 +63,7 @@ from ..primitives.skeleton import Skeleton
 from ..theme import theme_of, with_alpha
 from .collection_control import COLLECTION_GAP, CollectionControl, CollectionModel
 from .collection_footer import DEFAULT_PAGE_SIZES, CollectionFooter
-from .entity_table import EMPTY_ICON, ERROR_ICON, _BottomBlock, _px
+from .entity_table import EMPTY_ICON, ERROR_ICON, _BottomBlock, _px, fit_body, rows_height
 from .field_value import FieldValueOptions, paint_field_value
 from .state_line import StateLine
 
@@ -148,9 +149,14 @@ class GroupedListModel(CollectionModel):
         return None
 
     def _landed(self, url: str, pixmap: QtGui.QPixmap | None) -> None:
+        # A picture can land after the list that asked for it has gone; a deleted wrapper
+        # raises, and the answer is dropped.
         if pixmap is not None and not pixmap.isNull():
             self._pixmaps[url] = pixmap
-        self._touch()
+        try:
+            self._touch()
+        except RuntimeError:
+            return
 
 
 class _GroupDelegate(RowDelegate):
@@ -237,6 +243,9 @@ class _ListView(QtWidgets.QListView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        # The gutter every list holds for its overlay scrollbar, so a secondary is never
+        # drawn under the bar.
+        self.setViewportMargins(0, 0, GUTTER, 0)
         install_overlay_scrollbars(self)
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
@@ -369,7 +378,8 @@ class GroupedList(QtWidgets.QWidget):
         self._delegate = _GroupDelegate(self)
         self.view.setItemDelegate(self._delegate)
         self.view.setModel(self.model)
-        self.view.setMaximumHeight(_px(max_height))
+        self._max_height = _px(max_height)
+        self.view.setMaximumHeight(self._max_height)
         body.addWidget(self.view)
         self._state = StateLine(pad="table", slot_name="grouped-list-state", parent=self._box)
         self._state.hide()
@@ -643,10 +653,11 @@ class GroupedList(QtWidgets.QWidget):
     @property
     def max_height(self) -> int:
         """Height of the scrolling body, in pixels."""
-        return self.view.maximumHeight()
+        return self._max_height
 
     def set_max_height(self, value: int | str) -> None:
-        self.view.setMaximumHeight(_px(value))
+        self._max_height = _px(value)
+        self._fit()
 
     @property
     def virtualize_after(self) -> int:
@@ -922,7 +933,15 @@ class GroupedList(QtWidgets.QWidget):
         waiting = self.control.take_pending_cursor()
         if waiting >= 0:
             self._focus(waiting)
+        self._fit()
         self.view.viewport().update()
+
+    def _fit(self) -> None:
+        fit_body(
+            self.view,
+            rows_height(self.view, len(self.model.lines), self._max_height),
+            self._max_height,
+        )
 
 
 class _ListSkeleton(QtWidgets.QWidget):

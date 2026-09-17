@@ -15,7 +15,14 @@ from qtpy import QtCore, QtGui, QtWidgets
 
 from ..icons import paint_icon
 from ..theme import mix, with_alpha
-from .base import DURATION, ThemedWidget, fill_round_rect, painter_for, text_width
+from .base import (
+    CHIP_HEIGHT,
+    DURATION,
+    ThemedWidget,
+    fill_round_rect,
+    painter_for,
+    text_width,
+)
 
 __all__ = ["BUTTON_SIZES", "Button", "ButtonSize", "ButtonVariant"]
 
@@ -92,9 +99,17 @@ PRESS_SHIFT = 1
 SPINNER_SPAN = 280
 SPINNER_MS = 900
 
+#: The default step of the count chip a trigger carries, the step under a `default` control.
+COUNT_CHIP_DEFAULT = "sm"
+
 
 class Button(ThemedWidget):
-    """A button with a label, a leading glyph, a trailing glyph, or any pair of them."""
+    """A button with a label, a leading glyph, a trailing glyph, or any pair of them.
+
+    A trigger that carries a count — the filter dialog's applied conditions, the sort picker's
+    keys — draws it as a `secondary` text chip inside its own border, which is the `COUNT_CHIP`
+    span both upstream triggers hold.
+    """
 
     clicked = QtCore.Signal()
 
@@ -105,12 +120,16 @@ class Button(ThemedWidget):
         variant: str = "default",
         size: str = "default",
         trailing_icon: str | None = None,
+        count: str = "",
+        count_size: str = COUNT_CHIP_DEFAULT,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._text = text
         self._icon = icon
         self._trailing_icon = trailing_icon
+        self._count = str(count)
+        self._count_size = count_size if count_size in CHIP_HEIGHT else COUNT_CHIP_DEFAULT
         self._variant = variant if variant in BUTTON_VARIANT_VALUES else "default"
         self._size = size if size in BUTTON_SIZE_VALUES else "default"
         self._expanded = False
@@ -151,6 +170,26 @@ class Button(ThemedWidget):
 
     def set_trailing_icon(self, name: str | None) -> None:
         self._trailing_icon = name
+        self.updateGeometry()
+        self.update()
+
+    @property
+    def count(self) -> str:
+        """The chip the trigger carries after its label, empty for none."""
+        return self._count
+
+    def set_count(self, value: str) -> None:
+        self._count = str(value)
+        self.updateGeometry()
+        self.update()
+
+    @property
+    def count_size(self) -> str:
+        """The chip ladder step the count stands on, a step under the control."""
+        return self._count_size
+
+    def set_count_size(self, value: str) -> None:
+        self._count_size = value if value in CHIP_HEIGHT else COUNT_CHIP_DEFAULT
         self.updateGeometry()
         self.update()
 
@@ -214,6 +253,16 @@ class Button(ThemedWidget):
     def _has_leading(self) -> bool:
         return self._busy or self._icon is not None
 
+    def _count_font(self) -> QtGui.QFont:
+        return self.theme.font(CHIP_TEXT[self._count_size], QtGui.QFont.Weight.Medium)
+
+    def _count_width(self) -> int:
+        """The chip's own width: its label between two bare-text insets of the chip ladder."""
+        if not self._count:
+            return 0
+        pad = CHIP_PAD[self._count_size].text
+        return pad * 2 + text_width(QtGui.QFontMetrics(self._count_font()), self._count)
+
     def _content_width(self) -> int:
         spec = self.spec
         if spec.square:
@@ -225,6 +274,9 @@ class Button(ThemedWidget):
             parts += 1
         if self._text:
             width += text_width(QtGui.QFontMetrics(self._font()), self._text)
+            parts += 1
+        if self._count:
+            width += self._count_width()
             parts += 1
         if self._trailing_icon is not None:
             width += spec.glyph
@@ -349,6 +401,8 @@ class Button(ThemedWidget):
 
         if self._text:
             trailing = spec.glyph + spec.gap if self._trailing_icon is not None else 0
+            if self._count:
+                trailing += self._count_width() + spec.gap
             width = max(0, inner.right() - x + 1 - trailing)
             label = self.elide(metrics, self._text, width)
             self.set_elide_tooltip(self._text, label == self._text)
@@ -363,12 +417,34 @@ class Button(ThemedWidget):
                 baseline = text_box.center().y() + metrics.ascent() // 2 + 2
                 painter.setPen(QtGui.QPen(ink, 1))
                 painter.drawLine(x, baseline, x + metrics.horizontalAdvance(label), baseline)
-            x += width + spec.gap
+            x += min(width, metrics.horizontalAdvance(label)) + spec.gap
+
+        if self._count:
+            self._paint_count(painter, box, x, centre_y)
 
         if self._trailing_icon is not None:
             glyph_box = QtCore.QRect(0, 0, spec.glyph, spec.glyph)
             glyph_box.moveCenter(QtCore.QPoint(inner.right() - spec.glyph // 2, centre_y))
             paint_icon(painter, glyph_box, self._trailing_icon, ink)
+
+    def _paint_count(
+        self, painter: QtGui.QPainter, box: QtCore.QRect, x: int, centre_y: int
+    ) -> None:
+        """The count chip: the `secondary` surface, bordered, at the chip step it was given."""
+        theme = self.theme
+        step = self._count_size
+        height = min(CHIP_HEIGHT[step], box.height())
+        chip = QtCore.QRect(x, centre_y - height // 2, self._count_width(), height)
+        fill_round_rect(
+            painter,
+            chip,
+            float(theme.radius_px("md")),
+            theme.color("secondary"),
+            theme.color("border"),
+        )
+        painter.setFont(self._count_font())
+        painter.setPen(theme.color("secondary_foreground"))
+        painter.drawText(chip, QtCore.Qt.AlignmentFlag.AlignCenter, self._count)
 
     def _paint_spinner(self, painter: QtGui.QPainter, box: QtCore.QRect, ink: QtGui.QColor) -> None:
         """The `loader-circle` look: one arc turning inside the glyph's own box."""

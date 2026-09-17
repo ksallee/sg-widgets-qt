@@ -84,7 +84,12 @@ def drive(page, wait, find, prefs) -> dict:
             checked = check_contract(
                 bot,
                 inner,
-                PickerShape(inline=False, clearable=False, settle=lambda: wait(SETTLE_MS)),
+                PickerShape(
+                    inline=False,
+                    clearable=False,
+                    keeps_value=False,
+                    settle=lambda: wait(SETTLE_MS),
+                ),
             )
         except AssertionError as error:
             failures.append(f"{name} — {error}")

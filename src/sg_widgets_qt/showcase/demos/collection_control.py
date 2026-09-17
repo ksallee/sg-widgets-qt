@@ -20,6 +20,7 @@ from sg_widgets_core.collection import (
 from sg_widgets_core.filter import condition
 
 from ...primitives.checkbox import Checkbox
+from ...primitives.list_view import GUTTER
 from ...primitives.roles import Roles
 from ...primitives.row_delegate import ROW_PAD_X, ROW_PAD_Y, RowDelegate
 from ...primitives.scrollbar import install_overlay_scrollbars
@@ -69,13 +70,14 @@ class _Head(QtWidgets.QWidget):
         super().__init__(parent)
         self.setObjectName("review-queue-head")
         line = QtWidgets.QHBoxLayout(self)
-        line.setContentsMargins(ROW_PAD_X, ROW_PAD_Y, ROW_PAD_X, ROW_PAD_Y)
+        line.setContentsMargins(ROW_PAD_X, ROW_PAD_Y, ROW_PAD_X + GUTTER, ROW_PAD_Y)
         line.setSpacing(COLLECTION_GAP)
         self.box = Checkbox(parent=self)
         self.box.setAccessibleName("Select all loaded rows")
         self.box.set_tri_state(True)
         line.addWidget(self.box)
-        line.addWidget(chrome.TextLine("Shot", size=12, parent=self), 1)
+        line.addWidget(chrome.TextLine("Shot", size=12, parent=self))
+        line.addStretch(1)
         line.addWidget(chrome.TextLine("Status", size=12, parent=self))
 
     def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
@@ -105,6 +107,7 @@ class _Rows(QtWidgets.QListView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setViewportMargins(0, 0, GUTTER, 0)
         install_overlay_scrollbars(self)
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802

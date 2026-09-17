@@ -31,7 +31,7 @@ from sg_widgets_qt.widgets.field_value import FieldValue, paint_field_value
 #: The states this drive can leave the page in.
 STATES: tuple[str, ...] = ("rest", "compact", "disabled", "hover", "preview", "faces")
 
-#: The box both faces are rendered into: wide enough for two chips, one row of a table high.
+#: The box a value with no room of its own is compared in.
 FACE_BOX = QtCore.QSize(320, 32)
 
 #: How long the hover card is given past its own delay.
@@ -116,12 +116,19 @@ def compare_faces(page, wait, find) -> dict:
     off: list[str] = []
     seen: list[dict] = []
     for value in found:
-        held = value.size()
-        value.resize(FACE_BOX)
-        wait(20)
-        gap = differing(render(value, FACE_BOX), painted(value, FACE_BOX))
-        value.resize(held)
-        seen.append({"data_type": value.data_type, "kind": value.kind, "pixels": gap})
+        # The room the page gave the value, not a size of the drive's own: a value inside a
+        # layout is resized back the moment the loop turns, and the two faces would then be
+        # compared at two different widths.
+        box = value.size() if value.width() > 0 and value.height() > 0 else FACE_BOX
+        gap = differing(render(value, box), painted(value, box))
+        seen.append(
+            {
+                "data_type": value.data_type,
+                "kind": value.kind,
+                "box": [box.width(), box.height()],
+                "pixels": gap,
+            }
+        )
         if gap:
             off.append(f"{value.data_type} ({value.kind}) differs on {gap} pixels")
     wait(50)

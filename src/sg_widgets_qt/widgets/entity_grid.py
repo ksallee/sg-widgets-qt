@@ -51,7 +51,7 @@ from ..primitives.roles import Roles
 from ..primitives.scrollbar import install_overlay_scrollbars
 from ..primitives.skeleton import Skeleton
 from ..theme import theme_of
-from ..workers import Ticket, default_pool
+from ..workers import Ticket
 from .collection_control import COLLECTION_GAP, CollectionControl, CollectionModel
 from .collection_footer import DEFAULT_PAGE_SIZES, CollectionFooter
 from .entity_card import (
@@ -62,7 +62,7 @@ from .entity_card import (
     card_tile_size,
     paint_card_tile,
 )
-from .entity_table import EMPTY_ICON, ERROR_ICON, _BottomBlock, _px
+from .entity_table import EMPTY_ICON, ERROR_ICON, _BottomBlock, _px, fit_body
 from .state_line import StateLine
 
 __all__ = [
@@ -294,7 +294,8 @@ class EntityGrid(QtWidgets.QWidget):
         self._delegate = _TileDelegate(self)
         self.view.setItemDelegate(self._delegate)
         self.view.setModel(self.model)
-        self.view.setMaximumHeight(_px(max_height))
+        self._max_height = _px(max_height)
+        self.view.setMaximumHeight(self._max_height)
         body.addWidget(self.view)
         self._state = StateLine(pad="table", slot_name="entity-grid-state", parent=self._box)
         self._state.hide()
@@ -504,10 +505,11 @@ class EntityGrid(QtWidgets.QWidget):
     @property
     def max_height(self) -> int:
         """Height of the scrolling body, in pixels."""
-        return self.view.maximumHeight()
+        return self._max_height
 
     def set_max_height(self, value: int | str) -> None:
-        self.view.setMaximumHeight(_px(value))
+        self._max_height = _px(value)
+        self._fit()
 
     @property
     def virtualize_after(self) -> int:
@@ -652,7 +654,9 @@ class EntityGrid(QtWidgets.QWidget):
             columns = resolve_columns(context.schema, entity_type, paths) if paths else []
             return status, columns
 
-        default_pool().submit(read, on_result=self._schema_read, ticket=(self._ticket, n))
+        self.control.binding.pool.submit(
+            read, on_result=self._schema_read, ticket=(self._ticket, n)
+        )
 
     def _schema_read(self, answer: Any) -> None:
         status, columns = answer
@@ -738,6 +742,7 @@ class EntityGrid(QtWidgets.QWidget):
         tile = card_tile_size(self._size)
         self.view.setGridSize(QSize(tile.width() + gap, tile.height() + gap))
         self.view.setViewportMargins(GRID_PAD, GRID_PAD, GRID_PAD, GRID_PAD)
+        self._fit()
         self.view.viewport().update()
 
     def _sync(self) -> None:
@@ -766,7 +771,14 @@ class EntityGrid(QtWidgets.QWidget):
         waiting = self.control.take_pending_cursor()
         if waiting >= 0:
             self._focus(waiting)
+        self._fit()
         self.view.viewport().update()
+
+    def _fit(self) -> None:
+        across = max(1, self.view.columns_across())
+        lines = -(-len(self.model.rows) // across)
+        step = self.view.gridSize().height()
+        fit_body(self.view, lines * step + 2 * GRID_PAD, self._max_height)
 
 
 class _GridSkeleton(QtWidgets.QWidget):

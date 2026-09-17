@@ -548,6 +548,8 @@ class PickerControl(ThemedWidget):
         trigger_label: str = "Show the options",
         overflow_label: str | None = None,
         chip_factory: Callable[[int], QtWidgets.QWidget] | None = None,
+        loop: bool = False,
+        loading_block: Callable[[QtWidgets.QWidget], QtWidgets.QWidget] | None = None,
         row_model: QtCore.QAbstractItemModel | None = None,
         row_delegate: RowDelegate | None = None,
         on_select: Callable[[list], None] | None = None,
@@ -646,7 +648,7 @@ class PickerControl(ThemedWidget):
         self._trigger.setObjectName(f"{slot}-trigger")
         self._trigger.pressed_signal.connect(self._toggle_from_trigger)
 
-        self._build_popup(row_model, row_delegate)
+        self._build_popup(row_model, row_delegate, loop, loading_block)
         self._apply_shape()
         self._apply_theme()
         self._sync_query()
@@ -663,6 +665,8 @@ class PickerControl(ThemedWidget):
         self,
         row_model: QtCore.QAbstractItemModel | None,
         row_delegate: RowDelegate | None,
+        loop: bool = False,
+        loading_block: Callable[[QtWidgets.QWidget], QtWidgets.QWidget] | None = None,
     ) -> None:
         self._popup = _Popup()
         self._popup.setObjectName(f"{self._slot}-content")
@@ -678,7 +682,7 @@ class PickerControl(ThemedWidget):
         self._popup.add_widget(self._search_row)
 
         self._list = ListSurface(
-            self._popup, size=self.size_step, delegate=row_delegate
+            self._popup, size=self.size_step, delegate=row_delegate, loop=loop
         )
         self._list.setObjectName(f"{self._slot}-list")
         # A picker's load-more row is `text-xs`, the metadata step, where a search widget's is
@@ -688,7 +692,11 @@ class PickerControl(ThemedWidget):
         self._list.load_more_requested.connect(self._on_load_more_row)
         self._popup.add_widget(self._list)
 
-        self._skeletons = _Skeletons(self._popup)
+        # A picker whose rows are two lines stands behind a block shaped like them; the
+        # shared one is the single bar upstream's own picker control draws.
+        self._skeletons = (
+            loading_block(self._popup) if loading_block is not None else _Skeletons(self._popup)
+        )
         self._skeletons.setObjectName(f"{self._slot}-loading")
         self._popup.add_widget(self._skeletons)
 

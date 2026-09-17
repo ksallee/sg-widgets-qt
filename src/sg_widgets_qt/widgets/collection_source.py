@@ -167,6 +167,16 @@ class CollectionSource(QObject):
         """True while a call to the source is in flight."""
         return self._pool.running > 0
 
+    @property
+    def pool(self) -> JobPool:
+        """The one thread the source is read on.
+
+        A widget reading beside it, a schema lookup for a column or a status field, submits
+        here rather than to the shared pool: the answer is then dropped with the rest when the
+        widget goes, and the reads stay in the order they were asked for.
+        """
+        return self._pool
+
     # --- the calls ------------------------------------------------------------------------
 
     def load(self) -> None:

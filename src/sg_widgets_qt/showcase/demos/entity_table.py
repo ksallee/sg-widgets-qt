@@ -52,6 +52,9 @@ PLACEMENTS = (("popover", "Popover editor"), ("inline", "Inline editor"))
 VERSIONS = 320
 PAGE_SIZE = 25
 
+#: The column picker's own width, so the toolbar keeps its shape when it opens.
+PICKER_WIDTH = 224
+
 
 class EntityTableDemo(QtWidgets.QWidget):
     """The toolbar of toggles, and the table under it."""
@@ -82,7 +85,6 @@ class EntityTableDemo(QtWidgets.QWidget):
             context=context,
             selectable=True,
             editable=True,
-            column_menu=True,
             paging="pages",
             editor_placement="popover",
             parent=self,
@@ -127,6 +129,16 @@ class EntityTableDemo(QtWidgets.QWidget):
         body.addWidget(bar)
         body.addWidget(self.table)
 
+        # The column picker sits behind a toggle, as upstream does: a list of six paths is
+        # taller than the table's own toolbar.
+        self._columns_box = QtWidgets.QWidget(self)
+        columns = QtWidgets.QVBoxLayout(self._columns_box)
+        columns.setContentsMargins(0, 0, 0, 0)
+        columns.setSpacing(8)
+        self._columns_toggle = chrome.toggle("Columns", size="sm", parent=self._columns_box)
+        self._columns_toggle.setObjectName("columns-toggle")
+        self._columns_toggle.toggled.connect(self._on_picking)
+        columns.addWidget(self._columns_toggle)
         self._picker = ColumnPicker(
             context=context,
             entity_type="Version",
@@ -134,11 +146,15 @@ class EntityTableDemo(QtWidgets.QWidget):
             deep_links=False,
             size="sm",
             filter=lambda _field, path: path in PATHS,
-            parent=self,
+            parent=self._columns_box,
         )
+        self._picker.setFixedWidth(PICKER_WIDTH)
+        self._picker.hide()
         self._picker.value_changed.connect(self._pick_columns)
+        columns.addWidget(self._picker)
+
         self._sort = _sort_picker(context, self)
-        self.table.set_toolbar_start(self._picker)
+        self.table.set_toolbar_start(self._columns_box)
         if self._sort is not None:
             self._sort.sort_changed.connect(self._on_sort_keys)
             self.table.set_toolbar_end(self._sort)
@@ -175,6 +191,9 @@ class EntityTableDemo(QtWidgets.QWidget):
         if lay.alive(self):
             self._ready = True
             self.table.failed.emit(error)
+
+    def _on_picking(self, on: bool) -> None:
+        self._picker.setVisible(bool(on))
 
     def _pick_columns(self, paths: object) -> None:
         self._read_columns([str(path) for path in paths or []])

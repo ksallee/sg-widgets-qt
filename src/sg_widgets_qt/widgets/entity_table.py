@@ -123,6 +123,26 @@ def _pad_y(density: str) -> int:
     return 4 if density == "compact" else 8
 
 
+def fit_body(view: QtWidgets.QAbstractItemView, content: int, ceiling: int) -> None:
+    """Give a scrolling body the room its content asks for, up to its ceiling.
+
+    A view's own hint is one row, so a body dropped into a column would stand a row tall and
+    scroll, and a body left to a stretching layout would take the whole column. The body grows
+    with its content up to `max_height`, which is what the web prop says.
+    """
+    view.setFixedHeight(max(0, min(content, ceiling)))
+
+
+def rows_height(view: QtWidgets.QAbstractItemView, lines: int, ceiling: int) -> int:
+    """What `lines` rows of a view cost, stopping once the ceiling is passed."""
+    total = 0
+    for line in range(lines):
+        total += max(1, view.sizeHintForRow(line))
+        if total >= ceiling:
+            break
+    return total
+
+
 def _px(value: int | str) -> int:
     """A height as pixels. A `rem` string is the upstream prop, at 16px to the rem."""
     if isinstance(value, int):
@@ -587,7 +607,8 @@ class EntityTable(QtWidgets.QWidget):
         self._cells = _Cells(self, density=self._density)
         self.view.setItemDelegate(self._cells)
         self.view.setModel(self.model)
-        self.view.setMaximumHeight(_px(max_height))
+        self._max_height = _px(max_height)
+        self.view.setMaximumHeight(self._max_height)
         body.addWidget(self.view)
 
         self._state = StateLine(pad="table", slot_name="entity-table-state", parent=self._box)
@@ -841,10 +862,11 @@ class EntityTable(QtWidgets.QWidget):
     @property
     def max_height(self) -> int:
         """Height of the scrolling body, in pixels."""
-        return self.view.maximumHeight()
+        return self._max_height
 
     def set_max_height(self, value: int | str) -> None:
-        self.view.setMaximumHeight(_px(value))
+        self._max_height = _px(value)
+        self._fit()
 
     @property
     def virtualize_after(self) -> int:
@@ -1330,7 +1352,13 @@ class EntityTable(QtWidgets.QWidget):
         if waiting >= 0:
             self._focus_row(waiting, self._cursor.column())
         self._apply_spans()
+        self._fit()
         self.view.viewport().update()
+
+    def _fit(self) -> None:
+        head = ENTITY_TABLE_HEAD[self._size]
+        rows = len(self.model.lines) * ENTITY_TABLE_ROW_HEIGHT[self._density]
+        fit_body(self.view, head + rows, self._max_height)
 
 
 class _TableSkeleton(QtWidgets.QWidget):

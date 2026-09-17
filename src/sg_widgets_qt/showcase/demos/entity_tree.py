@@ -144,9 +144,12 @@ class EntityTreeDemo(QtWidgets.QWidget):
 
     @property
     def demo_ready(self) -> bool:
-        """True once every tree's root read has settled."""
+        """True once every tree has read its root and walked whatever seed it was given."""
         trees = [self.tree, self.loose, self.pictures, *self._steps]
-        return all(tree.snapshot().status in ("ready", "error") for tree in trees)
+        return all(
+            tree.snapshot().status in ("ready", "error") and not tree.binding.busy
+            for tree in trees
+        )
 
     def set_size(self, size: str) -> None:
         step = size if size in SIZES else "md"

@@ -44,8 +44,8 @@ loaded keeps those rows and puts the error under them.
 ## The selection
 
 The selection is a list of references, two-way. A row is added or dropped by reference, so a selection
-survives a page that redrew the rows. `getRowId` keys a row in the DOM and in the selection, and
-defaults to the type and the id. `isRowDisabled` marks a row the selection refuses and the cursor
+survives a page that redrew the rows. `get_row_id` keys a row in the model and in the selection, and
+defaults to the type and the id. `is_row_disabled` marks a row the selection refuses and the cursor
 steps over.
 
 A header control reads the selection over the loaded rows as a tri-state — all, some, or none — and
@@ -61,24 +61,21 @@ The arrow that steps past the last loaded row asks for the next page in `more` a
 cursor stays where it is until those rows arrive, then lands on the first of them. A read that failed
 gives the cursor back where it was.
 
-## The virtualiser
+## The shared model
 
-A body longer than `virtualizeAfter` draws only the lines the viewport reaches, with the space above
-and below them held open, so the scrollbar reads the whole set. Below that threshold every line is
-drawn and the virtualiser idles.
+Qt has models, so the lines the three layouts draw are one `QAbstractTableModel`. `CollectionModel`
+holds the rows the source published, the resolved columns, and the group headings a `group_by` puts
+between them; it answers the roles `RowDelegate` and the table's cell delegate read, and it says
+which line a row sits on and which row the viewport ends on given the last line it drew.
 
-The scroller is the element the base watches, both for the virtualiser's own range and for the
-sentinel that pages on scroll. A layout hands the base that element and the base does the rest.
+A view draws only the lines on screen at any length, so `virtualize_after` is kept for parity and
+changes nothing. The scroller is the view's own vertical bar: the last line it reaches becomes the
+last row, and the base decides from there whether to ask for the next page.
 
-## What a layout tells the base
-
-The base never knows what a line holds. A layout says how many lines it draws, what those lines are
-measured against, how tall a line is before it is drawn, which line a row sits on, which row the
-viewport ends on given the last line it drew, and which element takes the cursor.
-
-A table's line is a row. A grid's line is a row of tiles, so several rows sit on one line and the
-threshold is still measured in rows. A grouped list's lines are its headers and its rows as one
-stream, so a header on screen only makes the scroller ask for the next page later.
+A table's line is a row, or a group heading spanning the table. A grid's line is a tile, and the
+flow says how many sit across, so the threshold is still measured in rows. A grouped list's lines
+are its headings and its rows as one stream, so a heading on screen only makes the scroller ask for
+the next page later.
 
 ## Props
 
@@ -104,17 +101,23 @@ The footer every collection that pages draws. In `pages` it holds the page size,
 arrows, with a page number that goes to that page on Enter. In `more` and `scroll` it holds the loaded
 count. The numbers come from one place, so the three collections cannot report the set differently.
 
-`slotName` prefixes every `data-slot` in the footer, so a table's footer is at `entity-table-footer`
-and its range at `entity-table-range`.
+`slot_name` prefixes every object name in the footer, so a table's footer is `entity-table-footer`
+and its range `entity-table-range`.
 
 ::props{name="collection-footer" kind="props"}
 
 ## Composing a collection
 
-A collection is two calls, because a layout's lines are derived from the rows. The first answers the
-source and hands back the rows, the paging model, the selection and what to draw in place of the rows.
-The widget shapes its own lines out of those rows. The second wires the virtualiser, the cursor and
-the scroll trigger over them.
+A collection is one object here rather than two calls. `CollectionControl` holds the binding, the
+shared model, the selection, the cursor and the paging triggers; a widget builds one, draws a view
+over `control.model`, and connects `changed` to its own redraw. Every read runs on a pool of one
+thread and the snapshot crosses back on a queued signal, so a widget only ever reads on the thread
+it draws on.
+
+A sort or a filter has two doors. `set_sort` and `set_filters` take what the caller already knows
+and report nothing; `apply_sort` and `apply_filters` are the widget's own controls, a header click
+or a sort picker, and those are reported back out. That is how a change travels once and the two
+sides never write to each other.
 
 What the widget still owns is its markup: the box, the row, the header, the empty and error lines, and
 the keys its shape implies. The root box and the regions beside it come from the base as two class

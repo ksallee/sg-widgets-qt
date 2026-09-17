@@ -273,9 +273,15 @@ class ChosenColumns(ListSurface):
     def set_editable(self, value: bool) -> None:
         """A read-only or disabled list neither reorders nor removes."""
         self._editable = bool(value)
-        self._rows.set_readonly(not self._editable)
-        # Upstream's read-only row is the label alone: no grip, and none of its inset.
-        self.row_delegate().set_thumbnail(self._editable)
+
+    def set_readonly(self, value: bool) -> None:
+        """A read-only row is the label alone: no grip, none of its inset, and no cross.
+
+        A merely disabled list keeps both, drawn inert, which is what upstream's `disabled`
+        buttons do (column-picker.tsx:609-645).
+        """
+        self._rows.set_readonly(bool(value))
+        self.row_delegate().set_thumbnail(not value)
         self.viewport().update()
 
     def sortable(self) -> SortableModel:
@@ -735,7 +741,11 @@ class ColumnPicker(QtWidgets.QWidget):
         self._chosen = ChosenColumns(self, size=self._size, label_of=self._label_of)
         self._chosen.reordered.connect(self._on_reordered)
         self._chosen.remove_requested.connect(self._remove_at)
+        self._chosen.set_readonly(self._readonly)
         self._chosen.set_editable(self._editable())
+        # `disabled` handed in is the same state `set_disabled` puts the widget in, so the
+        # inert step of rule 5 is worn from the first paint rather than only after a setter.
+        self.setEnabled(not self._disabled)
 
         self._empty = StateLine(
             state="empty",
@@ -779,6 +789,8 @@ class ColumnPicker(QtWidgets.QWidget):
         available_row = self._command.list_surface().row_delegate()
         available_row.set_size(self._size)
         available_row.set_thumbnail(True)
+        # A data type has a glyph, not a picture, so it is drawn bare rather than on a plate.
+        available_row.set_bare_glyph(True)
         available_row.set_indicator("checkbox")
         self._command.set_model(self._available_model)
         self._command.query_changed.connect(lambda _query: self._refresh_available())
@@ -1082,6 +1094,7 @@ class ColumnPicker(QtWidgets.QWidget):
         self._disabled = bool(value)
         self.setEnabled(not self._disabled)
         self._picker.set_disabled(self._disabled)
+        self._chosen.set_readonly(self._readonly)
         self._chosen.set_editable(self._editable())
         self._refresh()
 
@@ -1156,6 +1169,7 @@ class ColumnPicker(QtWidgets.QWidget):
             self._column.addWidget(self._chosen)
             self._column.addWidget(self._empty)
             self._column.addWidget(self._count)
+        self._chosen.set_readonly(self._readonly)
         self._chosen.set_editable(self._editable())
 
     # --- the chosen columns ------------------------------------------------------------------
@@ -1262,7 +1276,6 @@ class ColumnPicker(QtWidgets.QWidget):
 
     def _refresh_available(self) -> None:
         query = self._command.query
-        self._available_model.set_crumbs(self._levels.crumbs())
         self._available_model.set_query(query)
         self._available_model.set_chosen(self._value)
         self._available_model.set_rows(self._levels.rows(query), self._levels.targets(query))
