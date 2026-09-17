@@ -111,12 +111,22 @@ strength where the sort arrow will, and the arrow replaces it on the column the 
 A header that cannot be sorted carries no mark. The label wears the row's own type step at medium
 weight, so `size` moves the two together.
 
-With `column_menu`, every header carries a menu: sort ascending, sort descending, clear sort and
-hide column. It is off by default: a header sorts on a press, and the column picker in the toolbar
-is where columns are shown and hidden.
+With `column_menu`, every header carries a menu: sort ascending, sort descending, clear sort, hide
+column, and pin left. It is off by default: a header sorts on a press, and the column picker in the
+toolbar is where columns are shown and hidden.
 The sort entries are inert on a column the schema says cannot be sorted. Hiding writes the shorter
-column list back through `columns_changed`. Pin left is not here: a frozen column needs a second
-view over the same model, and no caller has asked for one.
+column list back through `columns_changed`. Pinning sticks the column to the start of the scrolling
+body, and Unpin gives it back to its place.
+
+The drawn order and the pinned paths are the table's own, as they are upstream: `columns` stays the
+list it was handed, and neither pinning nor a carry writes back through `columns_changed`. Read them
+with `column_order` and `pinned_columns`, and set them with `pin_column` and `move_column`.
+
+A cell cannot be stuck to the edge of a view that scrolls whole, so the pinned columns are a second
+view of the same model standing over the body's left edge and stepping with it row for row. The
+delegate, the row cursor, the selection, the cell editor and the column menu are the body's own,
+so a press, an edit or a key in the frozen column does what it does anywhere else. Its trailing
+edge carries the table's 1px rule and, once the body has run under it, a short shadow.
 
 ## Keyboard
 
@@ -125,8 +135,10 @@ view over the same model, and no caller has asked for one.
 An editable cell says so: it washes to `accent` at half strength under the pointer and under the
 keyboard cursor, and its tooltip reads "Double-click or press Enter to edit". A double-click opens
 the editor too. A press inside a popup the editor opened, a calendar, a status list or a picker's
-results, leaves the cell open. A header's right edge drags to resize. A header does not drag to
-reorder here: the column picker in the toolbar is what orders the columns.
+results, leaves the cell open. A header drags onto another to reorder, landing in front of it, and
+its right edge drags to resize. A drop is not a press, so the column it ends on does not also sort.
+The keyboard sorts a header and opens its menu; a carry is the pointer's, as it is upstream, and the
+column picker in the toolbar orders the columns without one.
 
 A disabled row takes no keys, no click and no checkbox, and none of its cells opens an editor.
 
@@ -173,5 +185,13 @@ follow ReUI's Base UI data grid (ReUI 2.5.2).
 Here none of that is a library. The rows, the columns and the group headings are one
 `QAbstractTableModel`, `CollectionModel`, which the grid and the grouped list share; the view is a
 `QTableView` with `TableSurface`'s header and a cell delegate that draws every value through
-`paint_field_value`. Sizing and resizing are the header's own, and only the rows on screen are ever
-drawn, so `virtualize_after` is kept for parity and changes nothing.
+`paint_field_value`. Sizing and resizing are the header's own, the carry that reorders is the
+header's too, and only the rows on screen are ever drawn, so `virtualize_after` is kept for parity
+and changes nothing. The frozen column is the pattern Qt's own `frozencolumn` example draws, read
+and not copied.
+
+A read leaves the header where it is and fills the body with blank rows, one `24px` bar per cell at
+the column's own width. Upstream draws eight of them every time. A page in a browser reflows, and a
+window does not: a re-read here draws as many blank rows as the rows that stood there, so the table
+keeps its box and nothing under it moves while it reads. A first read, with no box to keep, draws
+upstream's eight.

@@ -1806,7 +1806,7 @@
       "note": ""
     },
     "widgets/entity-table": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
         "packages/react/src/registry/sg/components/entity-table.tsx": "aed7fe4195e547d31d9c8db0aab498e27813668467d1dae1dffc6a6c462289f5",
         "apps/site/src/props/entity-table.ts": "4a11101870693d94bc64e0d746f34bb384af91ac9b58a2845b21298c8192b2d0"
@@ -1816,8 +1816,8 @@
         "docs/widgets/entity-table.props.json",
         "tests/qt/test_entity_table.py"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "Pin left and header drag-to-reorder are out: a frozen column needs a second view over the same model, and the column picker orders the columns. The row, cell and groupHeader slots are the delegate."
+      "commit": "356391d7354acffb816a24d6a56cb668d5658dd4",
+      "note": "Pin left is a second view of the same model over the body's left edge, with a rule and a shadow at its trailing edge; the drawn order and the pinned paths are the table's own and never write back through columns_changed, as upstream holds them in the table. A re-read draws as many blank rows as the rows that stood there, where upstream always draws eight. The row, cell and groupHeader slots are the delegate."
     },
     "widgets/entity-tree": {
       "status": "complete",

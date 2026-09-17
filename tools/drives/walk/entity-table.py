@@ -3,7 +3,8 @@
 The select-all box and the row boxes against the count line, the column picker's add, remove,
 reorder and close, the page size and the arrows, the popover and the inline editor committing
 and cancelling, the cursor and Space, grouping with its collapse and expand, compact, the three
-paging modes and the wheel at the bottom edge.
+paging modes and the wheel at the bottom edge, the column menu's pin left against a body scrolled
+under it, and a header carried onto another.
 
 The header's own sort mark is left to `tools/drives/sort-picker-order.py` and to the drive of
 the sort control beside it.
@@ -78,6 +79,64 @@ def escape(widget) -> None:
         QtGui.QKeyEvent(
             QtCore.QEvent.Type.KeyPress, int(Qt.Key.Key_Escape), Qt.KeyboardModifier.NoModifier
         ),
+    )
+
+
+def menu_press(table, path: str, text: str, wait) -> bool:
+    """Open one column's header menu with the pointer and press the row of that name."""
+    column = table.model.column_index_of(path)
+    header = table._frozen_header if path in table.pinned_columns else table._header
+    rect = QtCore.QRect(
+        header.sectionViewportPosition(column), 0, header.sectionSize(column), header.height()
+    )
+    QTest.mouseClick(
+        header.viewport(),
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        QtCore.QPoint(rect.right() - 8, rect.height() // 2),
+    )
+    wait(300)
+    menu = table._menu
+    if menu is None or not menu.is_open:
+        return False
+    rows = [entry.text for entry in menu.list.entries]
+    if text not in rows:
+        return False
+    box = menu.list.row_rect(rows.index(text))
+    QTest.mouseClick(
+        menu.list, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, box.center()
+    )
+    return True
+
+
+def head_drag(table, carried: int, onto: int) -> None:
+    """Carry one header section onto another and drop it."""
+    header = table._header
+
+    def middle(column: int) -> QtCore.QPoint:
+        return QtCore.QPoint(
+            header.sectionViewportPosition(column) + header.sectionSize(column) // 2,
+            header.height() // 2,
+        )
+
+    start, end = middle(carried), middle(onto)
+    QTest.mousePress(
+        header.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, start
+    )
+    for point in (QtCore.QPoint(start.x() + 8, start.y()), end):
+        QtWidgets.QApplication.sendEvent(
+            header.viewport(),
+            QtGui.QMouseEvent(
+                QtCore.QEvent.Type.MouseMove,
+                QtCore.QPointF(float(point.x()), float(point.y())),
+                QtCore.QPointF(header.viewport().mapToGlobal(point)),
+                Qt.MouseButton.NoButton,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+            ),
+        )
+    QTest.mouseRelease(
+        header.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, end
     )
 
 
@@ -422,6 +481,59 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901, PLR0915
         table.footer._pager_box.isVisible() and control.pager.range_label.endswith(str(TOTAL)),
         control.pager.range_label,
     )
+
+    # --- the column menu: pin left and the header's own carry --------------------------------
+    table.set_column_menu(True)
+    wait(150)
+    order = table.column_order
+    # The set is wider than the box, so the walk works on columns the pointer can reach.
+    pinning = order[1]
+    walk.check(
+        "the column menu pins a column to the start",
+        menu_press(table, pinning, "Pin left", wait)
+        and table.pinned_columns == [pinning]
+        and table.column_order[0] == pinning,
+        table.column_order,
+    )
+    wait(300)
+    across = table.view.horizontalScrollBar()
+    if across.maximum() == 0:
+        # The set has to be wider than the box for the pin to have anything to hold against,
+        # so one column is dragged out the way a reader widens one.
+        table._header.resizeSection(len(table.column_order) - 1, 520)
+        wait(200)
+    left = table.frozen.x()
+    across.setValue(across.maximum())
+    wait(300)
+    walk.check(
+        "and the body runs under it while it holds its place",
+        across.maximum() > 0 and table.frozen.x() == left and table.frozen.isVisible(),
+        f"x {left} -> {table.frozen.x()}, scrolled {across.value()} of {across.maximum()}",
+    )
+    walk.check(
+        "the menu on the frozen column unpins it",
+        menu_press(table, pinning, "Unpin", wait) and table.pinned_columns == [],
+        table.column_order,
+    )
+    wait(300)
+    across.setValue(0)
+    wait(200)
+    offset = table.model.select_offset
+    carried = table.column_order[2]
+    head_drag(table, offset + 2, offset)
+    wait(300)
+    walk.check(
+        "a header carried onto another lands in front of it",
+        table.column_order[0] == carried,
+        table.column_order,
+    )
+    walk.check(
+        "and the order is the table's own: the picker still holds the list it was given",
+        list(demo._picker.value) == [column.path for column in table.columns],
+        list(demo._picker.value),
+    )
+    table.set_column_menu(False)
+    wait(150)
 
     # --- the view controls -----------------------------------------------------------------
     press(toggle)

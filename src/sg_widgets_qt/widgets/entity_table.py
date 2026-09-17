@@ -3,10 +3,14 @@
 Ported from `packages/react/src/registry/sg/components/entity-table.tsx`.
 
 Columns are schema-driven: the header is the field's display name and the cell drawing comes
-from its `data_type` through `paint_field_value`. Sizing, resizing, grouping and the selection
-are the view's; sorting and paging are the server's, because a sort applied to one loaded page
-would order the page and not the set, and because a sort on a field that cannot be sorted is a
-silent 200 no-op (026_result_order).
+from its `data_type` through `paint_field_value`. Sizing, resizing, ordering, pinning, grouping
+and the selection are the view's; sorting and paging are the server's, because a sort applied to
+one loaded page would order the page and not the set, and because a sort on a field that cannot
+be sorted is a silent 200 no-op (026_result_order).
+
+The drawn order and the pinned paths are the table's own: `columns` stays the list the caller
+handed, and only hiding a column writes back through `columns_changed`. A header drags onto
+another to reorder, and the column menu pins one to the start of the scrolling body.
 
 `paging` says how the set is walked and the source follows it. In `pages` the footer walks with
 an explicit page number and reads "n to m of N" once `_summarize` has counted it; a read carries
@@ -54,13 +58,15 @@ from sg_widgets_core.state import NO_ROWS_LABEL, StateLabels, error_text, state_
 from sg_widgets_core.status import StatusRecord
 
 from .. import icons
-from ..primitives.base import elide
+from ..primitives.base import SHADOW_INK, elide
 from ..primitives.button import Button
 from ..primitives.roles import Roles
 from ..primitives.scroll_latch import WheelLatch
+from ..primitives.scrollbar import overlay_scrollbars_of
 from ..primitives.skeleton import Skeleton
 from ..primitives.table import CELL_PAD_X, CellDelegate, HeaderDelegate, TableSurface
 from ..theme import Theme, theme_of, with_alpha
+from ._sortable_rows import DRAG_THRESHOLD, DROP_LINE
 from .collection_control import COLLECTION_GAP, CollectionControl, CollectionModel
 from .collection_footer import DEFAULT_PAGE_SIZES, CollectionFooter
 from .field_editor import FieldEditor
@@ -109,6 +115,14 @@ SKELETON_HEIGHT = 24
 #: The group heading's chevron and the room the menu control takes in a head.
 CHEVRON = 16
 MENU_WIDTH = 24
+
+#: What a header wears while it is carried, `opacity-50` on the dragged column upstream.
+DRAG_OPACITY = 0.5
+
+#: How far the frozen column's shadow reaches over the body it stands on, and how dark it is at
+#: its own edge. `SHADOW_INK`, as every shadow is: a shadow is the light the surface blocks.
+PIN_SHADOW = 8
+PIN_SHADOW_ALPHA = 0.18
 
 #: The rows the scroller leaves before it asks for the next page. Core's `SCROLL_THRESHOLD`.
 BOTTOM_PAD = 8
@@ -165,6 +179,8 @@ class _Header(HeaderDelegate):
 
     select_toggled = Signal(bool)
     menu_requested = Signal(int, QtCore.QPoint)
+    #: A section was dropped on another: the column carried, and the one it lands in front of.
+    reorder_requested = Signal(int, int)
 
     def __init__(self, parent: QtWidgets.QWidget | None = None, density: str = "default") -> None:
         super().__init__(parent, density=density)
@@ -174,6 +190,17 @@ class _Header(HeaderDelegate):
         self._select = False
         self._all = False
         self._some = False
+        self._reorderable = False
+        self._press: QtCore.QPoint | None = None
+        self._press_column = -1
+        self._press_handle = -1
+        self._drag = -1
+        self._drop = -1
+        self._dropped = False
+
+    def set_reorderable(self, value: bool) -> None:
+        """Whether a section of this header drags onto another to reorder the columns."""
+        self._reorderable = bool(value)
 
     def set_table_size(self, value: str) -> None:
         self._size = value if value in ENTITY_TABLE_SIZE_VALUES else "md"
@@ -215,6 +242,23 @@ class _Header(HeaderDelegate):
         return QRect(rect.right() + 1 - MENU_WIDTH, rect.top(), MENU_WIDTH, rect.height())
 
     def paintSection(self, painter: QtGui.QPainter, rect: QRect, column: int) -> None:  # noqa: N802
+        if column == self._drag or column == self._drop:
+            painter.save()
+            if column == self._drag:
+                painter.setOpacity(DRAG_OPACITY)
+            self._paint_section(painter, rect, column)
+            painter.setOpacity(1.0)
+            if column == self._drop and column != self._drag:
+                # The mark stands where the carried column lands, which is in front of this one.
+                painter.fillRect(
+                    QRect(rect.left(), rect.top(), DROP_LINE, rect.height()),
+                    theme_of(self).color("ring"),
+                )
+            painter.restore()
+            return
+        self._paint_section(painter, rect, column)
+
+    def _paint_section(self, painter: QtGui.QPainter, rect: QRect, column: int) -> None:
         theme = theme_of(self)
         if self._select and column == 0:
             painter.save()
@@ -265,7 +309,49 @@ class _Header(HeaderDelegate):
         if self._menu and column >= 0 and self._menu_rect(rect).contains(point):
             self.menu_requested.emit(column, self.mapToGlobal(point))
             return
+        # A press that landed on a divider is a resize, and a resize is never a carry.
+        self._press = QtCore.QPoint(point)
+        self._press_column = column
+        self._press_handle = self._handle
         super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
+        super().mouseMoveEvent(event)
+        if not self._reorderable or self._press is None or self._press_handle >= 0:
+            return
+        if not event.buttons() & Qt.MouseButton.LeftButton:
+            return
+        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        if self._drag < 0:
+            if (point - self._press).manhattanLength() < DRAG_THRESHOLD:
+                return
+            self._drag = self._press_column
+        over = self.logicalIndexAt(point)
+        if self._select and over == 0:
+            over = -1
+        if over != self._drop:
+            self._drop = over
+            self.viewport().update()
+
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
+        carried, target = self._drag, self._drop
+        self._press = None
+        self._press_column = -1
+        self._drag = -1
+        self._drop = -1
+        if carried >= 0:
+            # The drop is not a click, so the column it ends on does not also sort.
+            self._dropped = True
+            self.viewport().update()
+        super().mouseReleaseEvent(event)
+        self._dropped = False
+        if carried >= 0 and target >= 0 and target != carried:
+            self.reorder_requested.emit(carried, target)
+
+    def _on_clicked(self, column: int) -> None:
+        if self._dropped:
+            return
+        super()._on_clicked(column)
 
 
 class _Cells(CellDelegate):
@@ -302,7 +388,7 @@ class _Cells(CellDelegate):
             return
         selected = bool(index.data(Roles.CHECKED))
         disabled = bool(index.data(Roles.DISABLED))
-        hovered = self._table.view.hovered_row() == index.row()
+        hovered = self._table.hovered_row() == index.row()
         column = model.column_at(index.column())
         editable = column is not None and self._table.can_edit(column, row)
 
@@ -346,7 +432,7 @@ class _Cells(CellDelegate):
             column,
             self._table.value_options(selected=selected, enabled=not disabled),
         )
-        if self._table.cursor_index() == index and self._table.view.hasFocus():
+        if self._table.cursor_index() == index and self._table.body_has_focus():
             self._table.paint_cell_ring(painter, rect)
         painter.restore()
 
@@ -439,6 +525,20 @@ class _Body(TableSurface):
         self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._table.layout_frozen()
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
+        """A row lights across both views: the frozen column is the same row as the body's."""
+        before = self.hovered_row()
+        super().mouseMoveEvent(event)
+        if self.hovered_row() != before:
+            self._table.repaint_body()
+
+    def leaveEvent(self, event: QtCore.QEvent) -> None:  # noqa: N802
+        super().leaveEvent(event)
+        self._table.repaint_body()
 
     def wheelEvent(self, event: QtGui.QWheelEvent) -> None:  # noqa: N802
         """A gesture that reached the edge, or a page on its way, keeps the wheel off the page."""
@@ -492,6 +592,70 @@ class _Body(TableSurface):
                 return True
             QtWidgets.QToolTip.hideText()
         return super().viewportEvent(event)
+
+
+class _Frozen(_Body):
+    """The pinned columns, drawn over the body from the same model.
+
+    A `position: sticky` cell has no equal in a `QTableView`: a view scrolls its whole viewport.
+    So the pinned columns are a second view of the same model, showing those columns alone,
+    standing over the body at the left edge and stepping with it row for row. Everything a cell
+    knows is the model's, so the delegate, the row cursor, the selection, the editor and the
+    column menu are the body's own: a press here runs the code a press there runs.
+    """
+
+    def __init__(self, table: EntityTable, density: str = "default") -> None:
+        super().__init__(table, density=density)
+        self.setParent(table.view)
+        self.setObjectName("entity-table-frozen")
+        self.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollMode.ScrollPerPixel)
+        self._bars = overlay_scrollbars_of(self) or ()
+        for bar in self._bars:
+            bar.installEventFilter(self)
+            bar.hide()
+        self.hide()
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # noqa: N802
+        QtWidgets.QTableView.resizeEvent(self, event)
+
+    def wheelEvent(self, event: QtGui.QWheelEvent) -> None:  # noqa: N802
+        """One scroller for the two views: the body owns the wheel, and this follows it."""
+        QtWidgets.QApplication.sendEvent(self._table.view.viewport(), event)
+
+    def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent) -> bool:  # noqa: N802
+        # The frozen column moves with the body, so it never carries a bar of its own.
+        if event.type() == QtCore.QEvent.Type.Show and any(watched is bar for bar in self._bars):
+            watched.hide()
+            return True
+        return super().eventFilter(watched, event)
+
+
+class _PinEdge(QtWidgets.QWidget):
+    """The rule down the frozen column's trailing edge, and the shadow it casts once scrolled.
+
+    Upstream leaves a sticky cell's edge bare: the rows behind it are hidden by its own ground
+    and the page reads on. A view standing over another needs to say so, so the edge carries the
+    1px rule the table draws everywhere and, once the body has run under it, the short shadow
+    rule 4 gives anything that floats.
+    """
+
+    def __init__(self, table: EntityTable) -> None:
+        super().__init__(table.view)
+        self.setObjectName("entity-table-pin-edge")
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self._table = table
+
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:  # noqa: N802
+        theme = theme_of(self)
+        painter = QtGui.QPainter(self)
+        box = self.rect()
+        if self._table.body_scrolled():
+            fade = QtGui.QLinearGradient(float(box.left()), 0.0, float(box.right() + 1), 0.0)
+            fade.setColorAt(0.0, with_alpha(SHADOW_INK, PIN_SHADOW_ALPHA))
+            fade.setColorAt(1.0, with_alpha(SHADOW_INK, 0.0))
+            painter.fillRect(box.adjusted(1, 0, 0, 0), fade)
+        painter.fillRect(QRect(box.left(), box.top(), 1, box.height()), theme.color("border"))
+        painter.end()
 
 
 class EntityTable(QtWidgets.QWidget):
@@ -570,6 +734,14 @@ class EntityTable(QtWidgets.QWidget):
         self._cell_error: tuple[str, str, str] | None = None
         self._cursor = QModelIndex()
         self._menu: Any = None
+        # The display order and the pinned paths are the table's own, as upstream holds them in
+        # the table rather than in the column list: `columns` stays the list the caller handed.
+        self._order: list[str] = []
+        self._pinned: list[str] = []
+        self._widths: dict[str, int] = {}
+        self._sizing = False
+        #: The body's room the last time rows stood in it, which a re-read keeps.
+        self._held_body = 0
 
         self.control = CollectionControl(
             source,
@@ -630,12 +802,29 @@ class EntityTable(QtWidgets.QWidget):
         self._header.sort_requested.connect(self._on_sort_requested)
         self._header.select_toggled.connect(self.control.toggle_all)
         self._header.menu_requested.connect(self._open_column_menu)
+        self._header.reorder_requested.connect(self._on_reorder)
+        self._header.set_reorderable(True)
         self._cells = _Cells(self, density=self._density)
         self.view.setItemDelegate(self._cells)
         self.view.setModel(self.model)
         self._max_height = _px(max_height)
         self.view.setMaximumHeight(self._max_height)
         body.addWidget(self.view)
+
+        self.frozen = _Frozen(self, density=self._density)
+        self._frozen_header = _Header(self.frozen, density=self._density)
+        self.frozen.setHorizontalHeader(self._frozen_header)
+        self._frozen_header.setStretchLastSection(False)
+        self._frozen_header.sort_requested.connect(self._on_sort_requested)
+        self._frozen_header.menu_requested.connect(
+            lambda column, point: self._open_column_menu(column, point, self._frozen_header)
+        )
+        self._frozen_header.reorder_requested.connect(self._on_reorder)
+        self._frozen_header.set_reorderable(True)
+        self.frozen.setItemDelegate(self._cells)
+        self.frozen.setModel(self.model)
+        self._pin_edge = _PinEdge(self)
+        self._pin_edge.hide()
 
         self._state = StateLine(pad="table", slot_name="entity-table-state", parent=self._box)
         self._state.hide()
@@ -664,7 +853,15 @@ class EntityTable(QtWidgets.QWidget):
         bar_ = self.view.verticalScrollBar()
         if bar_ is not None:
             bar_.valueChanged.connect(self._on_scrolled)
-        self._apply_columns()
+            bar_.valueChanged.connect(self._follow_body)
+        across = self.view.horizontalScrollBar()
+        if across is not None:
+            across.valueChanged.connect(self.layout_frozen)
+        frozen_bar = self.frozen.verticalScrollBar()
+        if frozen_bar is not None:
+            frozen_bar.valueChanged.connect(self._follow_frozen)
+        self._header.sectionResized.connect(self._on_section_resized)
+        self._apply_display()
         self._apply_sort_indicator()
         self._sync()
 
@@ -688,10 +885,53 @@ class EntityTable(QtWidgets.QWidget):
 
     def set_columns(self, value: Sequence[CollectionColumn]) -> None:
         self._columns = list(value)
-        self.model.set_columns(self._columns)
-        self._apply_columns()
+        self._apply_display()
         self._apply_sort_indicator()
         self._sync()
+
+    @property
+    def pinned_columns(self) -> list[str]:
+        """The paths stuck to the start of the scrolling body, in the order they were pinned."""
+        return [path for path in self._pinned if any(c.path == path for c in self._columns)]
+
+    @property
+    def column_order(self) -> list[str]:
+        """The paths in the order the table draws them: the pinned ones first, then the rest."""
+        return [column.path for column in self._display_columns()]
+
+    def pin_column(self, path: str, pinned: bool = True) -> None:
+        """Stick a column to the start of the scrolling body, or give it back to its place."""
+        held = [one for one in self._pinned if one != path]
+        if pinned:
+            held.append(path)
+        if held == self._pinned:
+            return
+        self.close_editor()
+        self._pinned = held
+        self._apply_display()
+        self._sync()
+
+    def move_column(self, path: str, before: str | None) -> None:
+        """Put one column in front of another, or at the end where `before` is None."""
+        order = self.column_order
+        if path not in order or path == before:
+            return
+        order.remove(path)
+        order.insert(order.index(before) if before in order else len(order), path)
+        if order == self._order:
+            return
+        self.close_editor()
+        self._order = order
+        self._apply_display()
+        self._sync()
+
+    def _display_columns(self) -> list[CollectionColumn]:
+        """The columns as they are drawn: pinned to the start first, the rest as ordered."""
+        by_path = {column.path: column for column in self._columns}
+        order = [path for path in self._order if path in by_path]
+        order += [column.path for column in self._columns if column.path not in order]
+        pinned = [path for path in order if path in self._pinned]
+        return [by_path[path] for path in pinned + [p for p in order if p not in pinned]]
 
     @property
     def statuses(self) -> Mapping[str, StatusRecord] | None:
@@ -744,11 +984,13 @@ class EntityTable(QtWidgets.QWidget):
 
     def set_density(self, value: str) -> None:
         self._density = value if value in ENTITY_TABLE_DENSITY_VALUES else "default"
-        self.view.set_density(self._density)
-        self._header.set_density(self._density)
         self._cells.set_density(self._density)
-        self.view.verticalHeader().setDefaultSectionSize(ENTITY_TABLE_ROW_HEIGHT[self._density])
-        self.view.viewport().update()
+        for view, header in ((self.view, self._header), (self.frozen, self._frozen_header)):
+            view.set_density(self._density)
+            header.set_density(self._density)
+            view.verticalHeader().setDefaultSectionSize(ENTITY_TABLE_ROW_HEIGHT[self._density])
+        self.layout_frozen()
+        self.repaint_body()
 
     @property
     def size(self) -> str:
@@ -758,7 +1000,9 @@ class EntityTable(QtWidgets.QWidget):
     def set_size(self, value: str) -> None:
         self._size = value if value in ENTITY_TABLE_SIZE_VALUES else "md"
         self._header.set_table_size(self._size)
-        self.view.viewport().update()
+        self._frozen_header.set_table_size(self._size)
+        self.layout_frozen()
+        self.repaint_body()
 
     @property
     def selectable(self) -> bool:
@@ -768,7 +1012,6 @@ class EntityTable(QtWidgets.QWidget):
     def set_selectable(self, value: bool) -> None:
         self._selectable = bool(value)
         self.model.set_select_column(self._selectable)
-        self._header.set_select_column(self._selectable)
         self._apply_columns()
 
     @property
@@ -859,15 +1102,17 @@ class EntityTable(QtWidgets.QWidget):
     def set_show_code(self, value: bool) -> None:
         self._show_code = bool(value)
         self._header.set_show_code(self._show_code)
+        self._frozen_header.set_show_code(self._show_code)
 
     @property
     def column_menu(self) -> bool:
-        """A menu on every header: sort and hide."""
+        """A menu on every header: sort, hide and pin left."""
         return self._column_menu
 
     def set_column_menu(self, value: bool) -> None:
         self._column_menu = bool(value)
         self._header.set_column_menu(self._column_menu)
+        self._frozen_header.set_column_menu(self._column_menu)
 
     @property
     def paging(self) -> str:
@@ -1053,23 +1298,26 @@ class EntityTable(QtWidgets.QWidget):
     def _apply_sort_indicator(self) -> None:
         keys = self.control.sort
         first = next((key for key in keys if self.model.column_index_of(key.path) >= 0), None)
-        if first is None:
-            self._header.setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
-            return
-        self._header.setSortIndicator(
-            self.model.column_index_of(first.path),
-            Qt.SortOrder.DescendingOrder if first.descending else Qt.SortOrder.AscendingOrder,
-        )
+        for header in (self._header, self._frozen_header):
+            if first is None:
+                header.setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
+                continue
+            header.setSortIndicator(
+                self.model.column_index_of(first.path),
+                Qt.SortOrder.DescendingOrder if first.descending else Qt.SortOrder.AscendingOrder,
+            )
 
     # --- the column menu ------------------------------------------------------------------
 
-    def _open_column_menu(self, column: int, _point: QtCore.QPoint) -> None:
+    def _open_column_menu(
+        self, column: int, _point: QtCore.QPoint, header: _Header | None = None
+    ) -> None:
         from ..primitives.dropdown_menu import DropdownMenu
 
         found = self.model.column_at(column)
         if found is None:
             return
-        menu = DropdownMenu(self._header, side="bottom", align="start")
+        menu = DropdownMenu(header or self._header, side="bottom", align="start")
         menu.add_item(
             "Sort ascending",
             icon="arrow-up",
@@ -1090,6 +1338,12 @@ class EntityTable(QtWidgets.QWidget):
         )
         menu.add_separator()
         menu.add_item("Hide column", icon="eye-off", on_activate=lambda: self.hide_column(found.path))
+        pinned = found.path in self.pinned_columns
+        menu.add_item(
+            "Unpin" if pinned else "Pin left",
+            icon="pin-off" if pinned else "arrow-left-to-line",
+            on_activate=lambda: self.pin_column(found.path, not pinned),
+        )
         self._menu = menu
         menu.open()
 
@@ -1101,30 +1355,143 @@ class EntityTable(QtWidgets.QWidget):
         self.set_columns(kept)
         self.columns_changed.emit(kept)
 
+    # --- the column order -----------------------------------------------------------------
+
+    def _on_reorder(self, carried: int, target: int) -> None:
+        """A section dropped on another lands in front of it, as upstream's drop does."""
+        moved = self.model.column_at(carried)
+        onto = self.model.column_at(target)
+        if moved is None or onto is None:
+            return
+        self.move_column(moved.path, onto.path)
+
     # --- the body -------------------------------------------------------------------------
 
     def _apply_columns(self) -> None:
-        header = self._header
-        header.set_select_column(self._selectable)
-        header.set_table_size(self._size)
-        header.set_show_code(self._show_code)
-        header.set_column_menu(self._column_menu)
-        header.setMinimumSectionSize(MIN_COLUMN_WIDTH)
         offset = self.model.select_offset
+        drawn = self.model.columns
+        self._sizing = True
+        for header in (self._header, self._frozen_header):
+            header.set_select_column(self._selectable)
+            header.set_table_size(self._size)
+            header.set_show_code(self._show_code)
+            header.set_column_menu(self._column_menu)
+            header.setMinimumSectionSize(MIN_COLUMN_WIDTH)
+            if self._selectable:
+                header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Fixed)
+                header.resizeSection(0, SELECT_WIDTH)
+            for at, column in enumerate(drawn):
+                header.resizeSection(at + offset, self._width_of(column))
+        self._sizing = False
+        pinned = self.pinned_columns
+        for at, column in enumerate(drawn):
+            self.frozen.setColumnHidden(at + offset, column.path not in pinned)
         if self._selectable:
-            header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Fixed)
-            header.resizeSection(0, SELECT_WIDTH)
-        for at, column in enumerate(self._columns):
-            header.resizeSection(at + offset, column.width or DEFAULT_COLUMN_WIDTH)
-        self.view.verticalHeader().setDefaultSectionSize(ENTITY_TABLE_ROW_HEIGHT[self._density])
+            self.frozen.setColumnHidden(0, True)
+        for view in (self.view, self.frozen):
+            view.verticalHeader().setDefaultSectionSize(ENTITY_TABLE_ROW_HEIGHT[self._density])
+        self.layout_frozen()
+
+    def _width_of(self, column: CollectionColumn) -> int:
+        """What a column stands at: what a drag left it at, else its own width, else the default."""
+        return self._widths.get(column.path, column.width or DEFAULT_COLUMN_WIDTH)
+
+    def _on_section_resized(self, at: int, _old: int, size: int) -> None:
+        if self._sizing:
+            return
+        column = self.model.column_at(at)
+        if column is not None:
+            self._widths[column.path] = int(size)
+        self.layout_frozen()
+
+    def _apply_display(self) -> None:
+        """Write the drawn order into the model, then put the header and the frozen view on it."""
+        self.model.set_columns(self._display_columns())
+        self._apply_columns()
+        self._apply_spans()
+
+    # --- the frozen column ----------------------------------------------------------------
+
+    def body_scrolled(self) -> bool:
+        """True while the body has run under the frozen column."""
+        bar = self.view.horizontalScrollBar()
+        return bar is not None and bar.value() > 0
+
+    def repaint_body(self) -> None:
+        """A row lights, a cursor moves or a value lands in both views at once."""
+        self.view.viewport().update()
+        if hasattr(self, "frozen"):
+            self.frozen.viewport().update()
+
+    def hovered_row(self) -> int:
+        """The row under the pointer in either view, or -1."""
+        if not hasattr(self, "frozen"):
+            return self.view.hovered_row()
+        return max(self.view.hovered_row(), self.frozen.hovered_row())
+
+    def body_has_focus(self) -> bool:
+        """True while the keyboard is in the body or in the frozen column."""
+        return self.view.hasFocus() or (hasattr(self, "frozen") and self.frozen.hasFocus())
+
+    def view_for(self, column: int) -> _Body:
+        """The view that draws this column: the frozen one where it is pinned."""
+        found = self.model.column_at(column)
+        if found is not None and found.path in self.pinned_columns:
+            return self.frozen
+        return self.view
+
+    def layout_frozen(self) -> None:
+        """Stand the frozen view where a sticky cell would stand, and size it to its columns."""
+        if not hasattr(self, "frozen"):
+            return
+        pinned = self.pinned_columns
+        if not pinned:
+            self.frozen.hide()
+            self._pin_edge.hide()
+            return
+        offset = self.model.select_offset
+        at = [i + offset for i, c in enumerate(self.model.columns) if c.path in pinned]
+        width = sum(self._header.sectionSize(i) for i in at)
+        # A sticky cell sits at its own place until the scroller would take it past the edge,
+        # so the frozen view follows the first pinned section until that section reaches zero.
+        left = max(0, self._header.sectionViewportPosition(at[0])) if at else 0
+        left += self.view.viewport().x()
+        self.frozen.setGeometry(left, 0, width, self.view.height())
+        self._pin_edge.setGeometry(left + width, 0, PIN_SHADOW + 1, self.view.height())
+        self.frozen.show()
+        self.frozen.raise_()
+        self._pin_edge.show()
+        self._pin_edge.raise_()
+        self._pin_edge.update()
+
+    def _follow_body(self, value: int) -> None:
+        bar = self.frozen.verticalScrollBar()
+        if bar is not None and bar.value() != value:
+            bar.setValue(value)
+
+    def _follow_frozen(self, value: int) -> None:
+        bar = self.view.verticalScrollBar()
+        if bar is not None and bar.value() != value:
+            bar.setValue(value)
 
     def _apply_spans(self) -> None:
         """A group heading is one cell across the table, so it is spanned after every reset."""
-        self.view.clearSpans()
         width = max(1, self.model.columnCount())
+        self.view.clearSpans()
+        self.frozen.clearSpans()
+        offset = self.model.select_offset
+        pinned = self.pinned_columns
+        # The frozen view shows the pinned columns alone, so a heading spans from the first of
+        # them: a span that opens on a hidden column has no width to stand in.
+        first = next(
+            (i + offset for i, c in enumerate(self.model.columns) if c.path in pinned), -1
+        )
         for at, line in enumerate(self.model.lines):
-            if line.kind == "heading":
-                self.view.setSpan(at, 0, 1, width)
+            if line.kind != "heading":
+                continue
+            self.view.setSpan(at, 0, 1, width)
+            if first >= 0:
+                self.frozen.setSpan(at, first, 1, width - first)
 
     def can_edit(self, column: CollectionColumn, row: EntityRow) -> bool:
         """True when this cell may open an editor. A projection is never writable."""
@@ -1167,9 +1534,9 @@ class EntityTable(QtWidgets.QWidget):
         self._cursor = index
         if self.model.select_column and index.column() == 0:
             self.control.toggle(line.row)
-            self.view.viewport().update()
+            self.repaint_body()
             return True
-        self.view.viewport().update()
+        self.repaint_body()
         return False
 
     def on_cell_activated(self, index: QModelIndex) -> None:
@@ -1192,7 +1559,7 @@ class EntityTable(QtWidgets.QWidget):
             line = self.model.line_at(self._cursor.row())
             if line is not None and line.row is not None:
                 self.control.toggle(line.row)
-                self.view.viewport().update()
+                self.repaint_body()
                 return True
             return False
         if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
@@ -1225,8 +1592,10 @@ class EntityTable(QtWidgets.QWidget):
             return
         self.control.set_cursor(index)
         self._cursor = self.model.index(line, max(column, self.model.select_offset))
-        self.view.scrollTo(self._cursor, QtWidgets.QAbstractItemView.ScrollHint.EnsureVisible)
-        self.view.viewport().update()
+        self.view_for(self._cursor.column()).scrollTo(
+            self._cursor, QtWidgets.QAbstractItemView.ScrollHint.EnsureVisible
+        )
+        self.repaint_body()
 
     def _toggle_group(self, key: str) -> None:
         state = toggle_collapsed(self._collapsed, key)
@@ -1262,6 +1631,9 @@ class EntityTable(QtWidgets.QWidget):
         self._draft = value
         key = self.model.key_of(row)
         self._editing = (key, column.path)
+        # A pinned cell is drawn by the frozen view, so its editor mounts there: one path, one
+        # commit, wherever the cell stands.
+        host = self.view_for(index.column())
         placement = self.placement_for(column)
         text = preferences_of(self._context)
         editor = FieldEditor(
@@ -1281,14 +1653,14 @@ class EntityTable(QtWidgets.QWidget):
             time_zone=text.time_zone,
             frame_rate=text.frame_rate,
             size="sm",
-            parent=self.view,
+            parent=host,
         )
         editor.setObjectName("entity-table-editor")
         editor.value_changed.connect(self._on_draft)
         editor.mode_changed.connect(lambda mode: self._on_editor_mode(mode, key, column))
         editor.installEventFilter(self)
-        self.view.setIndexWidget(index, editor)
-        self.view.viewport().update()
+        host.setIndexWidget(index, editor)
+        self.repaint_body()
         editor.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def _on_draft(self, value: object) -> None:
@@ -1332,12 +1704,13 @@ class EntityTable(QtWidgets.QWidget):
             return
         index = self._index_of(held[0], held[1])
         if index.isValid():
-            editor = self.view.indexWidget(index)
-            self.view.setIndexWidget(index, None)
+            host = self.view_for(index.column())
+            editor = host.indexWidget(index)
+            host.setIndexWidget(index, None)
             if editor is not None:
                 editor.deleteLater()
-        self.view.viewport().update()
-        self.view.setFocus(Qt.FocusReason.OtherFocusReason)
+            host.setFocus(Qt.FocusReason.OtherFocusReason)
+        self.repaint_body()
 
     def commit(self, key: str, column: CollectionColumn, value: Any) -> None:
         """Write one field through the source, which re-reads the row (024_read_after_write)."""
@@ -1381,7 +1754,7 @@ class EntityTable(QtWidgets.QWidget):
         self._header.set_check_state(
             self.control.all_selected.all, self.control.all_selected.some
         )
-        self.view.viewport().update()
+        self.repaint_body()
         self.selection_changed.emit(rows)
 
     def _sync(self) -> None:
@@ -1390,9 +1763,11 @@ class EntityTable(QtWidgets.QWidget):
         # column menu, or a `sort` prop a toolbar's SortPicker writes.
         self._apply_sort_indicator()
         view = self.control.view(len(self.model.lines))
-        self.view.setVisible(view == "rows")
+        # The header stands through a read, so the view keeps its place and the blank rows
+        # take the body's room under it.
+        self.view.setVisible(view in ("rows", "loading"))
+        self.layout_frozen()
         self._skeleton.setVisible(view == "loading")
-        self._skeleton.set_columns(max(1, self.model.columnCount()))
         self._state.setVisible(view in ("empty", "error"))
         if view == "empty":
             self._state.set_icon(EMPTY_ICON)
@@ -1417,12 +1792,33 @@ class EntityTable(QtWidgets.QWidget):
             self._focus_row(waiting, self._cursor.column())
         self._apply_spans()
         self._fit()
-        self.view.viewport().update()
+        self.repaint_body()
 
     def _fit(self) -> None:
         head = ENTITY_TABLE_HEAD[self._size]
-        rows = len(self.model.lines) * ENTITY_TABLE_ROW_HEIGHT[self._density]
-        fit_body(self.view, head + rows, self._max_height)
+        step = ENTITY_TABLE_ROW_HEIGHT[self._density]
+        lines = len(self.model.lines)
+        if lines:
+            self._held_body = min(head + lines * step, self._max_height)
+        if self._skeleton.isVisible():
+            # A re-read keeps the box the rows stood in, so nothing under the table moves while
+            # it reads. A cold load has no box to keep and draws upstream's eight rows.
+            room = self._held_body - head if self._held_body else SKELETON_ROWS * step
+            rows = max(1, -(-room // step))
+            self._skeleton.set_shape(rows, max(1, self.model.columnCount()), step, room)
+            self._skeleton.set_lanes(self._lanes())
+            fit_body(self.view, head, self._max_height)
+        else:
+            fit_body(self.view, head + lines * step, self._max_height)
+        self.layout_frozen()
+
+    def _lanes(self) -> list[tuple[int, int]]:
+        """Where each column stands in the body, which is where a blank row's bars stand."""
+        header = self._header
+        return [
+            (header.sectionViewportPosition(at), header.sectionSize(at))
+            for at in range(self.model.columnCount())
+        ]
 
 
 class SkeletonBlock(QtWidgets.QWidget):
@@ -1449,34 +1845,82 @@ class SkeletonBlock(QtWidgets.QWidget):
 
 
 class _TableSkeleton(SkeletonBlock):
-    """Eight rows of the shape they stand in for: the same inset, the same height, no gap."""
+    """A table of blank rows: one bar per cell, at the row height and the column widths.
+
+    A skeleton stands in for what it replaces (rule 4), so the read leaves the header where it
+    is and puts one `h-6 w-full` bar in every cell, which is what upstream draws. The bars are
+    laid out against the header's own sections rather than by a layout, so a column that was
+    dragged wider keeps its width through a re-read.
+    """
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("entity-table-loading")
         self.setAccessibleName("Loading…")
-        self._grid = QtWidgets.QGridLayout(self)
-        self._grid.setContentsMargins(0, 0, 0, 0)
-        self._grid.setHorizontalSpacing(CELL_PAD_X)
-        self._grid.setVerticalSpacing(0)
-        self._count = 0
-        self.set_columns(1)
+        self._bars: list[list[Skeleton]] = []
+        self._row_height = ENTITY_TABLE_ROW_HEIGHT["default"]
+        self._lanes: list[tuple[int, int]] = []
 
-    def set_columns(self, count: int) -> None:
-        if count == self._count:
-            return
-        self._count = count
-        while self._grid.count():
-            item = self._grid.takeAt(0)
-            made = item.widget()
-            if made is not None:
-                made.setParent(None)
-                made.deleteLater()
-        for line in range(SKELETON_ROWS):
-            for column in range(count):
-                made = Skeleton(height=SKELETON_HEIGHT, parent=self)
-                made.set_animated(self.isVisible())
-                self._grid.addWidget(made, line, column)
+    @property
+    def rows(self) -> int:
+        """How many blank rows stand here."""
+        return len(self._bars)
+
+    def set_shape(self, rows: int, columns: int, row_height: int, height: int | None = None) -> None:
+        """Hold `rows` blank rows of `columns` bars each, at that row height.
+
+        `height` is the room the block stands in, which a view's own ceiling may cut short of a
+        whole row: the last blank row is then clipped as the view clips its last row.
+        """
+        self._row_height = max(1, int(row_height))
+        while len(self._bars) > rows:
+            for bar in self._bars.pop():
+                bar.setParent(None)
+                bar.deleteLater()
+        while len(self._bars) < rows:
+            self._bars.append([])
+        for line in self._bars:
+            while len(line) > columns:
+                bar = line.pop()
+                bar.setParent(None)
+                bar.deleteLater()
+            while len(line) < columns:
+                bar = Skeleton(height=SKELETON_HEIGHT, parent=self)
+                bar.set_animated(self.isVisible())
+                bar.show()
+                line.append(bar)
+        self.setFixedHeight(rows * self._row_height if height is None else max(0, int(height)))
+        self._place()
+
+    def set_lanes(self, lanes: Sequence[tuple[int, int]]) -> None:
+        """Where the columns stand, as the header has them: an (x, width) per column."""
+        self._lanes = [(int(x), int(width)) for x, width in lanes]
+        self._place()
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._place()
+
+    def _place(self) -> None:
+        top = 0
+        inset = (self._row_height - SKELETON_HEIGHT) // 2
+        for line in self._bars:
+            for at, bar in enumerate(line):
+                x, width = self._lanes[at] if at < len(self._lanes) else (0, self.width())
+                bar.setGeometry(
+                    x + CELL_PAD_X, top + inset, max(1, width - 2 * CELL_PAD_X), SKELETON_HEIGHT
+                )
+            top += self._row_height
+
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:  # noqa: N802
+        """The rule under every row, so the blank rows read as rows and not as one block."""
+        theme = theme_of(self)
+        painter = QtGui.QPainter(self)
+        painter.fillRect(self.rect(), theme.color("background"))
+        for line in range(len(self._bars)):
+            bottom = (line + 1) * self._row_height - 1
+            painter.fillRect(QRect(0, bottom, self.width(), 1), theme.color("border"))
+        painter.end()
 
 
 class _BottomBlock(SkeletonBlock):

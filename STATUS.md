@@ -98,7 +98,7 @@ Last synced upstream commit: `356391d7354a`.
 | entity-grid | complete | `entity-grid.tsx`, `entity-grid.ts` | The tile is drawn by a delegate through EntityCard's own tile face. The card slot is that delegate, or an override of tile_of. |
 | entity-multi-picker | complete | `entity-multi-picker.tsx`, `entity-multi-picker.svelte`, `Demo.tsx`, `entity-multi-picker.mdx`, `entity-multi-picker.ts` |  |
 | entity-picker | complete | `entity-picker.tsx`, `entity-picker.svelte`, `Demo.tsx`, `entity-picker.mdx`, `entity-picker.ts` |  |
-| entity-table | partial | `entity-table.tsx`, `entity-table.ts` | Pin left and header drag-to-reorder are out: a frozen column needs a second view over the same model, and the column picker orders the columns. The row, cell and groupHeader slots are the delegate. |
+| entity-table | complete | `entity-table.tsx`, `entity-table.ts` | Pin left is a second view of the same model over the body's left edge; the drawn order and the pinned paths are the table's own and never write back through `columns_changed`. The row, cell and groupHeader slots are the delegate. |
 | entity-tree | complete | `entity-tree.tsx`, `entity-tree.ts` | A QTreeView over the rows the engine says are visible, drawn by picker_row's delegate with the chevron in front. The row slot is that delegate. |
 | entity-type-multi-picker | complete | `entity-type-multi-picker.tsx`, `entity-type-multi-picker.svelte`, `Demo.tsx`, `entity-type-multi-picker.mdx`, `entity-type-multi-picker.ts` |  |
 | entity-type-picker | complete | `entity-type-picker.tsx`, `entity-type-picker.svelte`, `Demo.tsx`, `entity-type-picker.mdx`, `entity-type-picker.ts` |  |
@@ -222,7 +222,6 @@ Last synced upstream commit: `356391d7354a`.
 | `packages/core/src/session-auth.ts` | The App Session Launcher flow for a browser. A later pass may port it for a person signing in from a DCC. |
 | `packages/core/src/client.ts` `RestClient` | Replaced by `ShotgunClient` on shotgun_api3 (`src/sg_widgets_core/shotgun_client.py`). |
 | DOM plumbing in `list-chrome.ts`, `picker-keys.ts`, `sortable.ts` | Observers, focus calls and transforms with no decision in them. The Qt widgets do the equivalent on their views; the decisions are ported and tested. |
-| `entity-table` pin left and header drag-to-reorder | A frozen column needs a second view. The column picker orders columns. |
 | `entity-table` `virtualize_after` | A no-op: a QTableView is virtual already. |
 
 ## Known gaps

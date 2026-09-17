@@ -484,3 +484,183 @@ def test_a_cell_editor_mounted_in_edit_mode_knows_what_to_restore(context, qtbot
     assert isinstance(editor, FieldEditor)
     assert editor._original == cell_value(row, "code")
     table.close_editor()
+
+
+def _head_point(header, column: int) -> QtCore.QPoint:
+    """The middle of one header section."""
+    return QtCore.QPoint(
+        header.sectionViewportPosition(column) + header.sectionSize(column) // 2,
+        header.height() // 2,
+    )
+
+
+def _head_drag(header, carried: int, onto: int) -> None:
+    """Carry one section onto another, the way a reader drags it."""
+    from qtpy.QtCore import QPointF
+    from qtpy.QtGui import QMouseEvent
+    from qtpy.QtTest import QTest
+
+    start, end = _head_point(header, carried), _head_point(header, onto)
+    QTest.mousePress(
+        header.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, start
+    )
+    for point in (QtCore.QPoint(start.x() + 8, start.y()), end):
+        QtWidgets.QApplication.sendEvent(
+            header.viewport(),
+            QMouseEvent(
+                QMouseEvent.Type.MouseMove,
+                QPointF(float(point.x()), float(point.y())),
+                QPointF(header.viewport().mapToGlobal(point)),
+                Qt.MouseButton.NoButton,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+            ),
+        )
+    QTest.mouseRelease(
+        header.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, end
+    )
+
+
+def _menu_press(table: EntityTable, column: int, text: str) -> None:
+    """Open one header's menu and press the row of that name."""
+    table._open_column_menu(column, QtCore.QPoint())
+    menu = table._menu
+    texts = [entry.text for entry in menu.list.entries]
+    menu.list.activate(texts.index(text))
+
+
+def test_pin_left_sticks_a_column_to_the_start_and_unpin_gives_it_back(context, qtbot):
+    table = _table(context, qtbot, column_menu=True)
+    at = table.model.column_index_of("created_at")
+    _menu_press(table, at, "Pin left")
+    assert table.pinned_columns == ["created_at"]
+    # The pinned column leads the drawn order; the list the caller handed is untouched.
+    assert table.column_order == ["created_at", "code", "sg_status_list", "user"]
+    assert [column.path for column in table.columns] == list(VERSION_FIELDS)
+    assert table.frozen.isVisible()
+    assert table.model.column_index_of("created_at") == 0
+
+    _menu_press(table, 0, "Unpin")
+    assert table.pinned_columns == []
+    assert table.column_order == list(VERSION_FIELDS)
+    assert not table.frozen.isVisible()
+
+
+def test_the_frozen_column_holds_its_place_while_the_body_scrolls(context, qtbot):
+    table = _table(context, qtbot)
+    table.resize(420, 420)
+    table.pin_column("code")
+    qtbot.waitUntil(table.frozen.isVisible, timeout=2000)
+    across = table.view.horizontalScrollBar()
+    assert across.maximum() > 0
+    left = table.frozen.x()
+    down = table.view.verticalScrollBar()
+
+    across.setValue(across.maximum())
+    QtWidgets.QApplication.processEvents()
+    assert table.frozen.x() == left
+    assert table.body_scrolled() is True
+    # The body ran under it, so the two views still show one row per line.
+    down.setValue(down.maximum())
+    QtWidgets.QApplication.processEvents()
+    assert table.frozen.verticalScrollBar().value() == down.value()
+
+
+def test_a_header_drag_reorders_the_columns_and_does_not_sort(context, qtbot):
+    table = _table(context, qtbot)
+    before = list(table.control.sort)
+    _head_drag(table._header, table.model.column_index_of("created_at"), 0)
+    assert table.column_order == ["created_at", "code", "sg_status_list", "user"]
+    # A drop is not a click, so the column it ended on does not also sort.
+    assert list(table.control.sort) == before
+    # The order is the table's own: the list the caller handed is not written back.
+    assert [column.path for column in table.columns] == list(VERSION_FIELDS)
+
+
+def test_a_carried_header_says_where_it_lands(context, qtbot):
+    table = _table(context, qtbot)
+    header = table._header
+    from qtpy.QtCore import QPointF
+    from qtpy.QtGui import QMouseEvent
+    from qtpy.QtTest import QTest
+
+    start = _head_point(header, 3)
+    QTest.mousePress(
+        header.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, start
+    )
+    target = _head_point(header, 0)
+    QtWidgets.QApplication.sendEvent(
+        header.viewport(),
+        QMouseEvent(
+            QMouseEvent.Type.MouseMove,
+            QPointF(float(target.x()), float(target.y())),
+            QPointF(header.viewport().mapToGlobal(target)),
+            Qt.MouseButton.NoButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        ),
+    )
+    assert header._drag == 3 and header._drop == 0
+    QTest.mouseRelease(
+        header.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, target
+    )
+    assert header._drag == -1 and header._drop == -1
+
+
+def test_an_edit_in_a_pinned_cell_commits_through_the_same_path(context, qtbot):
+    table = _table(context, qtbot, editable=True)
+    table.pin_column("code")
+    row = table.control.rows[0]
+    before = str(cell_value(row, "code"))
+    index = table.model.index(0, table.model.column_index_of("code"))
+    # The pinned cell is drawn by the frozen view, so the editor mounts there.
+    assert table.view_for(index.column()) is table.frozen
+    table.open_editor(index)
+    assert table.frozen.indexWidget(index) is not None
+    column = next(one for one in table.columns if one.path == "code")
+
+    table.commit(table.model.key_of(row), column, before + "_pinned")
+    settle(table, table.control.binding)
+    assert str(cell_value(table.control.rows[0], "code")) == before + "_pinned"
+    assert table.frozen.indexWidget(index) is None
+
+
+def test_a_re_read_draws_blank_rows_under_the_header_and_keeps_the_box(context, qtbot):
+    """A read stands in for the rows it replaces: same header, same room, one bar per cell."""
+    slow = mock_context(latency_ms=400)
+    table = _table(context, qtbot, source=source_for(slow, page_size=10))
+    held_rows = len(table.model.lines)
+    held_height = table.view.height()
+    assert held_rows == 10
+
+    table.toggle_sort("code")
+    qtbot.waitUntil(lambda: table.control.snapshot().status == "loading", timeout=2000)
+    QtWidgets.QApplication.processEvents()
+    # The header stays where it was, and the blank rows take the body's own room.
+    assert table.view.isVisible()
+    assert table._header.isVisible()
+    assert table._skeleton.isVisible()
+    assert table._skeleton.rows == held_rows
+    assert table.view.height() == ENTITY_TABLE_HEAD[table.size]
+    assert table.view.height() + table._skeleton.height() == held_height
+    bars = table._skeleton.blocks()
+    assert len(bars) == held_rows * table.model.columnCount()
+    assert all(bar.height() == 24 for bar in bars)
+
+    settle(table, table.control.binding)
+    assert not table._skeleton.isVisible()
+    assert table.view.height() == held_height
+
+
+def test_a_cold_read_draws_the_eight_blank_rows_upstream_draws(context, qtbot):
+    slow = mock_context(latency_ms=400)
+    source = source_for(slow, page_size=10)
+    table = EntityTable(source=source, columns=columns_for(context), context=slow)
+    apply_theme(table, theme_for("default"))
+    qtbot.addWidget(table)
+    table.resize(900, 520)
+    table.show()
+    qtbot.waitUntil(lambda: table.control.snapshot().status == "loading", timeout=2000)
+    QtWidgets.QApplication.processEvents()
+    assert table._skeleton.rows == 8
+    settle(table, table.control.binding)
