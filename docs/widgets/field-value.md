@@ -21,10 +21,11 @@ from sg_widgets_qt.widgets.field_value import FieldValue
 
 ::props{name="field-value" kind="props"}
 
-Each data type renders as follows. A number is right-aligned with tabular figures, an id and a
-uuid take the monospace family, and a colour draws its swatch beside its value. A url opens
-through the desktop, an uploaded file carrying the mark of a link that leaves the application and
-a local one its own path in the tooltip.
+Each data type renders as follows. A number carries tabular figures and reads left to right like
+the rest; right-aligning a column is a collection's decision, handed down through the `align`
+option. A colour draws its swatch beside its value, a checkbox is the switch of its two states,
+inert and at full contrast, and a url is an underlined label that opens through the desktop, a
+local one carrying its own path in the tooltip.
 
 Dates and numbers are formatted for the locales `en-US`, `en-GB`, `fr-FR`, `de-DE` and `ja-JP`.
 Any other locale formats as `en-US`.
@@ -33,7 +34,8 @@ The entity props are passed straight to EntityChip: a variant, the site each row
 the field paths its hover card shows.
 
 A chip and a badge sit one step under the row around them: a collection passes its density, and a
-compact one draws them a step smaller.
+compact one draws them a step smaller. A multi-entity value wraps its chips across the room it has,
+so none of them is hidden and none of them is counted.
 
 An unset value renders a muted marker rather than a dash, because a dash is a character a field can
 hold. Zero, false and the string zero are values and render as themselves.
@@ -56,8 +58,8 @@ The column is a resolved collection column or a bare data type, and the options 
 the status table, the site url, the density and the site preferences. Both faces settle what to
 draw through one call, so a cell and a widget never disagree about a value: given the same value
 and the same room the two land on the same pixels, which `tests/qt/test_field_value.py` measures
-for every data type in both themes and both densities. A cell keeps every value on one line, and
-draws as many whole chips as it fits before the count of the rest.
+for every data type in both themes and both densities. A cell one line high shows the first line of
+a value that wraps, which is what a table cell does with anything that runs past it.
 
 ## Events
 
@@ -88,16 +90,3 @@ A colour field can hold a pipeline-step token instead of a colour, meaning the v
 from the linked step (field_types/color).
 
 A pivot column has no REST implementation and reads null on every row (field_types/pivot_column).
-
-## Differences from the web widget
-
-A number is right-aligned with tabular figures and a uuid takes the monospace family, where the web
-widget leaves both to the flow of the line; a table is what a value here is usually inside, and
-rule 6 asks for the column. A checkbox is a tick or a cross rather than an inert switch, since a
-switch that cannot be moved reads as a control. A url that leaves the application carries the
-external mark. A multi-entity value keeps its chips on one line and counts the rest, where the web
-widget wraps them onto a second.
-
-A `date_time` with no zone named is rendered in UTC, where the web widget takes the runtime's zone
-from `Intl`. Core's `zone_of` makes that choice for every widget and every editor at once, so it is
-not settled here.

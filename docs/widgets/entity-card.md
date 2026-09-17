@@ -71,8 +71,7 @@ of a row that stretched. A press on the name opens the row's page and emits `cli
 
 A value that points somewhere — a linked row, a url — reads as text until the pointer is on it,
 which is when it underlines, so a stack of values does not read as a stack of rules. The name
-underlines the same way. A url that leaves the application also carries the external mark the field
-value draws, which the web widget does not.
+underlines the same way.
 
 ## Events
 
