@@ -84,6 +84,7 @@ class FilterBarDemo(QtWidgets.QWidget):
             entity_type="Shot",
             noun="Shot",
             sort=GROUP_FIELD,
+            grouped=True,
             parent=self,
         )
         body.addWidget(self.results)
@@ -186,7 +187,7 @@ class FilterBarDemo(QtWidgets.QWidget):
     @property
     def demo_ready(self) -> bool:
         """True once the result set under the bar has answered. The stage polls it."""
-        return bool(self.results.demo_ready) and not self.bar.counting
+        return bool(self.results.ready) and not self.bar.counting
 
 
 def _wire_text(value: FilterGroup) -> str:

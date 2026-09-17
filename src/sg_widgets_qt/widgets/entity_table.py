@@ -176,6 +176,8 @@ class _Header(HeaderDelegate):
 
     def set_table_size(self, value: str) -> None:
         self._size = value if value in ENTITY_TABLE_SIZE_VALUES else "md"
+        # `TEXT[size]` sets the label's step as well as the row's.
+        self.set_text_size(ENTITY_TABLE_TEXT[self._size])
         self.updateGeometry()
 
     def set_show_code(self, value: bool) -> None:
@@ -226,7 +228,6 @@ class _Header(HeaderDelegate):
         body = self._menu_rect(rect) if self._menu else QRect()
         super().paintSection(painter, rect.adjusted(0, 0, -MENU_WIDTH if self._menu else 0, 0), column)
         if not self._menu:
-            self._paint_code(painter, rect, column, theme)
             return
         painter.save()
         painter.fillRect(body.adjusted(0, 0, 0, -1), theme.color("background"))
@@ -236,30 +237,20 @@ class _Header(HeaderDelegate):
         painter.fillRect(QRect(body.left(), body.bottom(), body.width(), 1), theme.color("border"))
         painter.restore()
 
-    def _paint_code(self, painter: QtGui.QPainter, rect: QRect, column: int, theme: Theme) -> None:
-        """The programmatic path beside the display name, in the mono family (rule 6)."""
+    def suffix(self, column: int) -> str:
+        """The programmatic path beside the display name, in the mono family (rule 6).
+
+        Upstream draws it inside the header's own flex row, right after the label, so it reads
+        as part of the label and the column menu does not displace it.
+        """
         model = self.model()
         if not self._show_code or model is None:
-            return
+            return ""
         path = str(model.headerData(column, Qt.Orientation.Horizontal, Roles.CODE) or "")
         label = str(
             model.headerData(column, Qt.Orientation.Horizontal, Qt.ItemDataRole.DisplayRole) or ""
         )
-        if not path or path == label:
-            return
-        font = theme.font(12)
-        font.setFamily(theme.font_mono)
-        metrics = QtGui.QFontMetrics(font)
-        painter.save()
-        painter.setFont(font)
-        painter.setPen(theme.color("muted_foreground"))
-        box = QRect(rect.left() + CELL_PAD_X, rect.top(), max(0, rect.width() - 2 * CELL_PAD_X), rect.height())
-        painter.drawText(
-            box,
-            int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter),
-            elide(metrics, path, box.width()),
-        )
-        painter.restore()
+        return "" if not path or path == label else path
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         point = event.position().toPoint() if hasattr(event, "position") else event.pos()
@@ -469,6 +460,24 @@ class _Body(TableSurface):
         if self._table.on_body_key(event):
             return
         super().keyPressEvent(event)
+
+    def viewportEvent(self, event: QtCore.QEvent) -> bool:  # noqa: N802
+        """Say an editable cell can be edited: nothing else on it does.
+
+        The cell lights under the pointer, which reads as an affordance only once a reader
+        knows what it means, so the hint is the tooltip upstream puts on the same cell.
+        """
+        if event.type() == QtCore.QEvent.Type.ToolTip:
+            point = event.pos() if hasattr(event, "pos") else QtCore.QPoint()
+            index = self.indexAt(point)
+            hint = self._table.edit_hint(index) if index.isValid() else ""
+            if hint:
+                QtWidgets.QToolTip.showText(
+                    event.globalPos() if hasattr(event, "globalPos") else point, hint, self
+                )
+                return True
+            QtWidgets.QToolTip.hideText()
+        return super().viewportEvent(event)
 
 
 class EntityTable(QtWidgets.QWidget):
@@ -1108,6 +1117,16 @@ class EntityTable(QtWidgets.QWidget):
         if self._editor_for is not None and self._editor_for(column.data_type) is not None:
             return True
         return is_editable_type(column.data_type)
+
+    def edit_hint(self, index: QModelIndex) -> str:
+        """`EDIT_HINT` on a cell that opens an editor, and nothing anywhere else."""
+        line = self.model.line_at(index.row())
+        if line is None or line.kind != "row" or line.row is None:
+            return ""
+        column = self.model.column_at(index.column())
+        if column is None or not self.can_edit(column, line.row):
+            return ""
+        return EDIT_HINT
 
     def placement_for(self, column: CollectionColumn) -> str:
         """The column's own placement, then the table's, then the data type's."""

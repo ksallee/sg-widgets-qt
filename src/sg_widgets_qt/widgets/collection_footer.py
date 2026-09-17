@@ -130,11 +130,13 @@ class CollectionFooter(ThemedWidget):
         self._size_select.value_changed.connect(self._on_page_size)
         sizes.addWidget(self._size_select)
         line.addWidget(self._size_box)
-        line.addStretch(1)
 
+        # `more` and `scroll` draw the loaded count alone in a `justify-between` row, so it
+        # sits at the start of the line, not at its end: it goes in before the stretch.
         self._loaded = _FooterText("", parent=self)
         self._loaded.setObjectName(f"{self._slot_name}-loaded")
         line.addWidget(self._loaded)
+        line.addStretch(1)
 
         self._pager_box = QtWidgets.QWidget(self)
         self._pager_box.setObjectName(f"{self._slot_name}-pager")

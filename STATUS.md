@@ -101,9 +101,9 @@ Last synced upstream commit: `130d4633433c`.
 | field-editor | complete | `field-editor.tsx`, `field-editor.svelte`, `field-editor.ts`, `field-editor.mdx`, `Demo.tsx` | FieldValue has not landed, so the display half is drawn here from core's field_text with a status badge and entity chips. Adds an 'entity' keyword: with one the commit is written through context.client.update on a worker and the row read back (024_read_after_write); without one it only emits, as upstream does. readonly also follows the schema's editable. |
 | field-picker | complete | `field-picker.tsx`, `field-picker.svelte`, `field-picker.ts`, `field-picker.mdx`, `Demo.tsx` | Built on picker_control with text_value and a breadcrumb over the search row, rather than upstream's Popover over a Command list. Left, Right and Enter on a link belong to the levels, so a descend never closes the popup. |
 | field-value | complete | `field-value.tsx`, `field-value.svelte`, `Demo.tsx`, `field-value.mdx`, `field-value.ts` |  |
-| filter-bar | partial | `filter-bar.tsx`, `filter-bar.svelte`, `filter-bar.ts`, `filter-bar.mdx`, `Demo.tsx` | The rows under the bar are a plain list of matching codes: grouped-list is not ported yet. |
-| filter-dialog | complete | `filter-dialog.tsx`, `filter-dialog.svelte`, `filter-dialog.ts`, `filter-dialog.mdx`, `Demo.tsx` | The count is a chip beside the trigger rather than inside it, since the button primitive draws one label. |
-| filter-editor | complete | `filter-editor.tsx`, `filter-editor.svelte`, `filter-editor.ts`, `filter-editor.mdx`, `Demo.tsx`, `sortable.tsx` | Drag and Alt with an arrow reorder a row through core's sortable model, which the upstream editor has no equal of; a line under each row names what is still wrong with it. filters_changed and error_changed sit beside the documented changed. |
+| filter-bar | complete | `filter-bar.tsx`, `filter-bar.svelte`, `filter-bar.ts`, `filter-bar.mdx`, `Demo.tsx` | The rows under the bar are grouped-list, as upstream draws them. |
+| filter-dialog | complete | `filter-dialog.tsx`, `filter-dialog.svelte`, `filter-dialog.ts`, `filter-dialog.mdx`, `Demo.tsx` | |
+| filter-editor | complete | `filter-editor.tsx`, `filter-editor.svelte`, `filter-editor.ts`, `filter-editor.mdx`, `Demo.tsx`, `sortable.tsx` | Drag and Alt with an arrow reorder a row through core's sortable model, which the upstream editor has no equal of; a line under each row names what is still wrong with it. A row past the first builds its controls on its own turn of the loop and stands on a skeleton until then. filters_changed and error_changed sit beside the documented changed. |
 | global-search | complete | `global-search.tsx`, `global-search.svelte`, `Demo.tsx`, `global-search.mdx`, `global-search.ts` |  |
 | grouped-list | complete | `grouped-list.tsx`, `grouped-list.ts` | Rows are picker_row's delegate. leading answers a glyph name or a colour rather than a widget, and details are drawn on the sub-label line. |
 | hierarchical-search | complete | `hierarchical-search.tsx`, `hierarchical-search.svelte`, `Demo.tsx`, `hierarchical-search.mdx`, `hierarchical-search.ts` |  |
@@ -119,7 +119,7 @@ Last synced upstream commit: `130d4633433c`.
 | project-picker | complete | `project-picker.tsx`, `project-picker.svelte`, `Demo.tsx`, `project-picker.mdx`, `project-picker.ts` |  |
 | search-control | complete | `search-control.tsx`, `search-control.svelte`, `Demo.tsx`, `search-control.mdx`, `search-control.ts` |  |
 | search-skeleton | complete | `search-skeleton.tsx`, `search-skeleton.svelte`, `search-skeleton.ts` |  |
-| sort-picker | partial | `sort-picker.tsx`, `sort-picker.svelte`, `sort-picker.ts`, `sort-picker.mdx`, `Demo.tsx`, `sortable.tsx` | The rows in that order are a plain list of codes: entity-table is not ported yet. The count past one key is a chip beside the trigger. |
+| sort-picker | complete | `sort-picker.tsx`, `sort-picker.svelte`, `sort-picker.ts`, `sort-picker.mdx`, `Demo.tsx`, `sortable.tsx` | The rows in that order are entity-table, as upstream draws them. |
 | state-line | complete | `state-line.tsx`, `state-line.svelte`, `Demo.tsx`, `state-line.mdx`, `state-line.ts` |  |
 | status-badge | complete | `status-badge.tsx`, `status-badge.svelte`, `Demo.tsx`, `status-badge.mdx`, `status-badge.ts` |  |
 | status-glyph | complete | `status-glyph.tsx`, `status-glyph.svelte`, `status-glyph.ts` | No demo of its own: it is drawn on the status-badge page. |
@@ -144,7 +144,7 @@ Last synced upstream commit: `130d4633433c`.
 | entity-tree | complete | `Demo.tsx` |  |
 | grouped-list | partial | `Demo.tsx` | The armed-failure section is out: the demo client here has no failNext. |
 | hello | complete | `Demo.tsx` |  |
-| results | partial | `results.ts`, `version-results.tsx` | The count line, the debounce, the Version columns and scope_to_project are ported; the table under them is a list of matching codes until entity-table lands. |
+| results | complete | `results.ts`, `version-results.tsx` | The rows are entity-table under the editor, the dialog and the sort picker, and grouped-list under the bar, all over one entity source. |
 | showcase | complete | `Demo.astro`, `DemoToolbar.astro`, `demo-prefs.ts`, `client.ts`, `live.ts`, `astro.config.mjs`, `qa.mjs` |  |
 
 ## Docs pages

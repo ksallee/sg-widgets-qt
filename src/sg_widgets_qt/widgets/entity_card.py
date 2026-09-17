@@ -1473,6 +1473,8 @@ class CardTileOptions:
     site_url: str = ""
     selectable: bool = False
     selected: bool = False
+    #: The pointer or the keyboard cursor is on this tile, which is what reveals its box.
+    hovered: bool = False
     enabled: bool = True
     loader: ImageLoader | None = None
     #: Called on the GUI thread once the picture lands, so a view repaints.
@@ -1586,7 +1588,9 @@ def _paint_tile_media(
 
     if tile.playable:
         _paint_tile_play(painter, media, o, theme)
-    if o.selectable:
+    # The box is revealed by the pointer or the focus and stays up once the tile is taken,
+    # which is `opacity-0 group-hover/tile:opacity-100 …` with `selected` forcing it on.
+    if o.selectable and (o.hovered or o.selected):
         _paint_tile_checkbox(painter, card_tile_checkbox_rect(media), o.selected, theme)
     if tile.status_code:
         _paint_tile_status(painter, media, tile, o, theme)
@@ -1646,6 +1650,9 @@ def _paint_tile_status(
         field=tile.status_field,
         statuses=o.statuses,
         site_url=o.site_url,
+        # The corner carries `StatusBadge variant="icon"`: the glyph alone in its pill, so a
+        # long status name never crosses the picture.
+        status_variant="icon",
         density="compact",
         loader=o.loader,
         on_ready=lambda: _ready(o),

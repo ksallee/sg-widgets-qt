@@ -110,6 +110,9 @@ class _TileDelegate(QtWidgets.QStyledItemDelegate):
         if not isinstance(row, EntityRow):
             return
         disabled = bool(index.data(Roles.DISABLED))
+        view = self._grid.view
+        under = bool(option.state & QtWidgets.QStyle.StateFlag.State_MouseOver)
+        hovered = under or (view.hasFocus() and view.currentIndex() == index)
         tile = self._grid.tile_of(row)
         paint_card_tile(
             painter,
@@ -122,6 +125,7 @@ class _TileDelegate(QtWidgets.QStyledItemDelegate):
                 site_url=self._grid.site_url,
                 selectable=self._grid.selectable,
                 selected=bool(index.data(Roles.CHECKED)),
+                hovered=hovered,
                 enabled=not disabled,
                 on_ready=self._grid.view.viewport().update,
             ),
@@ -173,10 +177,9 @@ class _GridView(QtWidgets.QListView):
         super().mousePressEvent(event)
 
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
+        # One press already opened the tile; a second must not open it twice.
         point = event.position().toPoint() if hasattr(event, "position") else event.pos()
-        index = self.indexAt(point)
-        if index.isValid():
-            self._grid.activate(index.row())
+        if self.indexAt(point).isValid():
             return
         super().mouseDoubleClickEvent(event)
 
@@ -665,7 +668,12 @@ class EntityGrid(QtWidgets.QWidget):
     # --- interaction ----------------------------------------------------------------------
 
     def on_tile_pressed(self, index: QModelIndex, point: QtCore.QPoint) -> None:
-        """A press on the checkbox takes the tile; anywhere else moves the cursor."""
+        """A press on the checkbox takes the tile; anywhere else moves the cursor and opens it.
+
+        A wall of pictures is browsed by looking, so one press opens a tile, which is what
+        the docs page promises under `selected` ("by click or by Enter"). Only the selection
+        box keeps a press of its own.
+        """
         row = index.data(Roles.ENTITY)
         if not isinstance(row, EntityRow):
             return
@@ -674,6 +682,8 @@ class EntityGrid(QtWidgets.QWidget):
         if self._selectable and card_tile_checkbox_rect(rect).contains(point):
             self.control.toggle(row)
             self.view.viewport().update()
+            return
+        self.activate(index.row())
 
     def activate(self, index: int) -> None:
         row = self.model.row_at(index)

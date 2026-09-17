@@ -137,8 +137,13 @@ class FilterEditorDemo(QtWidgets.QWidget):
 
     @property
     def demo_ready(self) -> bool:
-        """True once the result set under the editor has answered. The stage polls it."""
-        return bool(self.results.demo_ready)
+        """True once every row is drawn and the result set under them has answered.
+
+        A row past the first builds on its own turn of the loop, so a screenshot waits for the
+        skeletons to give way before it is taken.
+        """
+        drawn = all(one.pending_rows() == 0 for one in self.findChildren(FilterEditor))
+        return drawn and bool(self.results.ready)
 
 
 def _wire_text(value: FilterGroup) -> str:

@@ -118,7 +118,7 @@ class FilterDialogDemo(QtWidgets.QWidget):
     @property
     def demo_ready(self) -> bool:
         """True once the result set under the launcher has answered. The stage polls it."""
-        return bool(self.results.demo_ready)
+        return bool(self.results.ready)
 
 
 def _wire_text(value: FilterGroup) -> str:

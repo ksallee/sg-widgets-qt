@@ -1,9 +1,14 @@
 """The table look of `table.tsx`.
 
-No grid: one 1px line in `border` under the header and one under each row. Header cells are 12px
-in `muted_foreground` at medium weight on a 40px row, body cells are 14px, and both take
-12 horizontal and 8 vertical, which `density` of `compact` halves. A row lights under the
-pointer in `muted` at 50% and stands chosen in `muted`.
+No grid: one 1px line in `border` under the header and one under each row. Header cells carry the
+body's own type step in `foreground` at medium weight on a 40px row, as `TableHead` does
+(`h-10 ... font-medium text-foreground`), body cells are 14px, and both take 12 horizontal and 8
+vertical, which `density` of `compact` halves. A row lights under the pointer in `muted` at 50%
+and stands chosen in `muted`.
+
+A sortable header says so before it is clicked: `chevrons-up-down` at half opacity stands where
+the sort arrow will, which is `ChevronsUpDown ... opacity-50` upstream, and the section lights in
+`accent` under the pointer.
 
 A cell draws its text unless the model hands back a painter under `Roles.PAINTER`, which is how
 a typed value, a status or a thumbnail reaches the same cell.
@@ -44,11 +49,17 @@ CELL_PAD_Y = 8
 
 #: `h-10` on the header, and the type steps of the two rows.
 HEADER_HEIGHT = 40
-HEADER_TEXT = 12
+HEADER_TEXT = 14
 CELL_TEXT = 14
 
-#: The sort arrow beside a header label.
-SORT_GLYPH = 12
+#: The sort mark beside a header label, `size-4` upstream.
+SORT_GLYPH = 16
+
+#: What `ChevronsUpDown ... opacity-50` reads as on a sortable column nothing sorts by.
+UNSORTED_ALPHA = 0.5
+
+#: The mono run a header may carry beside its label, `font-mono text-xs` upstream.
+SUFFIX_TEXT = 12
 
 #: How near the pointer must come to a divider for it to light.
 HANDLE_REACH = 4
@@ -67,6 +78,8 @@ class HeaderDelegate(QHeaderView):
         super().__init__(Qt.Orientation.Horizontal, parent)
         self._density = density
         self._handle = -1
+        self._hovered = -1
+        self._text = HEADER_TEXT
         self.setSectionsClickable(True)
         self.setHighlightSections(False)
         self.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
@@ -80,6 +93,11 @@ class HeaderDelegate(QHeaderView):
         self._density = value
         self.updateGeometry()
 
+    def set_text_size(self, value: int) -> None:
+        """The type step of the labels, which follows the table's own `size` (`TEXT[size]`)."""
+        self._text = int(value)
+        self.viewport().update()
+
     def _theme(self) -> Theme:
         return theme_of(self)
 
@@ -92,6 +110,14 @@ class HeaderDelegate(QHeaderView):
         if model is None:
             return False
         return bool(model.headerData(column, Qt.Orientation.Horizontal, Roles.SORTABLE))
+
+    def suffix(self, column: int) -> str:
+        """The muted mono run drawn straight after the label, or `''` for none.
+
+        Upstream puts `showCode`'s field path inside the same flex row as the header text, so
+        it reads as part of the label rather than as a second column.
+        """
+        return ""
 
     def _on_clicked(self, column: int) -> None:
         if not self.sortable(column):
@@ -112,31 +138,63 @@ class HeaderDelegate(QHeaderView):
         label = "" if model is None else str(
             model.headerData(column, Qt.Orientation.Horizontal, Qt.ItemDataRole.DisplayRole) or ""
         )
+        sortable = self.sortable(column)
+        # A sortable section lights under the pointer, which is `hover:bg-accent` upstream.
+        if sortable and column == self._hovered:
+            painter.fillRect(rect.adjusted(0, 0, 0, -1), theme.color("accent"))
         box = rect.adjusted(CELL_PAD_X, 0, -CELL_PAD_X, 0)
         room = box.width()
-        if self.sortable(column) and self.sortIndicatorSection() == column:
+        # The mark stands on every sortable column, so a label sits at one width whether or
+        # not the set is sorted by it.
+        if sortable:
             room -= SORT_GLYPH + 6
-        painter.setFont(theme.font(HEADER_TEXT, QFont.Weight.Medium))
-        painter.setPen(theme.color("muted_foreground"))
-        painter.drawText(
-            QRect(box.left(), box.top(), max(0, room), box.height()),
-            int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
-            elide(painter, label, max(0, room)),
+        code = self.suffix(column)
+        code_font = theme.font(SUFFIX_TEXT)
+        code_font.setFamily(theme.font_mono)
+        code_width = QFontMetrics(code_font).horizontalAdvance(code) + 6 if code else 0
+        room = max(0, room - code_width)
+        painter.setFont(theme.font(self._text, QFont.Weight.Medium))
+        painter.setPen(
+            theme.color("accent_foreground")
+            if sortable and column == self._hovered
+            else theme.color("foreground")
         )
-
-        if self.sortable(column) and self.sortIndicatorSection() == column:
-            name = (
-                "arrow-up"
-                if self.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder
-                else "arrow-down"
+        drawn = elide(painter, label, room)
+        painter.drawText(
+            QRect(box.left(), box.top(), room, box.height()),
+            int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
+            drawn,
+        )
+        if code:
+            used = QFontMetrics(theme.font(self._text, QFont.Weight.Medium)).horizontalAdvance(drawn)
+            painter.setFont(code_font)
+            painter.setPen(theme.color("muted_foreground"))
+            painter.drawText(
+                QRect(box.left() + used + 6, box.top(), code_width, box.height()),
+                int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
+                code,
             )
+
+        if sortable:
+            sorted_here = self.sortIndicatorSection() == column
+            name = "chevrons-up-down"
+            if sorted_here:
+                name = (
+                    "arrow-up"
+                    if self.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder
+                    else "arrow-down"
+                )
             glyph = QRect(
                 box.left() + max(0, room) + 6,
                 box.top() + (box.height() - SORT_GLYPH) // 2,
                 SORT_GLYPH,
                 SORT_GLYPH,
             )
-            icons.paint_icon(painter, glyph, name, theme.color("muted_foreground"))
+            painter.save()
+            if not sorted_here:
+                painter.setOpacity(UNSORTED_ALPHA)
+            icons.paint_icon(painter, glyph, name, theme.color("foreground"))
+            painter.restore()
 
         painter.fillRect(
             QRect(rect.left(), rect.bottom(), rect.width(), 1), theme.color("border")
@@ -158,13 +216,16 @@ class HeaderDelegate(QHeaderView):
             if abs(point.x() - edge) <= HANDLE_REACH:
                 found = column
                 break
-        if found != self._handle:
+        over = self.logicalIndexAt(point)
+        if found != self._handle or over != self._hovered:
             self._handle = found
+            self._hovered = over
             self.viewport().update()
 
     def leaveEvent(self, event: QEvent) -> None:  # noqa: N802
         super().leaveEvent(event)
         self._handle = -1
+        self._hovered = -1
         self.viewport().update()
 
 

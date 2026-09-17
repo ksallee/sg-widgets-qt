@@ -6,7 +6,7 @@ the mock client.
 from __future__ import annotations
 
 import pytest
-from qtpy import QtCore
+from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QKeyEvent
 
@@ -177,3 +177,33 @@ def test_a_page_grows_the_group_it_continues(context, qtbot):
     # The key is the run's position and its value, so a page continuing the last run grows it.
     last = list(before)[-1]
     assert after[last] >= before[last]
+
+
+def test_the_count_follows_the_heading_label_in_the_same_line(context, qtbot):
+    # Upstream's heading is one flex row: chevron, label, count. The count is read as part
+    # of the heading, so it answers the width the label took rather than the row's edge.
+    from qtpy.QtGui import QImage, QPainter
+
+    listing = _listing(context, qtbot)
+    settle(listing, listing.control.binding)
+    group = listing.model.groups[0]
+    rect = QtCore.QRect(0, 0, 600, 28)
+    image = QImage(rect.size(), QImage.Format.Format_ARGB32)
+    image.fill(Qt.GlobalColor.white)
+    painter = QPainter(image)
+    used = listing.paint_group_value(painter, rect, group)
+    painter.end()
+    assert 0 < used < rect.width()
+
+    # The heading as the delegate draws it: nothing is painted in the last quarter of the
+    # line, because the count sits beside the label instead.
+    whole = QImage(QtCore.QSize(600, 28), QImage.Format.Format_ARGB32)
+    whole.fill(Qt.GlobalColor.white)
+    painter = QPainter(whole)
+    option = QtWidgets.QStyleOptionViewItem()
+    option.rect = QtCore.QRect(0, 0, 600, 28)
+    listing.view.itemDelegate().paint(painter, option, listing.model.index(0, 0))
+    painter.end()
+    tail = whole.copy(QtCore.QRect(450, 0, 150, 28))
+    ink = {tail.pixel(x, y) for x in range(0, 150, 3) for y in range(2, 26, 3)}
+    assert len(ink) == 1

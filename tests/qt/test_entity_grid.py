@@ -8,12 +8,16 @@ from __future__ import annotations
 import pytest
 from qtpy import QtCore
 from qtpy.QtCore import Qt
-from qtpy.QtGui import QKeyEvent
+from qtpy.QtGui import QImage, QKeyEvent, QPainter
 
 from sg_widgets_core.collection import EntitySourceOptions, create_entity_source
 from sg_widgets_core.filter import condition
 from sg_widgets_qt.theme import apply_theme, theme_for
-from sg_widgets_qt.widgets.entity_card import CARD_TILE_WIDTH, card_tile_size
+from sg_widgets_qt.widgets.entity_card import (
+    CARD_TILE_WIDTH,
+    card_tile_checkbox_rect,
+    card_tile_size,
+)
 from sg_widgets_qt.widgets.entity_grid import ENTITY_GRID_GAP, EntityGrid
 from sg_widgets_qt.widgets.state_line import StateLine
 
@@ -145,3 +149,71 @@ def test_the_empty_and_the_error_states_replace_the_tiles(context, qtbot):
     assert failed.control.view(len(failed.control.rows)) == "error"
     said = failed.findChild(StateLine, "entity-grid-state")
     assert said is not None and said.state == "error" and "503" in said.label
+
+
+def _tile_image(grid: EntityGrid, **overrides) -> QImage:
+    """One tile drawn on its own, so a corner can be read pixel by pixel."""
+    from sg_widgets_qt.widgets.entity_card import CardTileOptions, paint_card_tile
+
+    row = grid.control.rows[0]
+    size = card_tile_size(grid.size)
+    image = QImage(size, QImage.Format.Format_ARGB32)
+    image.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(image)
+    options = CardTileOptions(
+        theme=theme_for("default"),
+        size=grid.size,
+        statuses=grid.statuses,
+        selectable=True,
+        **overrides,
+    )
+    paint_card_tile(painter, QtCore.QRect(QtCore.QPoint(0, 0), size), grid.tile_of(row), options)
+    painter.end()
+    return image
+
+
+def test_the_tile_box_waits_for_the_pointer_and_stays_up_once_the_tile_is_taken(context, qtbot):
+    # `opacity-0 group-hover/tile:opacity-100 …`, with `selected` forcing it on.
+    grid = _grid(context, qtbot, selectable=True)
+    box = card_tile_checkbox_rect(
+        QtCore.QRect(QtCore.QPoint(0, 0), card_tile_size(grid.size))
+    ).adjusted(2, 2, -2, -2)
+    at_rest = _tile_image(grid).copy(box)
+    assert _tile_image(grid, hovered=True).copy(box) != at_rest
+    assert _tile_image(grid, selected=True).copy(box) != at_rest
+
+
+def test_the_tile_corner_carries_the_glyph_alone(context, qtbot):
+    # `StatusBadge variant="icon"`: the pill holds the glyph and no name.
+    from sg_widgets_qt.widgets.field_value import FieldValueOptions, field_value_size_hint
+
+    grid = _grid(context, qtbot)
+    grid.set_statuses({record.code: record for record in context.client.statuses()})
+    code = grid.tile_of(grid.control.rows[0]).status_code
+    shared = {
+        "theme": theme_for("default"),
+        "statuses": grid.statuses,
+        "site_url": grid.site_url,
+        "density": "compact",
+    }
+    named = field_value_size_hint(code, "status_list", FieldValueOptions(**shared))
+    alone = field_value_size_hint(
+        code, "status_list", FieldValueOptions(status_variant="icon", **shared)
+    )
+    assert 0 < alone.width() < named.width()
+
+
+def test_one_press_opens_a_tile_and_the_box_keeps_its_own(context, qtbot):
+    # The docs page promises `selected` "by click or by Enter".
+    grid = _grid(context, qtbot, selectable=True)
+    opened: list = []
+    grid.selected.connect(opened.append)
+    index = grid.model.index(1, 0)
+    middle = grid.view.visualRect(index).center()
+    grid.on_tile_pressed(index, middle)
+    assert [row.id for row in opened] == [grid.control.rows[1].id]
+    # A press on the box takes the tile instead, and opens nothing.
+    box = card_tile_checkbox_rect(grid.view.visualRect(index)).center()
+    grid.on_tile_pressed(index, box)
+    assert len(opened) == 1
+    assert [ref.id for ref in grid.selection] == [grid.control.rows[1].id]

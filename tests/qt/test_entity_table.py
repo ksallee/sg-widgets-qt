@@ -8,14 +8,16 @@ from __future__ import annotations
 import pytest
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt
-from qtpy.QtGui import QKeyEvent
+from qtpy.QtGui import QImage, QKeyEvent, QPainter
 
 from sg_widgets_core.collection import EntitySourceOptions, SortSpec, cell_value, create_entity_source
 from sg_widgets_core.collection_state import collapse_all
 from sg_widgets_core.filter import condition
 from sg_widgets_qt.theme import apply_theme, theme_for
 from sg_widgets_qt.widgets.entity_table import (
+    ENTITY_TABLE_HEAD,
     ENTITY_TABLE_ROW_HEIGHT,
+    ENTITY_TABLE_TEXT,
     EntityTable,
 )
 from sg_widgets_qt.widgets.state_line import StateLine
@@ -263,3 +265,73 @@ def test_every_region_carries_its_upstream_slot_name(context, qtbot):
     assert table.findChild(QtWidgets.QWidget, "entity-table-toolbar") is not None
     assert table.findChild(QtWidgets.QWidget, "entity-table-toolbar-start") is not None
     assert table.findChild(QtWidgets.QWidget, "entity-table-toolbar-end") is not None
+
+
+def test_a_sortable_header_says_so_before_anything_sorts_by_it(context, qtbot):
+    # `ChevronsUpDown ... opacity-50` stands on a sortable column before anything sorts by
+    # it, and the arrow takes its place once something does.
+    from sg_widgets_qt.primitives.table import CELL_PAD_X, SORT_GLYPH
+
+    table = _table(context, qtbot)
+    header = table.view.header()
+    rect = QtCore.QRect(0, 0, 200, ENTITY_TABLE_HEAD["md"])
+    mark = QtCore.QRect(
+        rect.right() + 1 - CELL_PAD_X - SORT_GLYPH, rect.top(), SORT_GLYPH, rect.height()
+    )
+
+    def drawn(column: int):
+        image = QImage(rect.size(), QImage.Format.Format_ARGB32)
+        image.fill(Qt.GlobalColor.white)
+        painter = QPainter(image)
+        header.paintSection(painter, rect, column)
+        painter.end()
+        return image
+
+    blank = QImage(mark.size(), QImage.Format.Format_ARGB32)
+    blank.fill(Qt.GlobalColor.white)
+    assert header.sortable(0) is True
+    unsorted = drawn(0)
+    assert unsorted.copy(mark) != blank
+    header.setSortIndicator(0, Qt.SortOrder.AscendingOrder)
+    ascending = drawn(0)
+    assert ascending.copy(mark) != unsorted.copy(mark)
+    header.setSortIndicator(0, Qt.SortOrder.DescendingOrder)
+    assert drawn(0).copy(mark) != ascending.copy(mark)
+    # Sorting by another column puts the plain affordance back on this one.
+    header.setSortIndicator(1, Qt.SortOrder.AscendingOrder)
+    assert drawn(0).copy(mark) == unsorted.copy(mark)
+
+
+def test_the_header_wears_the_body_step_and_follows_the_size(context, qtbot):
+    # `TableHead` is `font-medium text-foreground` at `TEXT[size]`, not a muted 12px line.
+    from sg_widgets_qt.primitives.table import CELL_TEXT, HEADER_TEXT
+
+    assert HEADER_TEXT == CELL_TEXT
+    table = _table(context, qtbot)
+    header = table.view.header()
+    assert header._text == ENTITY_TABLE_TEXT["md"]
+    table.set_size("lg")
+    assert header._text == ENTITY_TABLE_TEXT["lg"]
+
+
+def test_the_field_path_stands_beside_the_label_under_a_column_menu(context, qtbot):
+    # Upstream draws `showCode` inside the head's own row, so the menu never displaces it.
+    table = _table(context, qtbot, show_code=True, column_menu=True)
+    header = table.view.header()
+    paths = [header.suffix(column) for column in range(table.model.columnCount())]
+    assert "sg_status_list" in paths
+
+
+def test_an_editable_cell_says_it_can_be_edited(context, qtbot):
+    from sg_widgets_qt.widgets.entity_table import EDIT_HINT
+
+    table = _table(context, qtbot, editable=True)
+    row = next(at for at, line in enumerate(table.model.lines) if line.kind == "row")
+    editable = next(
+        at
+        for at, column in enumerate(table.columns)
+        if table.can_edit(column, table.model.lines[row].row)
+    )
+    assert table.edit_hint(table.model.index(row, editable)) == EDIT_HINT
+    table.set_editable(False)
+    assert table.edit_hint(table.model.index(row, editable)) == ""

@@ -938,6 +938,33 @@ class TestFacetLists:
         assert is_grouping_refusal(self.refusal()) is True
         assert is_grouping_refusal(SgApiError(500, None)) is False
 
+    def test_reads_a_refusal_with_no_status_off_its_wording(self) -> None:
+        """`shotgun_api3` raises a Fault with no HTTP status behind it (probe 020)."""
+        # The site's own words, as the adapter hands them on.
+        faulted = SgApiError(
+            None,
+            None,
+            "API summarize() grouping is not allowed for Note.read_by_current_user",
+        )
+        assert is_grouping_refusal(faulted) is True
+        assert is_grouping_refusal(SgApiError(None, None, "Shotgun Server Error")) is False
+
+        def sample(names: list[str], filters: Any) -> list[EntityRow]:
+            return []
+
+        def faults(name: str, filters: Any) -> list[SummaryGroup]:
+            raise faulted
+
+        refused: set[str] = set()
+        lists = facet_lists(
+            [self.author],
+            {"user": None},
+            FacetReads(sample=sample, counts=faults, refused=refused),
+        )
+        # The facet falls back to a tally of one page and says how many rows it read.
+        assert lists["user"].sampled == 0
+        assert refused == {f"{self.author.entity_type}.{self.author.name}"}
+
     def test_tallies_every_facet_from_rows_without_counts_one_page_per_scope(self) -> None:
         sampled: list[tuple[list[str], Any]] = []
         kinds = to_api3_hash(group("and", [condition("sg_shot_type", "in", ["VFX"])]))

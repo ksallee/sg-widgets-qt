@@ -239,3 +239,89 @@ def test_a_disabled_editor_blocks_every_control(qtbot):
     editor.set_disabled(False)
     spin(qtbot)
     assert editor.isEnabled()
+
+
+def test_a_redraw_keeps_the_rows_whose_condition_did_not_change(qtbot):
+    """A row costs a field picker, a menu and a value control; an untouched one is kept."""
+    editor = build(
+        qtbot,
+        value=group(
+            "and",
+            [
+                condition("code", "contains", "sh"),
+                condition("sg_status_list", "in", ["rev"]),
+                condition("sg_first_frame", "is", 1001),
+            ],
+        ),
+    )
+    before = editor.rows()
+    assert len(before) == 3
+    select = editor.findChildren(Select, "filter-operator")[0]
+    select.value_changed.emit("starts_with")
+    spin(qtbot)
+    after = editor.rows()
+    assert len(after) == 3
+    # The row that changed was built afresh; its neighbours stand where they were.
+    assert after[0] is not before[0]
+    assert after[1] is before[1]
+    assert after[2] is before[2]
+
+
+def test_the_rows_past_the_first_build_one_to_a_turn(qtbot):
+    """A tall tree never holds the GUI thread: the rest stand on a skeleton until their turn."""
+    tree = group("and", [condition(path, "is", None) for path in STRESS_PATHS])
+    root = QWidget()
+    apply_theme(root, theme_for("default"))
+    qtbot.addWidget(root)
+    root.resize(1000, 900)
+    editor = FilterEditor(entity_type="Version", context=context_for(), value=tree, parent=root)
+    editor.setGeometry(10, 10, 980, 880)
+    root.show()
+    qtbot.waitExposed(root)
+    assert editor.pending_rows() == len(STRESS_PATHS) - 1
+    settled(qtbot, editor)
+    assert editor.pending_rows() == 0
+    assert len(editor.rows()) == len(STRESS_PATHS)
+    assert all(row.filled for row in editor.rows())
+
+
+def test_the_all_and_any_toggle_wears_its_own_border(qtbot):
+    """`variant="outline"` upstream: the pair reads as one control of its own."""
+    from sg_widgets_qt.primitives.checkbox import ToggleGroup
+
+    editor = build(qtbot, value=group("and", [condition("code", "contains", "sh")]))
+    logic = editor.findChild(ToggleGroup, "filter-logic")
+    assert logic.variant == "outline"
+    assert [t.variant for t in logic.toggles()] == ["outline", "outline"]
+
+
+def test_rows_removed_and_the_editor_deleted_mid_read_leave_nothing_behind(qtbot):
+    """A job outlives the widget that asked for it; PyQt5 crashes rather than raising.
+
+    The editor is built on a tall tree, its rows are dropped while the schema is still out and
+    the whole thing is deleted a moment later, then the loop is turned long enough for every
+    answer to come back. Nothing may reach a widget that has gone.
+    """
+    tree = group("and", [condition(path, "is", None) for path in STRESS_PATHS])
+    root = QWidget()
+    apply_theme(root, theme_for("default"))
+    qtbot.addWidget(root)
+    root.resize(1000, 900)
+    editor = FilterEditor(entity_type="Version", context=context_for(), value=tree, parent=root)
+    editor.setGeometry(10, 10, 980, 880)
+    root.show()
+    qtbot.waitExposed(root)
+
+    # Mid-read: the rows stand on their skeletons and the answers are still out.
+    assert editor.reading()
+    while editor.value.conditions:
+        editor.remove([0])
+    QApplication.processEvents()
+    editor.setParent(None)
+    editor.deleteLater()
+    del editor
+    spin(qtbot, 500)
+    # A second editor on the same context still reads, so the pool was not left broken.
+    after = FilterEditor(entity_type="Version", context=context_for(), value=group("and", []), parent=root)
+    settled(qtbot, after)
+    assert after.fields()

@@ -98,6 +98,7 @@ __all__ = [
     "find_condition",
     "find_facet",
     "from_sort_string",
+    "GROUPING_REFUSAL",
     "is_grouping_refusal",
     "is_hidden_path",
     "is_pinned",
@@ -1435,13 +1436,24 @@ def facet_scopes(
     return out
 
 
+#: What a site says when it will not group a field, whatever the transport carried.
+GROUPING_REFUSAL = "grouping is not allowed"
+
+
 def is_grouping_refusal(error: Any) -> bool:
     """True where the site refused to group the field: a 4xx.
 
     The measured refusal is 400 `Grouping is not allowed for field <Type>.<field>.`
-    (field_types/image, field_types/summary); the status decides, never the wording.
+    (field_types/image, field_types/summary); the status decides where there is one.
+    `shotgun_api3` raises a `Fault` with no HTTP status behind it and the upstream REST
+    client always has one, so a refusal carrying none is read off that wording instead,
+    which is what the bar needs to fall back to its own tally on a real site.
     """
-    return isinstance(error, SgApiError) and 400 <= error.status < 500
+    if not isinstance(error, SgApiError):
+        return False
+    if error.status is not None:
+        return 400 <= error.status < 500
+    return GROUPING_REFUSAL in str(error).lower()
 
 
 def facet_lists(

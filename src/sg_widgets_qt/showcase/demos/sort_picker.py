@@ -90,7 +90,7 @@ class SortPickerDemo(QtWidgets.QWidget):
     @property
     def demo_ready(self) -> bool:
         """True once the rows in that order have answered. The stage polls it."""
-        return bool(self.results.demo_ready)
+        return bool(self.results.ready)
 
 
 def build(context: DemoContext, parent: QtWidgets.QWidget | None = None) -> QtWidgets.QWidget:

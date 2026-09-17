@@ -117,6 +117,11 @@ def test_the_footer_reads_the_range_in_pages_and_the_count_otherwise(context, qt
     settle(None, control.binding)
     footer.set_pager(control.pager)
     assert footer._loaded.text.endswith("loaded")
+    # The loaded count is the only thing on the line, so it sits at its start: upstream's
+    # `justify-between` row leaves a lone child on the left.
+    footer.resize(600, 32)
+    footer.layout().activate()
+    assert footer._loaded.geometry().left() < footer.width() // 2
 
 
 def test_the_view_and_the_bottom_name_what_the_body_shows(context, qtbot):

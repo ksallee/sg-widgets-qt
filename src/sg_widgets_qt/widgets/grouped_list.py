@@ -64,7 +64,7 @@ from ..theme import theme_of, with_alpha
 from .collection_control import COLLECTION_GAP, CollectionControl, CollectionModel
 from .collection_footer import DEFAULT_PAGE_SIZES, CollectionFooter
 from .entity_table import EMPTY_ICON, ERROR_ICON, SkeletonBlock, _BottomBlock, _px, fit_body, rows_height
-from .field_value import FieldValueOptions, paint_field_value
+from .field_value import FieldValueOptions, field_value_size_hint, paint_field_value
 from .state_line import StateLine
 
 __all__ = [
@@ -214,14 +214,18 @@ class _GroupDelegate(RowDelegate):
         count = str(len(group.rows))
         mono = theme.font(CODE_TEXT)
         mono.setFamily(theme.font_mono)
-        count_width = QtGui.QFontMetrics(mono).horizontalAdvance(count) + 8
-        room = max(0, rect.right() + 1 - ROW_PAD_X - count_width - left)
-        self._listing.paint_group_value(painter, QRect(left, rect.top(), room, rect.height()), group)
+        count_width = QtGui.QFontMetrics(mono).horizontalAdvance(count)
+        room = max(0, rect.right() + 1 - ROW_PAD_X - count_width - CHEVRON_GAP - left)
+        # The count follows the label in the same row, a gap away, as upstream's flex line
+        # puts it: it is read as part of the heading, not as a column of its own.
+        used = self._listing.paint_group_value(
+            painter, QRect(left, rect.top(), room, rect.height()), group
+        )
         painter.setFont(mono)
         painter.setPen(theme.color("muted_foreground"))
         painter.drawText(
-            QRect(left + room, rect.top(), count_width, rect.height()),
-            int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter),
+            QRect(left + min(used, room) + CHEVRON_GAP, rect.top(), count_width, rect.height()),
+            int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
             count,
         )
         painter.restore()
@@ -779,35 +783,37 @@ class GroupedList(QtWidgets.QWidget):
     def _text_options(self) -> Any:
         return preferences_of(self._context)
 
-    def paint_group_value(self, painter: QtGui.QPainter, rect: QRect, group: Any) -> None:
-        """The heading's value: by its column's data type, the caller's label, or its own text."""
+    def paint_group_value(self, painter: QtGui.QPainter, rect: QRect, group: Any) -> int:
+        """The heading's value: by its column's data type, the caller's label, or its own text.
+
+        Answers the width it drew, so the count can follow it in the same line.
+        """
         if self._group_by is not None and self._group_key is None:
-            paint_field_value(
-                painter,
-                rect,
-                group.value,
-                self._group_by,
-                FieldValueOptions(
-                    theme=theme_of(self.view),
-                    statuses=self._statuses,
-                    site_url=self._context.site_url if self._context is not None else "",
-                    density=self._density,
-                    text=self._text_options(),
-                    on_ready=self.view.viewport().update,
-                ),
+            options = FieldValueOptions(
+                theme=theme_of(self.view),
+                statuses=self._statuses,
+                site_url=self._context.site_url if self._context is not None else "",
+                density=self._density,
+                text=self._text_options(),
+                on_ready=self.view.viewport().update,
             )
-            return
+            paint_field_value(painter, rect, group.value, self._group_by, options)
+            wanted = field_value_size_hint(group.value, self._group_by, options).width()
+            return min(wanted, rect.width())
         text = self._group_label(group.value) if self._group_label else group_key_text(group.value)
         theme = theme_of(self.view)
         # A heading reads at the row's own step, whether its value came from a column or a key.
         font = theme.font(ROW_TEXT[self._size], QtGui.QFont.Weight.Medium)
+        metrics = QtGui.QFontMetrics(font)
+        drawn = elide(metrics, text, rect.width())
         painter.setFont(font)
         painter.setPen(theme.color("foreground"))
         painter.drawText(
             rect,
             int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
-            elide(QtGui.QFontMetrics(font), text, rect.width()),
+            drawn,
         )
+        return min(metrics.horizontalAdvance(drawn), rect.width())
 
     # --- interaction ----------------------------------------------------------------------
 

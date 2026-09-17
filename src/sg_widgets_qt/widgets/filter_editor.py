@@ -243,6 +243,8 @@ class FilterEditor(QtWidgets.QWidget):
 
         self._fields: dict[str, FieldSchema] = {}
         self._fields_loaded = False
+        self._reading = False
+        self._jobs: list[Any] = []
         self._leaves: dict[str, FieldSchema | None] = {}
         self._resolving: set[str] = set()
         self._fields_ticket = Ticket()
@@ -277,6 +279,19 @@ class FilterEditor(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred
         )
         self.setMinimumWidth(0)
+
+        # A job outlives the widget that asked for it, and a widget deleted while its answer
+        # is in flight is a crash on PyQt5 rather than a raise, so every job this editor puts
+        # out is cancelled when it goes. The handler closes over the list alone: `destroyed`
+        # runs while Qt is freeing the children, and nothing there may touch the widget.
+        jobs = self._jobs
+
+        def retire(*_args: object) -> None:
+            for job in list(jobs):
+                job.cancel()
+            jobs.clear()
+
+        self.destroyed.connect(retire)
 
         self._read_fields()
         self._resolve_leaves(_dotted_paths(self._value))
@@ -434,16 +449,37 @@ class FilterEditor(QtWidgets.QWidget):
         if schema is None or not self._entity_type:
             return
         token = self._fields_ticket.next()
-        default_pool().submit(
+        self._reading = True
+        self._keep(default_pool().submit(
             schema.fields,
             self._entity_type,
             on_result=self._fields_read,
-            on_error=lambda _error: None,
+            on_error=self._fields_failed,
             ticket=(self._fields_ticket, token),
-        )
+        ))
+
+    def gone(self) -> bool:
+        """True once Qt has deleted the widget under the wrapper a callback still holds."""
+        try:
+            self.objectName()
+        except RuntimeError:
+            return True
+        return False
 
     def _fields_read(self, found: Any) -> None:
+        if self.gone():
+            return
+        self._reading = False
         self._fields = dict(found or {})
+        self._fields_loaded = True
+        if not self._resolving:
+            self._redraw.start(0)
+
+    def _fields_failed(self, _error: BaseException) -> None:
+        # A type the schema will not answer for still draws its rows, on the paths they hold.
+        if self.gone():
+            return
+        self._reading = False
         self._fields_loaded = True
         if not self._resolving:
             self._redraw.start(0)
@@ -483,15 +519,24 @@ class FilterEditor(QtWidgets.QWidget):
                     found[path] = None
             return found
 
-        default_pool().submit(
-            walk,
-            on_result=self._leaves_read,
-            on_error=lambda _error, at=tuple(wanted): self._leaves_read(
-                dict.fromkeys(at, None)
-            ),
+        self._keep(
+            default_pool().submit(
+                walk,
+                on_result=self._leaves_read,
+                on_error=lambda _error, at=tuple(wanted): self._leaves_read(
+                    dict.fromkeys(at, None)
+                ),
+            )
         )
 
+    def _keep(self, job: Any) -> None:
+        """Hold a job so it can be cancelled when the editor goes."""
+        self._jobs = [one for one in self._jobs if one.live]
+        self._jobs.append(job)
+
     def _leaves_read(self, found: Any) -> None:
+        if self.gone():
+            return
         for path, segments in (found or {}).items():
             self._leaf_read(path, segments)
 
@@ -688,9 +733,16 @@ class FilterEditor(QtWidgets.QWidget):
         self._row_budget -= 1
         return True
 
+    def reading(self) -> bool:
+        """True while an answer that would rebuild every row is still out."""
+        return bool(self._reading or self._resolving)
+
     def _queue_fills(self) -> None:
         self._to_fill = [row for row in self.findChildren(_ConditionRow) if not row.filled]
-        if self._to_fill:
+        # A row built while the schema it stands on is still being read would be thrown away
+        # the moment that answer lands, and the reads its own controls put out would answer
+        # into a widget that has gone. It stands on its skeleton until the answer is in.
+        if self._to_fill and not self.reading():
             self._filler.start()
 
     def _fill_next(self) -> None:
@@ -1068,10 +1120,14 @@ class _ConditionRow(ThemedWidget):
         for cell in (field, operator, values):
             controls.setAlignment(cell, Qt.AlignmentFlag.AlignVCenter)
 
-        self._stack.replaceWidget(self._band, band)
-        self._band.setParent(None)
-        self._band.deleteLater()
-        self._band = band
+        # `QLayout.replaceWidget` hands back an item the caller owns, and the two bindings
+        # disagree about who frees it, so the band is swapped by index instead.
+        at = self._stack.indexOf(self._band)
+        was, self._band = self._band, band
+        self._stack.removeWidget(was)
+        was.setParent(None)
+        was.deleteLater()
+        self._stack.insertWidget(max(0, at), band)
         self.refresh_issue()
 
     def grip(self) -> QtWidgets.QWidget:

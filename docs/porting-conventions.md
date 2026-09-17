@@ -90,6 +90,10 @@ Filters. The upstream wire shape `{logical_operator, conditions}` with `[path, r
 conditions is what `shotgun_api3` takes as a filter dict, so `to_filter_array` and the tree are
 ported unchanged and handed to `find` as they are. A `WireCondition` stays a three-item list.
 
+Errors. `SgApiError` carries the status the API named. `shotgun_api3` raises a `Fault` with no
+HTTP status behind it, so `SgApiError.status` is `None` where the upstream REST client always has a
+number; core reads such a refusal off its wording instead (`is_grouping_refusal`).
+
 Not ported: `proxy-client.ts`, `proxy-handler.ts`, `session-auth.ts` (a browser proxy and the
 App Session Launcher flow). `STATUS.md` lists them under Not ported with the reason.
 

@@ -66,7 +66,10 @@ With it an entity facet lists the entities the rows carry, by name and keyed by 
 status facet lists its codes, each with the site's own count. A field the site refuses to group
 answers 400 `Grouping is not allowed for field <Type>.<field>.` (field_types/image,
 field_types/summary), and the bar tallies that facet from one page of `sampleSize` rows instead,
-with the schema's vocabulary at zero and a line under the list saying how many rows it read. Without
+with the schema's vocabulary at zero and a line under the list saying how many rows it read. A real
+site raises that refusal through `shotgun_api3` as a fault with no HTTP status behind it, where the
+upstream REST client always carries one, so the refusal is recognised by its wording where there is
+no status. Without
 `counts` every facet is tallied that way, so a value outside the page is missing and the numbers are
 counts of what was read.
 

@@ -150,3 +150,29 @@ def test_a_drive_reaches_the_demo_and_the_view(tmp_path):
     done = _run_qa("--page", "hello", "--drive", str(drive))
     assert done.returncode == 0, done.stderr
     assert json.loads(done.stdout)["result"]["theme"] == "dark"
+
+
+def test_a_demo_radio_settles_on_the_one_pressed(qapp):
+    """A press on one of a demo's radio toggles picks it, and does not loop.
+
+    Each toggle reports when it goes down *and* when it comes up, so a handler that reads
+    every report as a pick sets the others down, is reported for each of them, and never
+    returns. The showcase died on a press of Load more.
+    """
+    from sg_widgets_qt.showcase.demos.entity_table import _radio
+
+    holder = QtWidgets.QWidget()
+    layout = QtWidgets.QVBoxLayout(holder)
+    picked: list = []
+    made = _radio(holder, layout, (("a", "A"), ("b", "B"), ("c", "C")), "mode", picked.append)
+    assert picked == ["a"]
+    assert [key for key, toggle in made.items() if toggle.checked] == ["a"]
+
+    made["b"].set_checked(True)
+    assert picked == ["a", "b"]
+    assert [key for key, toggle in made.items() if toggle.checked] == ["b"]
+
+    # The one already down stays down when it is pressed again.
+    made["b"].set_checked(False)
+    assert [key for key, toggle in made.items() if toggle.checked] == ["b"]
+    holder.deleteLater()

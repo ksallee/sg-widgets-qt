@@ -231,15 +231,24 @@ def _radio(
     """One toggle per option, of which exactly one stays down."""
     made: dict[str, Any] = {}
 
-    def choose(value: str) -> None:
+    def choose(value: str, on: bool) -> None:
+        # A radio never turns itself off. Reading the flag matters: setting the other
+        # toggles down reports them, and taking every report as a pick loops forever.
+        if not on:
+            if not any(toggle.checked for toggle in made.values()):
+                made[value].blockSignals(True)
+                made[value].set_checked(True)
+                made[value].blockSignals(False)
+            return
         apply(value)
         for key, toggle in made.items():
-            toggle.set_checked(key == value)
+            if key != value:
+                toggle.set_checked(False)
 
     for value, label in options:
         toggle = chrome.toggle(label, size="sm", parent=parent)
         toggle.setObjectName(f"{name}-{value}")
-        toggle.toggled.connect(lambda _on, picked=value: choose(picked))
+        toggle.toggled.connect(lambda on, picked=value: choose(picked, on))
         made[value] = toggle
         layout.addWidget(toggle)
     made[options[0][0]].set_checked(True)

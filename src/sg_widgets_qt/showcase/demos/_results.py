@@ -5,30 +5,36 @@ The port of `apps/site/src/demos/_shared/results.ts` and the source half of its
 so the columns, the debounce, the project scoping and the count line live here rather than in
 each demo.
 
-The table itself is `entity-table`, which is not ported yet, so the rows are drawn as the
-matching Version codes in a list surface. When the table lands, the list is what it replaces.
+The rows are drawn where upstream draws them: `EntityTable` under the editor, the dialog and
+the sort picker, and `GroupedList` under the filter bar, both over one `EntitySource` so the
+count and the rows answer the same filter.
 
     results = VersionResults(context, tree, parent=self)
     editor.changed.connect(results.set_value)
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass
-from dataclasses import field as dc_field
 from typing import Any
 
 from qtpy import QtCore, QtGui, QtWidgets
-from qtpy.QtCore import QModelIndex, Qt
 
-from sg_widgets_core.client import Page, SearchOptions, SummarizeOptions, SummaryField
+from sg_widgets_core.client import SummarizeOptions, SummaryField
+from sg_widgets_core.collection import (
+    ColumnSpec,
+    EntitySourceOptions,
+    SortSpec,
+    create_entity_source,
+    resolve_columns,
+)
 from sg_widgets_core.filter import FilterNode, condition, group, to_api3_hash
 
-from ...primitives.list_view import ListSurface
-from ...primitives.roles import Roles
-from ...primitives.row_delegate import RowDelegate
+from ...images import image_loader
 from ...primitives.scrollbar import install_overlay_scrollbars
 from ...theme import theme_of, watch_theme
+from ...widgets.entity_table import EntityTable
+from ...widgets.grouped_list import GroupedList
 from ...workers import Debounce, Ticket, default_pool
 from .. import chrome
 from ..context import DemoContext
@@ -37,9 +43,11 @@ from . import _layout
 __all__ = [
     "RESULT_DEBOUNCE_MS",
     "RESULT_PAGE_SIZE",
+    "SHOT_COLUMNS",
     "VERSION_COLUMNS",
-    "ResultColumn",
     "ResultCount",
+    "columns_for",
+    "to_sort_specs",
     "EntityResults",
     "VersionResults",
     "WireView",
@@ -60,23 +68,53 @@ WIRE_PAD = 12
 WIRE_MIN_HEIGHT = 44
 
 
-@dataclass(frozen=True)
-class ResultColumn:
-    """One column of a result set: the path it reads and the width it is drawn at."""
-
-    path: str
-    width: int
-
+#: `maxHeight="20rem"` of every result set upstream.
+RESULT_MAX_HEIGHT = "20rem"
 
 #: The columns a Version result set is shown with.
-VERSION_COLUMNS: tuple[ResultColumn, ...] = (
-    ResultColumn("code", 220),
-    ResultColumn("entity", 140),
-    ResultColumn("sg_status_list", 130),
-    ResultColumn("user", 150),
-    ResultColumn("created_at", 170),
-    ResultColumn("description", 260),
+VERSION_COLUMNS: tuple[ColumnSpec, ...] = (
+    ColumnSpec(path="code", width=220),
+    ColumnSpec(path="entity", width=140),
+    ColumnSpec(path="sg_status_list", width=130),
+    ColumnSpec(path="user", width=150),
+    ColumnSpec(path="created_at", width=170),
+    ColumnSpec(path="description", width=260),
 )
+
+#: The columns a Shot result set is shown with, which the sort picker orders.
+SHOT_COLUMNS: tuple[ColumnSpec, ...] = (
+    ColumnSpec(path="code", width=200),
+    ColumnSpec(path="sg_status_list", width=130),
+    ColumnSpec(path="sg_sequence", width=150),
+    ColumnSpec(path="sg_shot_type", width=130),
+    ColumnSpec(path="updated_at", width=170),
+)
+
+#: The grouped set under the filter bar: the heading, the muted line and the right-hand column.
+GROUPED_COLUMNS: tuple[ColumnSpec, ...] = (
+    ColumnSpec(path="code"),
+    ColumnSpec(path="sg_status_list"),
+    ColumnSpec(path="description"),
+    ColumnSpec(path="sg_sequence"),
+)
+
+
+def columns_for(entity_type: str, grouped: bool = False) -> tuple[ColumnSpec, ...]:
+    """The columns a result set over one type is drawn with."""
+    if grouped:
+        return GROUPED_COLUMNS
+    return SHOT_COLUMNS if entity_type == "Shot" else VERSION_COLUMNS
+
+
+def to_sort_specs(sort: str) -> list[SortSpec]:
+    """A `sort` string as the source's own sort: a leading `-` is descending."""
+    out: list[SortSpec] = []
+    for part in (sort or "").split(","):
+        name = part.strip()
+        if not name:
+            continue
+        out.append(SortSpec(path=name.lstrip("-"), descending=name.startswith("-")))
+    return out
 
 
 def scope_to_project(context: DemoContext, tree: FilterNode) -> FilterNode:
@@ -131,57 +169,13 @@ class _CountLine(chrome.TextLine):
         self.update()
 
 
-class _CodeModel(QtCore.QAbstractListModel):
-    """The matching rows, as the code each one carries and its status beside it."""
-
-    def __init__(self, parent: QtCore.QObject | None = None) -> None:
-        super().__init__(parent)
-        self._rows: list[tuple[str, str]] = []
-
-    def set_rows(self, rows: Sequence[tuple[str, str]]) -> None:
-        self.beginResetModel()
-        self._rows = list(rows)
-        self.endResetModel()
-
-    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: B008, N802
-        return 0 if parent.isValid() else len(self._rows)
-
-    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
-        if not 0 <= index.row() < len(self._rows):
-            return None
-        label, secondary = self._rows[index.row()]
-        if role in (Qt.ItemDataRole.DisplayRole, Roles.LABEL):
-            return label
-        if role == Roles.SECONDARY:
-            return secondary
-        if role == Roles.KIND:
-            return "row"
-        return None
-
-    def flags(self, index: QModelIndex) -> Any:
-        if not index.isValid():
-            return Qt.ItemFlag.NoItemFlags
-        return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
-
-
-@dataclass
-class _Read:
-    """One answer of the pair of reads a result set takes."""
-
-    rows: list[tuple[str, str]] = dc_field(default_factory=list)
-    total: ResultCount = dc_field(default_factory=ResultCount)
-
-
 class EntityResults(QtWidgets.QWidget):
-    """The rows a filter tree matches: the count and the codes behind it.
+    """The rows a filter tree matches: the count and the table behind it.
 
-    The editor emits a tree on every keystroke, so the read is debounced. The count and the
-    rows come from one read, so both answer the same filter, and a path the site refuses fails
-    that read rather than the page: the line says so in place.
+    The editor emits a tree on every keystroke, so the read is debounced. The count and the rows
+    come from one source, so both answer the same filter, and a path the site refuses fails that
+    read rather than the page: the line says so in place.
     """
-
-    #: How tall the list of matching codes grows before it scrolls.
-    MAX_HEIGHT = 320
 
     def __init__(
         self,
@@ -191,6 +185,7 @@ class EntityResults(QtWidgets.QWidget):
         entity_type: str = "Version",
         noun: str = "Version",
         sort: str = "",
+        grouped: bool = False,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -198,13 +193,28 @@ class EntityResults(QtWidgets.QWidget):
         self._context = context
         self._entity_type = entity_type
         self._noun = noun
-        self._sort = sort
         self._value = value
         self._count = ResultCount()
         self._ticket = Ticket()
         self._debounce = Debounce(RESULT_DEBOUNCE_MS, self)
+        self._columns = list(columns_for(entity_type, grouped))
+        self._resolved = False
         #: False while a read is in flight. The stage polls it.
         self.demo_ready = False
+
+        # The first tree goes in at construction, so the source's own first read is already
+        # the filtered one.
+        self._source = create_entity_source(
+            EntitySourceOptions(
+                client=context.client,
+                entity_type=entity_type,
+                fields=[column.path for column in self._columns],
+                filters=to_api3_hash(scope_to_project(context, value)),
+                sort=to_sort_specs(sort),
+                mode="more",
+                page_size=RESULT_PAGE_SIZE,
+            )
+        )
 
         column = QtWidgets.QVBoxLayout(self)
         column.setContentsMargins(0, 0, 0, 0)
@@ -215,14 +225,35 @@ class EntityResults(QtWidgets.QWidget):
         self._line.setObjectName("result-count")
         column.addWidget(self._line)
 
-        self._model = _CodeModel(self)
-        delegate = RowDelegate(None, size="md", thumbnail=False, indicator="none")
-        self._list = ListSurface(self, max_height=self.MAX_HEIGHT, size="md", delegate=delegate)
-        delegate.setParent(self._list)
-        self._list.setObjectName("result-rows")
-        self._list.setModel(self._model)
-        column.addWidget(self._list)
+        empty = f"No {noun} matches this filter"
+        if grouped:
+            # The bar's set is the grouped list upstream draws under it, keyed on the facet
+            # the demo groups by.
+            self._view: QtWidgets.QWidget = GroupedList(
+                source=self._source,
+                group_by=self._columns[1],
+                sub_label_field=self._columns[2].path,
+                secondary_field=self._columns[3].path,
+                context=context,
+                paging="more",
+                max_height=RESULT_MAX_HEIGHT,
+                empty_label=empty,
+                parent=self,
+            )
+        else:
+            self._view = EntityTable(
+                source=self._source,
+                columns=self._columns,
+                context=context,
+                paging="more",
+                max_height=RESULT_MAX_HEIGHT,
+                empty_label=empty,
+                parent=self,
+            )
+        self._view.setObjectName("result-rows")
+        column.addWidget(self._view)
 
+        self._read_columns()
         self._read()
 
     # --- what it shows --------------------------------------------------------------------
@@ -241,11 +272,13 @@ class EntityResults(QtWidgets.QWidget):
     @property
     def sort(self) -> str:
         """The `sort` string the rows come back in."""
-        return self._sort
+        return ",".join(
+            ("-" if one.descending else "") + one.path for one in self._source.sort or []
+        )
 
     def set_sort(self, value: str) -> None:
         """Order the rows. A key the site cannot sort on is a silent no-op (026_result_order)."""
-        self._sort = value or ""
+        self._sort = to_sort_specs(value)
         self.demo_ready = False
         self._debounce.call(self._read)
 
@@ -258,13 +291,46 @@ class EntityResults(QtWidgets.QWidget):
         """The line reading how many rows match."""
         return self._line
 
-    def rows(self) -> list[tuple[str, str]]:
-        """The codes the list is drawing."""
-        return list(self._model._rows)  # noqa: SLF001
+    def table(self) -> QtWidgets.QWidget:
+        """The view the rows are drawn in."""
+        return self._view
+
+    def rows(self) -> list[Any]:
+        """The rows the view is drawing."""
+        return list(self._view.control.rows)
 
     def flush(self) -> None:
         """Read now rather than at the end of the pause. For a test that cannot wait."""
         self._debounce.flush()
+
+    # --- the columns ----------------------------------------------------------------------
+
+    def _read_columns(self) -> None:
+        context = self._context
+        entity_type = self._entity_type
+        specs = list(self._columns)
+
+        def resolve() -> tuple[Any, Any]:
+            return resolve_columns(context.schema, entity_type, specs), dict(
+                context.statuses.by_code()
+            )
+
+        default_pool().submit(resolve, on_result=self._columns_read, on_error=self._failed)
+
+    def _columns_read(self, answer: Any) -> None:
+        if not _layout.alive(self):
+            return
+        columns, statuses = answer
+        self._view.set_statuses(statuses)
+        if isinstance(self._view, EntityTable):
+            self._view.set_columns(columns)
+        elif len(columns) > 3:
+            # A grouped list draws its heading, its muted line and its right-hand column from
+            # the resolved schema, so a status heading reads its name and an entity its own.
+            self._view.set_group_by(columns[1])
+            self._view.set_sub_label_field(columns[2])
+            self._view.set_secondary_field(columns[3])
+        self._resolved = True
 
     # --- the read -------------------------------------------------------------------------
 
@@ -272,55 +338,50 @@ class EntityResults(QtWidgets.QWidget):
         client = self._context.client
         wire = to_api3_hash(scope_to_project(self._context, self._value))
         entity_type = self._entity_type
-        # A Version set reads the columns the table would draw; another type reads the two
-        # the list stands on until `entity-table` lands.
-        fields = (
-            [column.path for column in VERSION_COLUMNS]
-            if entity_type == "Version"
-            else ["code", "sg_status_list"]
-        )
-        sort = self._sort or None
+        # An unchanged tree only re-counts: setting the same filter would re-read the page.
+        if self._view.control.filters != wire:
+            self._view.set_filters(wire)
+        wanted = getattr(self, "_sort", None)
+        if wanted is not None:
+            self._view.set_sort(wanted)
+            self._sort = None
 
-        def run() -> _Read:
-            found = read_count(lambda: _total(client, entity_type, wire))
-            if found.kind == "error":
-                return _Read(rows=[], total=found)
-            page = client.search(
-                entity_type,
-                SearchOptions(
-                    filters=wire,
-                    fields=fields,
-                    sort=sort,
-                    page=Page(size=RESULT_PAGE_SIZE),
-                ),
-            )
-            return _Read(rows=[_row_of(row) for row in page.data], total=found)
+        def run() -> ResultCount:
+            return read_count(lambda: _total(client, entity_type, wire))
 
         self._count = ResultCount()
         self._line.set_text(match_label(self._count, self._noun))
         token = self._ticket.next()
         default_pool().submit(
-            run,
-            on_result=self._answered,
-            on_error=self._failed,
-            ticket=(self._ticket, token),
+            run, on_result=self._answered, on_error=self._failed, ticket=(self._ticket, token)
         )
 
-    def _answered(self, found: _Read) -> None:
-        self._count = found.total
+    def _answered(self, found: ResultCount) -> None:
+        if not _layout.alive(self):
+            return
+        self._count = found
         self._line.set_text(match_label(self._count, self._noun))
         self._line.set_token("destructive" if self._count.kind == "error" else "muted_foreground")
-        self._model.set_rows(found.rows)
-        self._list.setVisible(bool(found.rows))
         self.demo_ready = True
 
     def _failed(self, error: BaseException) -> None:
+        if not _layout.alive(self):
+            return
         self._count = ResultCount(kind="error", message=str(error))
         self._line.set_text(self._count.message)
         self._line.set_token("destructive")
-        self._model.set_rows([])
-        self._list.setVisible(False)
         self.demo_ready = True
+
+    @property
+    def ready(self) -> bool:
+        """True once the columns, the first page and the count have all landed."""
+        return (
+            self.demo_ready
+            and self._resolved
+            and self._view.control.snapshot().status in ("ready", "error")
+            # A cell's picture lands after the rows do, and a screenshot wants both.
+            and image_loader().pending == 0
+        )
 
 
 class VersionResults(EntityResults):
@@ -335,12 +396,6 @@ def _total(client: Any, entity_type: str, wire: Any) -> int | None:
     )
     total = summary.summaries.get("id")
     return int(total) if isinstance(total, (int, float)) and not isinstance(total, bool) else None
-
-
-def _row_of(row: Any) -> tuple[str, str]:
-    code = row.values.get("code") or f"{row.type} {row.id}"
-    status = row.values.get("sg_status_list") or ""
-    return str(code), str(status)
 
 
 class WireView(QtWidgets.QPlainTextEdit):

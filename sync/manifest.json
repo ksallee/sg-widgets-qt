@@ -475,7 +475,7 @@
       "note": ""
     },
     "demos/results": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
         "apps/site/src/demos/_shared/results.ts": "ca530a3e7e922c38f318e1af8e5d92ca25ee714c78a7365a06f7efdd6c66d13f",
         "apps/site/src/demos/_shared/version-results.tsx": "c67bd2a5993a323f42660dd72b5783e6cec5959f19c51d0c3b18dd24c48a4679"
@@ -484,7 +484,7 @@
         "src/sg_widgets_qt/showcase/demos/_results.py"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "The count line, the debounce, the Version columns and scope_to_project are ported; the table under them is a list of matching codes until entity-table lands."
+      "note": "The rows are entity-table under the editor, the dialog and the sort picker, and grouped-list under the bar, all over one entity source."
     },
     "demos/showcase": {
       "status": "complete",
@@ -1849,7 +1849,7 @@
       "note": ""
     },
     "widgets/filter-bar": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
         "packages/react/src/registry/sg/components/filter-bar.tsx": "268093edab76b877a615efb50ea698181520935762ec17177d4e75d5618cbfa8",
         "packages/svelte/src/lib/registry/components/filter-bar.svelte": "e0d53a7d9b8cf391c21f6492f470421f16e7ff3db53999cf04400538374fe91e",
@@ -1867,7 +1867,7 @@
         "shots/filter-bar-dark.png"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "The rows under the bar are a plain list of matching codes: grouped-list is not ported yet."
+      "note": "The rows under the bar are grouped-list, as upstream draws them."
     },
     "widgets/filter-dialog": {
       "status": "complete",
@@ -1888,7 +1888,7 @@
         "shots/filter-dialog-dark.png"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "The count is a chip beside the trigger rather than inside it, since the button primitive draws one label."
+      "note": ""
     },
     "widgets/filter-editor": {
       "status": "complete",
@@ -1911,7 +1911,7 @@
         "shots/filter-editor-dark.png"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "Drag and Alt with an arrow reorder a row through core's sortable model, which the upstream editor has no equal of; a line under each row names what is still wrong with it. filters_changed and error_changed sit beside the documented changed."
+      "note": "Drag and Alt with an arrow reorder a row through core's sortable model, which the upstream editor has no equal of; a line under each row names what is still wrong with it. A row past the first builds its controls on its own turn of the loop and stands on a skeleton until then. filters_changed and error_changed sit beside the documented changed."
     },
     "widgets/global-search": {
       "status": "complete",
@@ -2169,7 +2169,7 @@
       "note": ""
     },
     "widgets/sort-picker": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
         "packages/react/src/registry/sg/components/sort-picker.tsx": "4262b9a51b9af1605b0ccf6556ca2615c6a5fd3fe5563a7cb76919569345fa8b",
         "packages/svelte/src/lib/registry/components/sort-picker.svelte": "ebbe42ae7c2cfc406522fd08b0e17d56e53994480d4c7781d89c7ed66ae7fa70",
@@ -2189,7 +2189,7 @@
         "shots/sort-picker-dark.png"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "The rows in that order are a plain list of codes: entity-table is not ported yet. The count past one key is a chip beside the trigger."
+      "note": "The rows in that order are entity-table, as upstream draws them."
     },
     "widgets/state-line": {
       "status": "complete",

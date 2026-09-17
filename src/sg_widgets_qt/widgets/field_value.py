@@ -152,6 +152,9 @@ class FieldValueOptions:
     #: The site the stock sprite is served from, and the site a linked row is addressed on.
     site_url: str = ""
     entity_variant: str = "chip"
+    #: What of a status is drawn: `both`, or `icon` for the glyph alone inside its pill,
+    #: which is `StatusBadge variant="icon"` and what a grid tile's corner wears.
+    status_variant: str = "both"
     density: str = "default"
     empty_label: str = "empty"
     #: What the formatters take: the site preferences with the caller's own over them.
@@ -500,6 +503,9 @@ def _status_width(theme: Theme, plan: FieldValuePlan, options: FieldValueOptions
     # A status the site draws nothing for is a bordered label, which is what StatusBadge draws:
     # no glyph, and the bare text inset in its place.
     glyph = _status_glyph_source(plan, options).draws()
+    if options.status_variant == "icon" and glyph:
+        # The glyph alone, centred in its pill: `CHIP_PAD[size].icon` on both sides.
+        return 2 * pad.icon + CHIP_GLYPH[step]
     lead = pad.lead + CHIP_GLYPH[step] + CHIP_SPACING[step].glyph if glyph else pad.text
     return lead + text_width(QtGui.QFontMetrics(font), plan.text) + pad.text
 
@@ -526,6 +532,9 @@ def _paint_status(
     ink = theme.color("foreground")
     source = _status_glyph_source(plan, options)
     left = box.left() + pad.text
+    if options.status_variant == "icon" and source.draws():
+        source.paint(painter, _glyph_slot(box, box.left() + pad.icon, CHIP_GLYPH[step]), theme)
+        return
     if source.draws():
         glyph = CHIP_GLYPH[step]
         slot = _glyph_slot(box, box.left() + pad.lead, glyph)
