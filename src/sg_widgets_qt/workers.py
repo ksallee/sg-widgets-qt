@@ -76,6 +76,18 @@ class Ticket:
             return self._current
 
 
+class _JobState:
+    """What the runner may read after the job is deleted: whether it is gone."""
+
+    __slots__ = ("gone",)
+
+    def __init__(self) -> None:
+        self.gone = False
+
+    def mark_gone(self, *_args: object) -> None:
+        self.gone = True
+
+
 class Job(QObject):
     """One submitted callable, and the signals its answer crosses threads on.
 
@@ -108,6 +120,10 @@ class Job(QObject):
         self._ticket = ticket
         self._pool = pool
         self._cancelled = False
+        # Shared with the runner and outlives this QObject: a window closing while the callable
+        # runs deletes the job, and the pool thread must then drop the answer, not emit on it.
+        self._state = _JobState()
+        self.destroyed.connect(self._state.mark_gone)
         # Bound slots of this object, so the delivery is queued to the owning thread.
         self.done.connect(self._deliver_result)
         self.failed.connect(self._deliver_error)
@@ -133,18 +149,29 @@ class Job(QObject):
         return ticket.is_current(n)
 
     def _run(self) -> None:
-        """The work, on a pool thread. Every exit emits `finished`."""
+        """The work, on a pool thread. Every exit emits `finished` while the job still exists."""
+        state = self._state
         try:
-            if not self.live:
+            if state.gone or not self.live:
                 return
             try:
                 value = self._fn(*self._args)
             except Exception as error:
-                self.failed.emit(error)
+                self._emit(state, self.failed, error)
             else:
-                self.done.emit(value)
+                self._emit(state, self.done, value)
         finally:
-            self.finished.emit()
+            self._emit(state, self.finished)
+
+    @staticmethod
+    def _emit(state: _JobState, signal: Any, *args: object) -> None:
+        """Emit unless the job was deleted under the runner; a deleted wrapper raises, and is dropped."""
+        if state.gone:
+            return
+        try:
+            signal.emit(*args)
+        except RuntimeError:
+            state.gone = True
 
     @Slot(object)
     def _deliver_result(self, value: object) -> None:

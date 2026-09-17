@@ -168,10 +168,24 @@ class DemoStage(QtWidgets.QWidget):
         if self._context is None:
             self._context = _lazy_context(self._prefs)
         context = self._context
+        module_name = demo_module_name(self.data_name)
         try:
-            module = importlib.import_module(demo_module_name(self.data_name))
-        except ImportError:
-            self._body.addWidget(_Line(f"No demo for {self.data_name} yet", "muted", self._stage))
+            module = importlib.import_module(module_name)
+        except ModuleNotFoundError as error:
+            if error.name == module_name:
+                self._body.addWidget(_Line(f"No demo for {self.data_name} yet", "muted", self._stage))
+                self._built_at = time.monotonic()
+                self.built.emit()
+                return
+            module = None  # The demo exists and fails to import: a broken demo, shown below.
+            import_error: Exception = error
+        except Exception as error:
+            module = None
+            import_error = error
+        if module is None:
+            log.exception("demo %s failed to import", self.data_name)
+            self._error = f"{type(import_error).__name__}: {import_error}"
+            self._body.addWidget(_Line(self._error, "destructive", self._stage))
             self._built_at = time.monotonic()
             self.built.emit()
             return
