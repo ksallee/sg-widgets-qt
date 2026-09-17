@@ -8,10 +8,10 @@ Last synced upstream commit: `130d4633433c`.
 
 | kind | complete | partial | skipped |
 |---|---|---|---|
-| Core | 27 | 3 | 0 |
+| Core | 27 | 3 | 3 |
 | Theme, workers, icons and primitives | 20 | 3 | 0 |
-| Widgets | 48 | 3 | 0 |
-| Demos and the showcase | 6 | 3 | 0 |
+| Widgets | 51 | 1 | 0 |
+| Demos and the showcase | 8 | 2 | 1 |
 | Docs pages | 55 | 0 | 0 |
 
 ## Core
@@ -35,12 +35,15 @@ Last synced upstream commit: `130d4633433c`.
 | picker-keys | partial | `picker-keys.ts`, `picker-keys.test.ts` | focusChip, scrollHighlightedIntoView and watchHighlight are not ported: DOM plumbing with no decision. The Qt layer gives the caret to the chip an intent names and keeps the view scrolled to the highlighted row. |
 | pickers | complete | `pickers.ts`, `pickers.test.ts` | FieldOptionsInput carries root_type, hops and the FieldPickerRestrictions fields in one dataclass, because a dataclass cannot add a required field to one with defaults. Options are ordered case-insensitively by display name, the way localeCompare collates them upstream. move_field_path takes from_index and to_index. |
 | presentation | complete | `presentation.ts`, `presentation.test.ts` | path_label takes a PathLabelOptions dataclass. |
+| proxy-client | skipped | `proxy-client.ts`, `proxy.test.ts` | Browser-only: a proxy over the REST API or the App Session Launcher flow; see STATUS.md |
+| proxy-handler | skipped | `proxy-handler.ts`, `proxy.test.ts` | Browser-only: a proxy over the REST API or the App Session Launcher flow; see STATUS.md |
 | query | complete | `query.ts`, `query.test.ts` | Synchronous: what upstream awaits is called. In-flight deduping is a threading.Lock per key, tested with two threads. The TTL clock is QueryCacheOptions.now, default time.monotonic, in seconds against ttl_ms. Key method names are snake_case, so a prefix reads 'fields:["Shot"'. The tests read tests/core/fake_client.py, a small fake standing in for MockClient with the fixture values the upstream tests name. |
 | render | complete | `render.ts`, `render.test.ts` | Intl has no standard-library equal: LOCALES holds the medium date pattern, the short time pattern and the number marks for en-US, en-GB, fr-FR, de-DE and ja-JP, and an unknown locale formats as en-US. currentPlatform reads sys.platform, not a browser navigator. |
 | row | complete | `row.ts`, `row.test.ts` | RowAnatomy is a dataclass; 'row_secondary' takes any row with an id and a values map, as RowValues. |
 | schema | complete | `schema.ts`, `status.test.ts` | Upstream has no schema.test.ts: the schema tests live in the schema blocks of status.test.ts. |
 | schema-service | complete | `schema-service.ts`, `schema-service.test.ts` | Synchronous; a resolve_path failure raises ValueError with the upstream message. Tests read tests/core/fake_client.py in place of MockClient. |
 | search | complete | `search.ts`, `search.test.ts` | Timing is the Qt layer's: SEARCH_DEBOUNCE_MS is a constant here and sg_widgets_qt.workers.Debounce owns the timer; PressGate reads an injectable clock. hydrate reads the flat EntityRow.values instead of attributes and relationships. |
+| session-auth | skipped | `session-auth.ts`, `session-auth.test.ts` | Browser-only: a proxy over the REST API or the App Session Launcher flow; see STATUS.md |
 | shotgun-client | complete | `client.ts`, `client.test.ts` |  |
 | sortable | partial | `sortable.ts`, `sortable.test.ts` | The model, the announcements and the hit testing are ported. createSortableController, measureSortable, playSortableFlip and the two data attributes are not: pointer events, transforms, ResizeObserver and reduced motion, none of them tested upstream. The Qt layer runs the gesture on its item view and feeds SortableRect and SortablePoint in view coordinates. |
 | state | complete | `state.ts`, `state.test.ts` | error_text(None) reads None, where the upstream renders null. |
@@ -90,6 +93,7 @@ Last synced upstream commit: `130d4633433c`.
 | date-time-editor | complete | `date-time-editor.tsx`, `date-time-editor.svelte`, `Demo.tsx`, `date-time-editor.mdx`, `date-time-editor.ts` |  |
 | entity-card | complete | `entity-card.tsx`, `entity-card.svelte`, `Demo.tsx`, `entity-card.mdx`, `entity-card.ts` |  |
 | entity-chip | complete | `entity-chip.tsx`, `entity-chip.svelte`, `Demo.tsx`, `entity-chip.mdx`, `entity-chip.ts` | The hover card holds the row and its preview paths until entity-card lands; set_preview_builder replaces it. |
+| entity-fields | complete | `entity-fields.ts`, `entity-fields.svelte.ts` | A React hook over the schema service; the Qt widgets read SchemaService.fields directly, which caches per type (probe 002) |
 | entity-glyphs | complete | `entity-glyphs.ts`, `entity-glyphs.ts`, `entity-glyphs.ts` | A map, not a widget: it has no demo and is drawn on the entity-chip page. |
 | entity-grid | complete | `entity-grid.tsx`, `entity-grid.ts` | The tile is drawn by a delegate through EntityCard's own tile face. The card slot is that delegate, or an override of tile_of. |
 | entity-multi-picker | complete | `entity-multi-picker.tsx`, `entity-multi-picker.svelte`, `Demo.tsx`, `entity-multi-picker.mdx`, `entity-multi-picker.ts` |  |
@@ -102,7 +106,7 @@ Last synced upstream commit: `130d4633433c`.
 | field-picker | complete | `field-picker.tsx`, `field-picker.svelte`, `field-picker.ts`, `field-picker.mdx`, `Demo.tsx` | Built on picker_control with text_value and a breadcrumb over the search row, rather than upstream's Popover over a Command list. Left, Right and Enter on a link belong to the levels, so a descend never closes the popup. |
 | field-value | complete | `field-value.tsx`, `field-value.svelte`, `Demo.tsx`, `field-value.mdx`, `field-value.ts` |  |
 | filter-bar | complete | `filter-bar.tsx`, `filter-bar.svelte`, `filter-bar.ts`, `filter-bar.mdx`, `Demo.tsx` | The rows under the bar are grouped-list, as upstream draws them. |
-| filter-dialog | complete | `filter-dialog.tsx`, `filter-dialog.svelte`, `filter-dialog.ts`, `filter-dialog.mdx`, `Demo.tsx` | |
+| filter-dialog | complete | `filter-dialog.tsx`, `filter-dialog.svelte`, `filter-dialog.ts`, `filter-dialog.mdx`, `Demo.tsx` |  |
 | filter-editor | complete | `filter-editor.tsx`, `filter-editor.svelte`, `filter-editor.ts`, `filter-editor.mdx`, `Demo.tsx`, `sortable.tsx` | Drag and Alt with an arrow reorder a row through core's sortable model, which the upstream editor has no equal of; a line under each row names what is still wrong with it. A row past the first builds its controls on its own turn of the loop and stands on a skeleton until then. filters_changed and error_changed sit beside the documented changed. |
 | global-search | complete | `global-search.tsx`, `global-search.svelte`, `Demo.tsx`, `global-search.mdx`, `global-search.ts` |  |
 | grouped-list | complete | `grouped-list.tsx`, `grouped-list.ts` | Rows are picker_row's delegate. leading answers a glyph name or a colour rather than a widget, and details are drawn on the sub-label line. |
@@ -138,12 +142,14 @@ Last synced upstream commit: `130d4633433c`.
 | item | status | ports | note |
 |---|---|---|---|
 | collection-control | complete | `Demo.tsx` |  |
+| composition | skipped | `Demo.tsx` | One screen built from every widget for the consistency drive; a follow-up |
 | entity-grid | partial | `Demo.tsx` | The caller's own card section is out: the tile is a delegate, which the docs page says how to replace. |
 | entity-table | complete | `Demo.tsx` |  |
 | entity-table-infinite | complete | `Demo.tsx` |  |
 | entity-tree | complete | `Demo.tsx` |  |
 | grouped-list | partial | `Demo.tsx` | The armed-failure section is out: the demo client here has no failNext. |
 | hello | complete | `Demo.tsx` |  |
+| picker-padding | complete | `Demo.tsx` | The picker box harness is the picker-box drive, measuring every picker at the three sizes, empty and filled |
 | results | complete | `results.ts`, `version-results.tsx` | The rows are entity-table under the editor, the dialog and the sort picker, and grouped-list under the bar, all over one entity source. |
 | showcase | complete | `Demo.astro`, `DemoToolbar.astro`, `demo-prefs.ts`, `client.ts`, `live.ts`, `astro.config.mjs`, `qa.mjs` |  |
 
@@ -213,4 +219,20 @@ Last synced upstream commit: `130d4633433c`.
 |---|---|
 | `packages/core/src/proxy-client.ts`, `proxy-handler.ts` | A browser proxy over the REST API. A Qt app holds its own credentials and calls shotgun_api3 directly. |
 | `packages/core/src/session-auth.ts` | The App Session Launcher flow for a browser. A later pass may port it for a person signing in from a DCC. |
-| `packages/core/src/client.ts` `RestClient` | Replaced by `ShotgunClient` on shotgun_api3. |
+| `packages/core/src/client.ts` `RestClient` | Replaced by `ShotgunClient` on shotgun_api3 (`src/sg_widgets_core/shotgun_client.py`). |
+| DOM plumbing in `list-chrome.ts`, `picker-keys.ts`, `sortable.ts` | Observers, focus calls and transforms with no decision in them. The Qt widgets do the equivalent on their views; the decisions are ported and tested. |
+| `entity-table` pin left and header drag-to-reorder | A frozen column needs a second view. The column picker orders columns. |
+| `entity-table` `virtualize_after` | A no-op: a QTableView is virtual already. |
+
+## Known gaps
+
+| where | what |
+|---|---|
+| filter-editor page | A rebuild of the five demo editors takes 55ms on PySide6 (30ms on PyQt5), 5ms over the 50ms budget of the thread drive, after the picker popup became lazy. Next cost is the row layout itself. |
+| text search on the Python API | `shotgun_api3.text_search` refuses a term under three characters; global and hierarchical search show that as their error line. Documented on both pages. |
+| `tests/qt/test_primitives_leaf.py::test_a_filled_button_paints_primary_at_its_centre` | Flaked once in whole-suite order during concurrent edits; not seen in the final runs on either binding. Watch it. |
+| `pytest -q` | `addopts` already carries `-q`; a second `-q` hides the summary line. Run `pytest` bare. |
+
+## Verified
+
+Final run on 2026-09-17: 1868 passed, 7 skipped, 0 failed on PySide6 6.7 and on PyQt5 5.15, Python 3.9. `ruff check src tests tools` clean. Every widget page has light and dark shots under `shots/`, a state matrix under `tools/drives/states/` with upstream twins under `tools/drives/upstream/`, and a read-only live pass against the test site.

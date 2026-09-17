@@ -226,6 +226,30 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "path_label takes a PathLabelOptions dataclass."
     },
+    "core/proxy-client": {
+      "status": "skipped",
+      "upstream": {
+        "packages/core/src/proxy-client.ts": "b09868a9ccf451edb26baec5e567cf6c7bdc68f93b49725b9ff672477761e7d6",
+        "packages/core/test/proxy.test.ts": "703aa82858b5c48d2483bf2a0b281a896cce63b21de2db9a57e96eca16cfb30c"
+      },
+      "ported": [
+        "STATUS.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Browser-only: a proxy over the REST API or the App Session Launcher flow; see STATUS.md"
+    },
+    "core/proxy-handler": {
+      "status": "skipped",
+      "upstream": {
+        "packages/core/src/proxy-handler.ts": "693643871d2d3d87abd7cba8b0c564b7acddedf2074a8f347475bf6cd3279298",
+        "packages/core/test/proxy.test.ts": "703aa82858b5c48d2483bf2a0b281a896cce63b21de2db9a57e96eca16cfb30c"
+      },
+      "ported": [
+        "STATUS.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Browser-only: a proxy over the REST API or the App Session Launcher flow; see STATUS.md"
+    },
     "core/query": {
       "status": "complete",
       "upstream": {
@@ -304,6 +328,18 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "Timing is the Qt layer's: SEARCH_DEBOUNCE_MS is a constant here and sg_widgets_qt.workers.Debounce owns the timer; PressGate reads an injectable clock. hydrate reads the flat EntityRow.values instead of attributes and relationships."
+    },
+    "core/session-auth": {
+      "status": "skipped",
+      "upstream": {
+        "packages/core/src/session-auth.ts": "773344264b0eb792fdf963f6e475e8af974d20d3b12cadfb077164f87a8bf75b",
+        "packages/core/test/session-auth.test.ts": "7aa8c225d651cfe809067fd0b2ca2a31194a81f97dd75bff4751568a30e2e483"
+      },
+      "ported": [
+        "STATUS.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Browser-only: a proxy over the REST API or the App Session Launcher flow; see STATUS.md"
     },
     "core/shotgun-client": {
       "status": "complete",
@@ -408,6 +444,17 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
     },
+    "demos/composition": {
+      "status": "skipped",
+      "upstream": {
+        "apps/site/src/demos/composition/Demo.tsx": "38cfea062cdd554abc229418f0d41d35bd6949a9ab579804a54241cffafe77f2"
+      },
+      "ported": [
+        "STATUS.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "One screen built from every widget for the consistency drive; a follow-up"
+    },
     "demos/entity-grid": {
       "status": "partial",
       "upstream": {
@@ -473,6 +520,17 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
+    },
+    "demos/picker-padding": {
+      "status": "complete",
+      "upstream": {
+        "apps/site/src/demos/picker-padding/Demo.tsx": "7442113861016ea0760c98ddb961d04d7c5f450312eb130fe6a3124c80b37fc4"
+      },
+      "ported": [
+        "tools/drives/picker-box.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The picker box harness is the picker-box drive, measuring every picker at the three sizes, empty and filled"
     },
     "demos/results": {
       "status": "complete",
@@ -1658,6 +1716,18 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "The hover card holds the row and its preview paths until entity-card lands; set_preview_builder replaces it."
+    },
+    "widgets/entity-fields": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/entity-fields.ts": "b72696053c295035a8a4fe98680e32d7284b50232e041475087735fc9cdfdd6a",
+        "packages/svelte/src/lib/registry/components/entity-fields.svelte.ts": "6369d4c2712db372ec026702662f626cbb3c33711c64225e5b450efd61f60152"
+      },
+      "ported": [
+        "src/sg_widgets_core/schema_service.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "A React hook over the schema service; the Qt widgets read SchemaService.fields directly, which caches per type (probe 002)"
     },
     "widgets/entity-glyphs": {
       "status": "complete",

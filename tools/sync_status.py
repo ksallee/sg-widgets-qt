@@ -23,11 +23,11 @@ UPSTREAM = Path(os.environ.get("SG_WIDGETS_UPSTREAM", os.path.expanduser("~/dev/
 
 # Where the upstream keeps each kind of item, and how an item name is read off a path.
 KINDS = {
-    "core": ("packages/core/src", re.compile(r"^(?!index$)([a-z0-9-]+)\.ts$")),
+    "core": ("packages/core/src", re.compile(r"^(?!index\.ts$)([a-z0-9-]+)\.ts$")),
     "primitives": ("packages/react/src/components/ui", re.compile(r"^([a-z0-9-]+)\.tsx?$")),
     "widgets": ("packages/react/src/registry/sg/components", re.compile(r"^([a-z0-9-]+)\.tsx?$")),
     "demos": ("apps/site/src/demos", re.compile(r"^(?!_)([a-z0-9-]+)$")),
-    "docs": ("apps/site/src/content/docs/widgets", re.compile(r"^(?!index$)([a-z0-9-]+)\.mdx$")),
+    "docs": ("apps/site/src/content/docs/widgets", re.compile(r"^(?!index\.mdx$)([a-z0-9-]+)\.mdx$")),
 }
 
 
@@ -72,8 +72,17 @@ def report() -> dict:
                 drift.append(path)
         if drift:
             changed[name] = drift
-    known = set(items)
-    new = {name: path for name, path in upstream_items().items() if name not in known}
+    # An upstream item is covered when any record, under any name, ports its file (a demo is
+    # recorded with its widget, a part with the item whose page it sits on).
+    covered = {path for item in items.values() for path in item.get("upstream", {})}
+
+    def is_covered(name: str, path: str) -> bool:
+        if name in items:
+            return True
+        prefix = path.rstrip("/") + "/"
+        return path in covered or any(p.startswith(prefix) for p in covered)
+
+    new = {name: path for name, path in upstream_items().items() if not is_covered(name, path)}
     incomplete = {name: item for name, item in items.items() if item.get("status") != "complete"}
     return {
         "upstream_commit_recorded": data.get("upstream", {}).get("commit"),
