@@ -190,3 +190,20 @@ def test_a_demo_toggle_is_bordered_before_it_is_pressed(qapp):
     assert made.variant == "outline"
     assert made.checked is False
     made.deleteLater()
+
+
+def test_the_header_holds_a_project_picker_bound_to_the_source(qtbot):
+    """The header's project control is the real picker over the mock's projects, and a pick scopes the demos."""
+    from sg_widgets_core.filter import EntityRef
+    from sg_widgets_qt.showcase.window import ShowcaseWindow
+    from sg_widgets_qt.widgets.project_picker import ProjectPicker
+
+    window = ShowcaseWindow()
+    qtbot.addWidget(window)
+    picker = window.header.project
+    assert isinstance(picker, ProjectPicker)
+    assert picker.value == EntityRef("Project", window.context.project_id)
+    assert picker.isEnabled()
+    window.header.project_picked.emit(71, "Second show")
+    assert window.context.project_id == 71
+    assert window.context.project_name == "Second show"

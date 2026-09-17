@@ -11,7 +11,10 @@ from pathlib import Path
 
 from qtpy import QtCore, QtGui, QtWidgets
 
+from sg_widgets_core.filter import EntityRef
+
 from ..theme import Theme, mix, theme_of, watch_theme, with_alpha
+from ..widgets.project_picker import ProjectPicker
 from . import chrome
 from .context import DemoContext, demo_context, live_available
 from .page import SECTIONS, WidgetPage, docs_dir
@@ -321,33 +324,56 @@ class Sidebar(QtWidgets.QWidget):
 class HeaderBar(QtWidgets.QWidget):
     """The row of controls that set the view, on a `background` band with a border under it."""
 
+    #: The project the header picked: its id and its name.
+    project_picked = QtCore.Signal(int, str)
+
     def __init__(
         self,
         prefs: Prefs,
         live_enabled: bool,
-        project_id: int,
+        context: DemoContext,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("header")
         self.setFixedHeight(56)
-        row = QtWidgets.QHBoxLayout(self)
-        row.setContentsMargins(24, 12, 24, 12)
-        row.setSpacing(8)
+        self._row = QtWidgets.QHBoxLayout(self)
+        self._row.setContentsMargins(24, 12, 24, 12)
+        self._row.setSpacing(8)
         self.toolbar = PrefsToolbar(
             prefs, HEADER_KEYS, size="md", live_enabled=live_enabled, parent=self
         )
         self.toolbar.setObjectName("header-toolbar")
-        row.addWidget(self.toolbar, 1)
-        self.project = chrome.select(
-            [(str(project_id), f"Project {project_id}")], str(project_id), size="md", parent=self
-        )
-        self.project.setObjectName("project-picker")
-        self.project.setEnabled(prefs.live)
-        self.project.setToolTip("The project the live demos read. The mock has one project.")
-        row.addWidget(self.project, 0)
-        prefs.changed.connect(lambda: self.project.setEnabled(prefs.live))
+        self._row.addWidget(self.toolbar, 1)
+        self.project: ProjectPicker | None = None
+        self.set_context(context)
         watch_theme(self, lambda _theme: self.update())
+
+    def set_context(self, context: DemoContext) -> None:
+        """Bind the project picker to the site the demos read: the mock's projects, or the live site's."""
+        if self.project is not None:
+            self._row.removeWidget(self.project)
+            self.project.deleteLater()
+        picker = ProjectPicker(
+            context=context.context,
+            value=EntityRef("Project", context.project_id) if context.project_id else None,
+            size="md",
+            clearable=False,
+            placeholder="Project",
+            parent=self,
+        )
+        picker.setObjectName("project-picker")
+        picker.setFixedWidth(200)
+        picker.setToolTip("The project the demos that take a project read.")
+        picker.value_changed.connect(self._on_project)
+        self._row.addWidget(picker, 0)
+        self.project = picker
+
+    def _on_project(self, ref: object, row: object) -> None:
+        if ref is None:
+            return
+        name = getattr(row, "name", "") or getattr(ref, "name", "") or ""
+        self.project_picked.emit(int(ref.id), str(name))
 
     def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
         theme = theme_of(self)
@@ -400,9 +426,8 @@ class ShowcaseWindow(QtWidgets.QMainWindow):
         column = QtWidgets.QVBoxLayout(right)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(0)
-        self.header = HeaderBar(
-            self.prefs, live_available(), self.context.project_id, right
-        )
+        self.header = HeaderBar(self.prefs, live_available(), self.context, right)
+        self.header.project_picked.connect(self._on_project_picked)
         column.addWidget(self.header)
         self.area = chrome.Ground("background", right)
         self.area.setObjectName("page-area")
@@ -475,10 +500,25 @@ class ShowcaseWindow(QtWidgets.QMainWindow):
 
     # --- the view ----------------------------------------------------------------------------
 
+    def _on_project_picked(self, project_id: int, name: str) -> None:
+        """A project picked in the header scopes every demo that takes one."""
+        if project_id == self.context.project_id:
+            return
+        self._project_id = project_id
+        self.context = demo_context(live=self.prefs.live, project_id=project_id)
+        self.context.project_name = name
+        for page in self._pages.values():
+            for stage in page.stages:
+                stage.set_context(self.context)
+
     def _on_prefs(self) -> None:
         if self.prefs.source != self._source:
             self._source = self.prefs.source
-            self.context = demo_context(live=self.prefs.live, project_id=self._project_id)
+            # The mock's projects and the site's are different rows, so a switch of source
+            # starts from that source's own default project.
+            self._project_id = None
+            self.context = demo_context(live=self.prefs.live, project_id=None)
+            self.header.set_context(self.context)
             for page in self._pages.values():
                 for stage in page.stages:
                     stage.set_context(self.context)
