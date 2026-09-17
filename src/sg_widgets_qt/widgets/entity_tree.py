@@ -283,15 +283,17 @@ class _TreeDelegate(RowDelegate):
     """The tree row: the chevron, the tri-state box, and the row of rule 9 after them."""
 
     def __init__(self, tree: EntityTree) -> None:
+        # `thumbnail` is `False` by default and hides the leading slot, as upstream's row
+        # does: with no picture asked for, the chevron and the box are the only marks the
+        # label sits after.
         super().__init__(
             tree.view,
             size=tree.size,
-            thumbnail=True,
+            thumbnail=tree.thumbnail is not False,
             indicator="checkbox" if tree.checkable else "none",
             density=tree.density,
         )
         self._tree = tree
-        self.set_bare_glyph(tree.thumbnail is False)
 
     def _lead(self) -> int:
         return CHEVRON[self._tree.size] + CHEVRON_GAP

@@ -176,3 +176,17 @@ def test_a_demo_radio_settles_on_the_one_pressed(qapp):
     made["b"].set_checked(False)
     assert [key for key, toggle in made.items() if toggle.checked] == ["b"]
     holder.deleteLater()
+
+
+def test_a_demo_toggle_is_bordered_before_it_is_pressed(qapp):
+    """A demo's toggles read as controls at rest.
+
+    Upstream's `toggle` class carries `border border-border bg-background` and only adds the
+    `accent` ground under `aria-pressed`, so a toggle nobody has pressed still looks pressable.
+    """
+    from sg_widgets_qt.showcase import chrome
+
+    made = chrome.toggle("Compact", size="sm")
+    assert made.variant == "outline"
+    assert made.checked is False
+    made.deleteLater()

@@ -21,6 +21,7 @@ from sg_widgets_core.client import (
     SearchOptions,
     SgApiError,
     SummarizeOptions,
+    SummaryField,
     SummaryGrouping,
     UploadFile,
 )
@@ -589,6 +590,41 @@ class TestASummarizeOnTheWire:
             ("In Progress", "ip", {"id": 9}),
             ("Final", "fin", {"id": 6}),
         ]
+
+    def test_the_ungrouped_count_is_the_python_api_shape_and_reads_the_total_back(self) -> None:
+        # `shotgun_api3.summarize` takes the same `{'field': ..., 'type': ...}` records the
+        # REST endpoint does and answers `{'summaries': ..., 'groups': ...}`, so the count a
+        # range is built from is `summaries['id']` (020_summarize).
+        client, fake = client_with({"summarize": {"summaries": {"id": 320}, "groups": []}})
+        wire = {"logical_operator": "and", "conditions": [["project", "is", {"type": "Project", "id": 70}]]}
+        result = client.summarize("Version", SummarizeOptions(filters=wire))
+        call = fake.call("summarize")
+        assert call.args[0] == "Version"
+        assert call.args[1] == [["project", "is", {"type": "Project", "id": 70}]]
+        assert call.args[2] == [{"field": "id", "type": "count"}]
+        assert call.kwargs["grouping"] is None
+        assert result.summaries["id"] == 320
+        assert result.groups == []
+
+    def test_a_summary_type_of_the_callers_own_reaches_the_api_unchanged(self) -> None:
+        # `record_count` counts rows where `count` counts values, and the Python API takes it
+        # under the same key, so nothing here rewrites what the caller asked for.
+        client, fake = client_with({"summarize": {"summaries": {"id": 12}, "groups": []}})
+        client.summarize(
+            "Shot",
+            SummarizeOptions(summary_fields=[SummaryField(field="id", type="record_count")]),
+        )
+        assert fake.call("summarize").args[2] == [{"field": "id", "type": "record_count"}]
+
+    def test_a_field_that_cannot_be_summarized_leaves_the_key_out(self) -> None:
+        # The site answers 200 with a near-empty body rather than 400, so the key is tested
+        # rather than assumed (020_summarize).
+        client, fake = client_with({"summarize": {"summaries": {}, "groups": []}})
+        result = client.summarize(
+            "Version", SummarizeOptions(summary_fields=[SummaryField(field="image", type="count")])
+        )
+        assert fake.call("summarize").args[2] == [{"field": "image", "type": "count"}]
+        assert result.summaries.get("image") is None
 
 
 class TestTheFilterTranslation:

@@ -207,9 +207,15 @@ def toggle(
     size: str = "md",
     parent: QtWidgets.QWidget | None = None,
     on_toggle: Callable[[bool], None] | None = None,
+    variant: str = "outline",
 ) -> Toggle:
-    """A button that stays down."""
-    made = Toggle(text=text, pressed=pressed, size=size, parent=parent)
+    """A button that stays down, bordered at rest.
+
+    A demo's toggles are `border border-border bg-background ... aria-pressed:bg-accent`
+    upstream, so they read as controls before they are pressed; the ghost look belongs to a
+    toggle inside a control, not to one standing alone on a page.
+    """
+    made = Toggle(text=text, pressed=pressed, size=size, variant=variant, parent=parent)
     if on_toggle is not None:
         made.toggled.connect(on_toggle)
     return made

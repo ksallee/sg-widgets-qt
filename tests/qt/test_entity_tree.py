@@ -200,3 +200,21 @@ def test_a_tree_deleted_mid_read_leaves_nothing_behind(context, qtbot):
         QtWidgets.QApplication.processEvents()
         qtbot.wait(5)
     QtWidgets.QApplication.processEvents()
+
+
+def test_a_row_carries_no_leading_slot_until_a_thumbnail_is_asked_for(context, qtbot):
+    # `thumbnail` is `False` by default and hides the leading slot, as it does upstream: the
+    # chevron and the box are the only marks the label sits after.
+    bare = _tree(context, qtbot)
+    assert bare.thumbnail is False
+    assert bare.view.itemDelegate().thumbnail is False
+
+    shown = _tree(context, qtbot, thumbnail="image")
+    assert shown.view.itemDelegate().thumbnail is True
+    # The slot takes room, so a label starts further in once a picture is asked for.
+    index = bare.model.index(0, 0)
+    option = QtWidgets.QStyleOptionViewItem()
+    option.rect = QtCore.QRect(0, 0, 400, 32)
+    assert shown.view.itemDelegate().sizeHint(option, index).height() >= bare.view.itemDelegate().sizeHint(
+        option, index
+    ).height()

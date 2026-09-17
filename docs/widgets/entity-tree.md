@@ -45,7 +45,7 @@ branch at the focus level. Both read `expand_depth` levels below the node, with 
 until every one of them is in.
 
 Each level's rows are read once per type over the ids the level returned, so `sub_label_field`,
-`secondary_field`, `thumbnail` and the status badge cost no read per row.
+`secondary_field`, `thumbnail` and the status badge cost no read per row. `thumbnail` is `False` by default and hides the leading slot with it, so a row nobody asked a picture of sits its label straight after the chevron and the box.
 
 The view is a `QTreeView` over a model of the rows the engine says are visible, so a collapse is
 the engine dropping rows rather than the view hiding them, and the row is drawn by `picker_row`'s
