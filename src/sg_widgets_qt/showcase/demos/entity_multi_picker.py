@@ -17,7 +17,7 @@ from sg_widgets_core.filter import EntityRef
 from ...widgets.entity_multi_picker import EntityMultiPicker
 from .. import chrome
 from ..context import DemoContext
-from .entity_picker import _fail_next_of, _own_context
+from .entity_picker import _fail_next_of, _own_context, _Readiness
 
 __all__ = ["build"]
 
@@ -56,7 +56,7 @@ class EntityMultiPickerDemo(QtWidgets.QWidget):
         self.setObjectName("entity-multi-picker-demo")
         self._context = context
         self._pickers: list = []
-        #: The demo reads nothing until a picker is opened, so it is ready once it is built.
+        #: False until every value handed in has a name. `_Readiness` flips it.
         self.demo_ready = True
 
         column = QtWidgets.QVBoxLayout(self)
@@ -181,6 +181,7 @@ class EntityMultiPickerDemo(QtWidgets.QWidget):
                 self._picker(entity_types=["Asset"], value=list(PRESET), **{flag: True})
             )
         column.addStretch(1)
+        self._readiness = _Readiness(self, self._pickers)
 
     # --- building ----------------------------------------------------------------------
 

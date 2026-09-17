@@ -18,23 +18,28 @@ from sg_widgets_qt.widgets.match_text import MatchText
 
 ::props{name="match-text" kind="props"}
 
-Every other attribute is spread onto the root: `id`, `aria-*`, `data-*` and a `ref` to the root
-element.
+Here the label is one painted `QWidget` whose object name is `match-text`. Two keywords replace
+what CSS gave the span: `size` picks the type step (12, 14 and 16), and `muted` draws the line in
+`muted_foreground`, which is the muted-line case the demo shows. The label is elided at the end and
+carries the whole value as its tooltip.
 
 A match is weight and never colour, so a label already carrying a colour of its own still reads. The
 runs rebuild the label exactly, so a label the query does not touch draws as itself and an empty
 query marks nothing.
 
-The splitting is `matchRuns` in core, which answers the label as segments with a matched flag. Draw
-the segments yourself when the treatment has to be something else; nothing here sets HTML from a row.
+The splitting is `match_runs` in core, which answers the label as segments with a matched flag. Draw
+the segments yourself when the treatment has to be something else; nothing here draws markup from a
+row.
 
-```ts
-import { matchRuns } from '@sg-widgets/core';
+```python
+from sg_widgets_core.search import match_runs
 
-matchRuns('Ada Lovelace', 'ad ve');
-// [{ text: 'Ad', match: true }, { text: 'a Lo', match: false },
-//  { text: 've', match: true }, { text: 'lace', match: false }]
+match_runs("Ada Lovelace", "ad ve")
+# [MatchRun(text='Ad', match=True), MatchRun(text='a Lo', match=False),
+#  MatchRun(text='ve', match=True), MatchRun(text='lace', match=False)]
 ```
+
+The widget answers the same list as `runs`, so a caller drawing its own treatment reads it there.
 
 ## Events
 
@@ -56,3 +61,8 @@ wherever it occurs, and overlapping words merge into one run.
 
 The endpoint answers a thin row and has no `fields` parameter, so a label beyond the name, the
 linked row and the status code is a second read (post_entity_text_search).
+
+## Reference
+
+Nothing: the runs are drawn run by run with `QPainter` in the theme's own family, the matched ones
+at `QFont.Weight.DemiBold`.

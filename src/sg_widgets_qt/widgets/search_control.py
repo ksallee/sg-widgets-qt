@@ -194,6 +194,7 @@ class SearchControl(ThemedWidget):
         self._failure: str | None = None
         self._loading = bool(enabled) and query_plan(query, self._reads_empty) != "clear"
         self._dialog: Dialog | None = None
+        self._rows_signal: Any = None
 
         self._runner = QueryRunner(
             pool if pool is not None else default_pool(), delay_ms=debounce_ms, parent=self
@@ -316,13 +317,16 @@ class SearchControl(ThemedWidget):
         thumbnail = getattr(self._model, "thumbnail", True)
         delegate.set_thumbnail(thumbnail is not False)
         delegate.set_round_thumbnail(bool(getattr(self._model, "round_thumbnail", False)))
-        changed = getattr(self._model, "rows_changed", None)
-        if changed is not None:
+        held, self._rows_signal = self._rows_signal, None
+        if held is not None:
             try:
-                changed.disconnect(self._on_model_rows)
+                held.disconnect(self._on_model_rows)
             except (RuntimeError, TypeError):
                 pass
+        changed = getattr(self._model, "rows_changed", None)
+        if changed is not None:
             changed.connect(self._on_model_rows)
+            self._rows_signal = changed
 
     def _on_model_rows(self) -> None:
         delegate = self._list.row_delegate()

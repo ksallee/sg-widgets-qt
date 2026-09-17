@@ -57,14 +57,22 @@ class _Model(QAbstractListModel):
         self._codes = [code for code, _label, _lead in DEPARTMENTS]
         self._query = ""
         self._leads = leads
+        self._checked: set = set()
 
     def set_codes(self, codes: list) -> None:
         self.beginResetModel()
         self._codes = list(codes)
         self.endResetModel()
 
+    def set_checked(self, codes) -> None:
+        self._checked = set(codes)
+        self._redraw()
+
     def set_query(self, query: str) -> None:
         self._query = query
+        self._redraw()
+
+    def _redraw(self) -> None:
         if self._codes:
             self.dataChanged.emit(self.index(0, 0), self.index(len(self._codes) - 1, 0))
 
@@ -83,6 +91,8 @@ class _Model(QAbstractListModel):
             return LEADS[code] if self._leads else ""
         if role == Roles.SECONDARY:
             return code if self._leads else ""
+        if role == Roles.CHECKED:
+            return code in self._checked
         if role == Roles.ENTITY:
             return code
         return None
@@ -146,6 +156,11 @@ class DepartmentPicker(QtWidgets.QWidget):
     def _chip_for(self, index: int) -> QtWidgets.QWidget | None:
         if not 0 <= index < len(self._keys):
             return None
+        if self._control.text_value:
+            # A value that reads as plain text, the way a select does.
+            return chrome.TextLine(
+                LABELS[self._keys[index]], size=14, token="foreground", parent=self._control
+            )
         return Chip(
             LABELS[self._keys[index]],
             size=PICKER_CHIP[self._control.size],
@@ -170,6 +185,7 @@ class DepartmentPicker(QtWidgets.QWidget):
             self._push()
 
     def _push(self) -> None:
+        self._model.set_checked(self._keys)
         self._control.set_keys(self._keys)
         self._control.set_labels([LABELS[key] for key in self._keys])
 

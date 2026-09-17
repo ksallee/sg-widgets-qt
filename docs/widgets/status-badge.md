@@ -35,10 +35,15 @@ The root carries the status code, the variant and whether it was resolved, as da
 image-map icon carries its key on the glyph, as a data attribute. A removable badge draws its cross inside the pill
 after the label, in the badge's own foreground, and carries a data slot of its own.
 
+Here the badge is one painted `QWidget` whose object name is `status-badge`, so the data attributes
+are read off the widget instead: `code`, `variant`, `known`, `status_text` and `other_text` are
+properties, and `glyph` is what the icon resolved to. The sprite is read once per site url through
+`sg_widgets_qt.images`, on a worker, so a table of rows costs one read.
+
 ## Events
 
-`onRemove` fires with the code. Without `removable` the badge is presentational and not
-interactive.
+`removed` carries the code, and the `on_remove` keyword is called beside it. Without `removable`
+the badge is presentational and takes no focus.
 
 ## Slots
 
@@ -63,15 +68,29 @@ unauthenticated, positioned by a rule in the site's own stylesheet; neither the 
 is in the REST API (010_status_icons). Every icon the status picker offers, 94 cells, is bundled in
 the core package and draws with no site access; the shipped statuses, the rows with no `created_by`,
 all use one of them (probe 061). A key outside that set draws from the site's own copy of the sprite,
-so it needs `siteUrl`; without one it falls back to a neutral dot.
+so it needs `site_url`; without one, and when the site does not answer, it falls back to a neutral
+dot rather than leaving the slot empty.
 
 ## StatusGlyph
 
 One status icon, at whatever size the caller draws it. The badge draws it, and so does every row
 that shows a status. An uploaded icon is a self-contained data URI. A sprite icon names a cell of
 the stock sprite: the 94 cells of the shipped statuses are bundled in core and draw with no site
-access, any other cell draws from the site's own copy and so needs `siteUrl`, and a key with neither
-resolves to a neutral dot. An HTML icon is the label itself, so it draws no picture; `fallback`
+access, any other cell draws from the site's own copy and so needs `site_url`, and a key with
+neither resolves to a neutral dot. An HTML icon is the label itself, so it draws no picture; `fallback`
 gives it the dot instead, which is what a list row wants.
 
 ::props{name="status-glyph" kind="props"}
+
+The Qt glyph is `StatusGlyph`, a painted widget of its own, and `StatusGlyphSource` is the same
+resolution without a widget, which is what the badge and a row delegate paint through.
+
+```python
+from sg_widgets_qt.widgets.status_glyph import StatusGlyph
+```
+
+## Reference
+
+Nothing: the pill, the cross and the glyph are `paintEvent` over the theme's tokens. The demo's
+wrapping rows are Qt's own Flow Layout example (`examples/widgets/layouts/flowlayout`), read and
+not copied.

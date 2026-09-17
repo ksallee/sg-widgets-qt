@@ -21,19 +21,25 @@ from sg_widgets_qt.widgets.entity_chip import EntityChip
 ::props{name="entity-chip" kind="props"}
 
 With no `href` and a site to work from, the chip addresses the row's own page,
-`<site>/detail/<Type>/<id>`, and opens it in a new tab. A url you pass yourself belongs to your own
-app and opens in the same tab. The `text` variant never links.
+`<site>/detail/<Type>/<id>`, and a press opens it in the desktop browser through
+`QDesktopServices`. A url you pass yourself belongs to your own app, so hand it to `on_click`
+instead and do the routing there. The `text` variant never links.
 
-A `preview` list turns the chip into a hover card holding an EntityCard at its small size. The card
-is read when the card opens, through the context's cache, so hovering the same row twice costs one
-read.
+A `preview` list gives the chip a hover card. What the card holds is `set_preview_builder`, called
+as `builder(entity, preview, context)`: EntityCard fills it once that widget lands, and until then
+the card names the row and the paths that were asked for. The card is built on the hover card
+primitive, which opens 200ms after the pointer lands and stays while the pointer is on either it or
+the chip.
 
-A chip with no name shows the type and id instead, in the mono treatment ids get elsewhere.
+A chip with no name shows the type and id instead, in the mono treatment with tabular figures that
+ids get elsewhere.
 
 Nine entity types have their own glyph: Shot, Asset, Sequence, Version, Task, HumanUser, Project,
 Note and PublishedFile. Every other type, including a site's custom entities, gets a tag.
 
-The root carries the entity type, id and variant as data attributes.
+Here the chip is one painted `QWidget` whose object name is `entity-chip`, so `entity`, `variant`,
+`url`, `label` and `named` are properties rather than data attributes. A thumbnail is read through
+`sg_widgets_qt.images` on a worker.
 
 ## Events
 
@@ -47,7 +53,9 @@ None.
 
 ::props{name="entity-chip" kind="keyboard"}
 
-An inert chip takes no focus.
+An inert chip takes no focus. The chip is one widget rather than a link with a button beside it, so
+Tab reaches the chip itself: Enter and Space follow the link or run `on_click`, and Delete and
+Backspace remove. On a chip that is removable and points nowhere, Enter and Space remove.
 
 ## API behaviour
 
@@ -68,7 +76,10 @@ return path. Site measurement, pending a corpus card.
 
 The hover card is shadcn's own, installed unmodified: Base UI's Preview Card (`@base-ui/react`
 1.8.0) in React, Bits UI's Link Preview (`bits-ui` 2.19.1) in Svelte.
-::qt-note
+
+Here it is `primitives/hover_card.py` over `primitives/popover.py`, a frameless translucent window
+with a painted shadow, so nothing of the host style shows through. The demo's wrapping rows are
+Qt's own Flow Layout example (`examples/widgets/layouts/flowlayout`), read and not copied.
 
 ## EntityGlyphs
 

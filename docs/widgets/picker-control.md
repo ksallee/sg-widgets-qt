@@ -27,11 +27,11 @@ its leading edge to the room above and below its chip, so a value sits evenly in
 height holds across both states, and the trailing inset is reserve for the clear control and the
 chevron.
 
-The states are attributes on the box: `aria-disabled` for a disabled or inert control, `data-readonly`,
-`data-invalid`, `data-empty` while nothing is chosen, `data-multiple` on a control that takes several
-keys, and the ring the field takes from whatever inside it has focus. A readonly control
-keeps full contrast and loses the clear control and the chevron. The clear control appears once
-something is chosen, and stays through a load.
+The states are properties of the control, read by its own `paintEvent`: `disabled`, `inert`,
+`readonly`, `invalid`, `multiple`, and whether anything is chosen. The focus ring is painted only
+when the caret took focus from the keyboard, never from a press. A readonly control keeps full
+contrast and loses the clear control and the chevron. The clear control appears once something is
+chosen, and stays through a load.
 
 A press anywhere on the control toggles the popup, its own caret included. A press on a button inside
 the control — a chip's remove control, the clear control, the chevron — is that button's own. Typing
@@ -39,8 +39,8 @@ opens the popup, so a press that closed it a moment ago does not swallow the nex
 press on the control is never read as a dismissal.
 
 The caret that takes focus on open is the control's own when the control is inline, and the popup's
-search box when it is a summary trigger. Every focus call passes `preventScroll`, so opening a picker
-far down a page leaves the page where it is.
+search box when it is a summary trigger. A fixed set has no search row, so the control itself holds
+the keys.
 
 ## Inline and summary
 
@@ -55,8 +55,10 @@ with one line reading how many are selected. `max` caps the chips whatever the r
 
 ## The popup
 
-The popup is portalled, positioned with a fixed strategy and anchored on the whole control. It holds,
-in order: the search row when the control is a summary trigger, then the list, then the load-more row.
+The popup is a `Popover` anchored on the whole control, a frameless window that never takes focus,
+so the caret stays where a person is typing. `anchored` gives it the control's own width, never
+under 224; otherwise it is 384 wide. It holds, in order: the search row when the control is a
+summary trigger, then the list, then the load-more row.
 
 The list draws one of four things. An error is the error line, a read in flight is three skeleton rows,
 a query that matched nothing is the empty line, and otherwise it is the rows the picker supplied. A
@@ -68,8 +70,8 @@ of rows it offered, the empty line, or what a failed read said. It is what a rea
 line inside the list is what a reader sees.
 
 The list fades at whichever edge has more content past it and holds a gutter for its scrollbar, so
-rows never shift as a page lands. The pattern is coss.com/ui at e937bec, whose scroll area reads the
-same variables; it is read as a reference and not installed.
+rows never shift as a page lands. It is `primitives/list_view.py`, which reads the same numbers from
+core's `overflow_edges`.
 
 ## Props
 
@@ -79,15 +81,20 @@ same variables; it is read as a reference and not installed.
 
 ::props{name="picker-control" kind="slots"}
 
-A chip carries `data-chip` so the measured row can weigh it, and `data-armed` while it holds the
-caret, so every picker's chip says the same thing. The base takes every chip out of the tab order
-and moves the caret between them itself, so a chip needs nothing of the caller for that.
+A picker supplies its chip through `chip_factory`, a callable taking the chosen index and answering
+a widget. The control measures that widget, hides it when the row has no room for it, paints the
+inset ring over the one holding the caret, and connects its `removed` signal, so a chip needs
+nothing of the caller for any of that.
+
+A picker supplies its rows as a `QAbstractItemModel` through `set_row_model`, in the same order as
+`items`, and the delegate that draws a row through `set_row_delegate`. `PickerRowModel` is the model
+the entity pickers use.
 
 ## The contract
 
-Every picker behaves the same, whether it is built on this base or keeps a primitive of its own.
-The clauses are design rule 7; `tools/drives/picker-contract.js` checks the ones that apply to a
-picker's shape, on every picker page, in both frameworks.
+Every picker behaves the same, whether it is built on this base or keeps a control of its own.
+The clauses are design rule 7; `tests/qt/test_picker_contract.py` checks the ones that apply to a
+picker's shape, on every picker, on both bindings.
 
 One picker, walked from the keyboard:
 
@@ -110,9 +117,11 @@ One picker, walked from the keyboard:
 8. A press outside the control and the popup closes the list.
 9. `Tab` leaves the control. The chips are walked with the arrows, not with `Tab`.
 
-The chip model is Base UI's, which coss.com/ui at e937bec takes wholesale; here it lives in core so
-both frameworks answer a key the same way, and it is read as a reference and not installed.
-::qt-note
+Here the clauses live in `PickerControl`, which owns the box, the popover and the chip row, and
+core's `picker_key_intent` answers every key, so a chip behaves the same on PySide6 and PyQt5.
+`tests/qt/test_picker_contract.py` is the checker: `check_contract(qtbot, picker, shape)` walks the
+clauses that apply to a picker's shape with real key and mouse events, and every picker's own test
+file calls it.
 
 A readonly control keeps full contrast and loses the clear control and the chevron. A disabled one
 takes no press and no key.
@@ -135,10 +144,9 @@ a control at `entity-type-picker-control` and rows the wrapper marks itself.
 What the wrapper still spells out is its own: the slot prefix, the query source, the row and the chip.
 The entity type picker is the smallest of them at around 250 lines per framework.
 
-One thing an inline single picker owns: the primitive writes the chosen item into the caret, over the
-chip that already says it. React passes `itemToStringLabel` to write nothing; Svelte mirrors the label
-into the query, so the base's clear on close is a change the caret sees.
-::qt-note
+Neither applies here. The caret is a plain line edit that holds the query and nothing else, so a
+pick never writes the chosen label over the chip that already says it, and closing the list clears
+the query.
 
 ## PickerRow
 
@@ -163,3 +171,12 @@ picture on a worker and redraws the row it lands on. `glyph` and `indicator` are
 glyph is `set_glyph_of`, a callable of the row answering a lucide name, and the indicator is the
 delegate's own column, which `indicator` turns into a leading checkbox or a trailing tick.
 `PickerRowWidget` paints one row on its own, for a card or a chip preview.
+
+## Reference
+
+`tk-framework-qtwidgets/python/shotgun_search_widget/shotgun_search_widget.py` draws its clear
+control over the field rather than beside it, so the box keeps its height; the trailing controls
+here ride the control's first row for the same reason.
+`tk-framework-qtwidgets/python/search_completer/search_completer.py` runs its popup unfiltered and
+draws every row through a delegate, which is what this popup does: the site decides what matches
+and the list only draws it. Both were read, and nothing was copied.

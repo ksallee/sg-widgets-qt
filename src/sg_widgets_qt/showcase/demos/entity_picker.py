@@ -9,9 +9,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from qtpy import QtWidgets
+from qtpy import QtCore, QtWidgets
 
 from sg_widgets_core.filter import EntityRef
+from sg_widgets_core.picker import placeholder_name
 
 from ...widgets.entity_picker import EntityPicker
 from .. import chrome
@@ -39,8 +40,7 @@ class EntityPickerDemo(QtWidgets.QWidget):
         self.setObjectName("entity-picker-demo")
         self._context = context
         self._pickers: list = []
-        self._readouts: dict = {}
-        #: The demo reads nothing until a picker is opened, so it is ready once it is built.
+        #: False until every value handed in has a name. `_Readiness` flips it.
         self.demo_ready = True
 
         column = QtWidgets.QVBoxLayout(self)
@@ -153,6 +153,7 @@ class EntityPickerDemo(QtWidgets.QWidget):
                 self._picker(entity_types=["Asset"], value=PRESET, **{flag: True})
             )
         column.addStretch(1)
+        self._readiness = _Readiness(self, self._pickers)
 
     # --- building ----------------------------------------------------------------------
 
@@ -194,6 +195,51 @@ class EntityPickerDemo(QtWidgets.QWidget):
         """Wear the size step the toolbar holds."""
         for picker in self._pickers:
             picker.set_size(size)
+
+
+class _Readiness(QtCore.QObject):
+    """Holds a demo not ready until every value it was given has a name.
+
+    A picker handed a bare reference reads it on a worker, so the first paint of the page would
+    otherwise catch `Asset 1226` rather than the row it resolves to.
+    """
+
+    #: How long the poll waits before it calls the page ready anyway.
+    LIMIT_MS = 4000
+    STEP_MS = 100
+
+    def __init__(self, demo: QtWidgets.QWidget, pickers: list) -> None:
+        super().__init__(demo)
+        self._demo = demo
+        self._pickers = pickers
+        self._waited = 0
+        self._timer = QtCore.QTimer(self)
+        self._timer.setInterval(self.STEP_MS)
+        self._timer.timeout.connect(self._poll)
+        demo.demo_ready = not self._pending()
+        if not demo.demo_ready:
+            self._timer.start()
+
+    def _pending(self) -> bool:
+        for picker in self._pickers:
+            for ref, label in zip(_refs_of(picker), picker.control.labels):
+                if not label or label == placeholder_name(ref):
+                    return True
+        return False
+
+    def _poll(self) -> None:
+        self._waited += self.STEP_MS
+        if not self._pending() or self._waited >= self.LIMIT_MS:
+            self._timer.stop()
+            self._demo.demo_ready = True
+
+
+def _refs_of(picker: object) -> list:
+    """The references a picker holds, whether its value is one or several."""
+    value = getattr(picker, "value", None)
+    if value is None:
+        return []
+    return list(value) if isinstance(value, list) else [value]
 
 
 def _own_context(context: DemoContext) -> DemoContext:

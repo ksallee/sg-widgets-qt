@@ -63,8 +63,15 @@ came from.
 
 ## Reference
 
-The row, chip and checkbox anatomy follows shadcn's Base UI Combobox, read through shadcn 4.21.0.
-The primitive underneath is Base UI Combobox 1.8.0 in React and Bits UI Combobox 2.19.1 in Svelte.
-shadcn-svelte ships no combobox item, so each widget composes the headless primitive of its
-framework and both draw the same rows, the same classes and the same states.
-::qt-note
+Here there is no headless primitive to compose. The box and its popup are
+`widgets/picker_control.py`, the popup is `primitives/popover.py` and never takes focus, the list is
+`primitives/list_view.py`, and every row is drawn by `primitives/row_delegate.py` through
+`PickerRowModel`, so PySide6 and PyQt5 draw the same pixels and answer a key the same way.
+
+The checkbox is the row's indicator column, drawn by the same delegate, so a label sits at one x
+down the whole list whether or not a row is ticked. A pick keeps the list open, and the measured
+chip row hides whole chips into a `+n` pill when the control is too narrow for them.
+
+`tk-framework-qtwidgets/python/search_completer/search_completer.py` runs its completion popup
+unfiltered and draws every row through a delegate; this picker does the same. It was read, and
+nothing was copied.

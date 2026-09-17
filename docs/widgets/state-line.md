@@ -56,4 +56,14 @@ Every widget in this registry that reads rows draws this line: the popup of a pi
 search, the body of a table and of a grid, a tree, a grouped list, a card, and the field and column
 pickers. A widget passes its own label, its own glyph and the padding its surface asks for, and
 nothing else changes between them.
-::qt-note
+
+Here the line is one painted `QWidget`, so there is no data attribute: `state` and `pad` are
+keywords, `icon` is a lucide glyph name rather than a component, and `slot_name` is the widget's
+object name, which is what a driver finds it by. `apply_state(state, labels, message)` takes the
+line core settles for a state, so a widget that already holds a `StateLabels` passes it straight
+through.
+
+## Reference
+
+Nothing: the line is a `paintEvent` over the theme's tokens. The demo's wrapping rows are Qt's own
+Flow Layout example (`examples/widgets/layouts/flowlayout`), read and not copied.

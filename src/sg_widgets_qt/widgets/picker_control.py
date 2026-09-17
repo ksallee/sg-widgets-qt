@@ -127,6 +127,15 @@ LOAD_MORE = "__load-more"
 _LOAD_MORE_LABEL = "Load more"
 
 
+def _retire(popover: Popover) -> None:
+    """Close a popover and let Qt delete it, ignoring one that has already gone."""
+    try:
+        popover.close()
+        popover.deleteLater()
+    except RuntimeError:
+        pass
+
+
 def _key_name(event: QtGui.QKeyEvent) -> str:
     """A key event as the name core's keyboard model is written against."""
     key = event.key()
@@ -641,6 +650,10 @@ class PickerControl(ThemedWidget):
             match_anchor_width=self._anchored,
             width=None if self._anchored else POPUP_WIDTH,
         )
+        # The popover is a top-level of its own, parented to the anchor's window, so it has to
+        # go when the control does rather than when the window does.
+        popover_ref = self._popover
+        self.destroyed.connect(lambda *_: _retire(popover_ref))
         self._popover.set_dismiss_guard(self._claims_press)
         self._popover.set_key_handler(self._on_key)
         self._popover.dismissed.connect(lambda: self.set_open(False))
@@ -1327,6 +1340,10 @@ class PickerControl(ThemedWidget):
         self.setAccessibleDescription(self.status_text())
         self._popup.adjustSize()
         if self._open:
+            # The rows of an open list land after it opened, so the first one takes the
+            # highlight as it arrives rather than only when the list was already full.
+            if self._list.highlighted() < 0:
+                self._list.highlight_first()
             self._popover.reposition()
 
     # --- the chips ------------------------------------------------------------------------
@@ -1419,7 +1436,10 @@ class PickerControl(ThemedWidget):
         self._one_line = plan.one_line
         self.setToolTip(self._title or self._placeholder)
         self._pill.set_count(self._overflow)
-        self._pill.setVisible(self._overflow > 0 and self._summary != "count")
+        # What each part should show, not what Qt says it shows: a control whose window is not
+        # up yet reports every child hidden, and the geometry still has to be right.
+        show_pill = self._overflow > 0 and self._summary != "count"
+        self._pill.setVisible(show_pill)
         if self._overflow_label is not None:
             self._pill.setToolTip(self._overflow_label)
         else:
@@ -1431,9 +1451,9 @@ class PickerControl(ThemedWidget):
         x, y = left, pad_y
         rows = 1
         for index, chip in enumerate(self._chips):
-            visible = index < self._shown_chips
-            chip.setVisible(visible)
-            if not visible:
+            shown_chip = index < self._shown_chips
+            chip.setVisible(shown_chip)
+            if not shown_chip:
                 continue
             width = chip.sizeHint().width()
             if not self._one_line and x > left and x + width > left + room:
@@ -1442,7 +1462,7 @@ class PickerControl(ThemedWidget):
                 rows += 1
             chip.setGeometry(x, y, min(width, max(0, room)), line)
             x += width + CHIP_GAP
-        if self._pill.isVisible():
+        if show_pill:
             width = self._pill.sizeHint().width()
             self._pill.setGeometry(x, y, width, line)
             x += width + CHIP_GAP
@@ -1458,11 +1478,13 @@ class PickerControl(ThemedWidget):
             self.setMinimumHeight(height)
             self.updateGeometry()
 
-        self._clear.setVisible(self._show_clear())
-        self._trigger.setVisible(not self._readonly)
+        show_clear = self._show_clear()
+        show_trigger = not self._readonly
+        self._clear.setVisible(show_clear)
+        self._trigger.setVisible(show_trigger)
         edge = self.width() - 8
-        for control in (self._trigger, self._clear):
-            if not control.isVisible():
+        for control, shown in ((self._trigger, show_trigger), (self._clear, show_clear)):
+            if not shown:
                 continue
             hint = control.sizeHint()
             edge -= hint.width()
@@ -1472,13 +1494,10 @@ class PickerControl(ThemedWidget):
         self.update()
 
     def _place_ring(self) -> None:
-        if self._armed is None or self._armed >= len(self._chips):
+        if self._armed is None or self._armed >= min(len(self._chips), self._shown_chips):
             self._ring.hide()
             return
         chip = self._chips[self._armed]
-        if not chip.isVisible():
-            self._ring.hide()
-            return
         self._ring.setGeometry(chip.geometry())
         self._ring.raise_()
         self._ring.show()

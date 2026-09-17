@@ -82,14 +82,22 @@ A row that cannot be resolved keeps the label `Type id`.
 A thumbnail URL is presigned and re-minted on every read, so the picker holds the row and re-reads
 rather than storing the string (field_types/image).
 
-The control is the combobox input with the chosen row's chip inline; the list is the combobox
-popup. The loading state is the `skeleton` item of each registry.
-::qt-note
+The control is `PickerControl` with the chosen row's `EntityChip` inline, and the list is a
+`ListSurface` inside a popover that never takes focus, so the caret stays in the control while the
+list is showing. The loading state is three `Skeleton` rows at the inset and the height of a row.
+
+The read runs on `sg_widgets_qt.workers`: the pause a typist leaves, then `fetch_page` on a worker,
+then `deliver` back on the GUI thread with the ticket `begin` handed out, so an answer to a query
+that was replaced is dropped. Pictures are read on a pool of their own, so a page of thumbnails
+never queues a query behind it.
 
 ## Reference
 
-The row, chip and checkbox anatomy follows shadcn's Base UI Combobox, read through shadcn 4.21.0.
-The primitive underneath is Base UI Combobox 1.8.0 in React and Bits UI Combobox 2.19.1 in Svelte.
-shadcn-svelte ships no combobox item, so each widget composes the headless primitive of its
-framework and both draw the same rows, the same classes and the same states.
-::qt-note
+Here there is no headless primitive to compose. The box and its popup are
+`widgets/picker_control.py`, the popup is `primitives/popover.py` and never takes focus, the list is
+`primitives/list_view.py`, and every row is drawn by `primitives/row_delegate.py` through
+`PickerRowModel`, so PySide6 and PyQt5 draw the same pixels and answer a key the same way.
+
+`tk-framework-qtwidgets/python/search_completer/search_completer.py` runs its completion popup
+unfiltered and draws every row through a delegate; this picker does the same, and the site is the
+only authority on what matches. It was read, and nothing was copied.

@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from qtpy import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Signal
 
 from sg_widgets_core.filter import EntityRef
@@ -233,6 +233,10 @@ class EntitySearchPicker(QtWidgets.QWidget):
         )
         self.setMinimumWidth(0)
         self.setObjectName("entity-picker")
+        # The core search outlives the widget unless it is told to stop, and a state written
+        # after the widget has gone would reach a deleted control.
+        search = self._search
+        self.destroyed.connect(lambda *_: search.dispose())
         if open:
             self._control.set_open(True)
 
@@ -643,10 +647,10 @@ class EntitySearchPicker(QtWidgets.QWidget):
 
     # --- teardown --------------------------------------------------------------------------------
 
-    def closeEvent(self, event: QtGui.QCloseEvent) -> None:  # noqa: N802
+    def dispose(self) -> None:
+        """Drop the read in flight and stop writing state. Called when the widget goes."""
         self._runner.cancel()
         self._search.dispose()
-        super().closeEvent(event)
 
 
 def _chip_picture_size(step: str) -> tuple[int, int]:
