@@ -152,3 +152,32 @@ def test_a_secondary_of_the_callers_own_wins_over_the_code(qtbot):
     picker = build(qtbot, project_id=PROJECT, secondary=lambda option: option.code.upper())
     model = picker.rows_model
     assert model.index(0, 0).data(Roles.SECONDARY) == codes(picker)[0].upper()
+
+
+def test_a_picker_taken_down_under_a_read_drops_the_answer(qtbot):
+    """A table cell's editor closes, a demo is rebuilt: the read in flight has nowhere to land.
+
+    The answer reaches the loader through a queued signal, and emitting on a loader Qt has
+    deleted raises `RuntimeError` inside the event loop, which pytest-qt fails the test on and
+    the showcase prints as a traceback. The loader drops what is in flight as it goes.
+    """
+    import time
+
+    from qtpy.QtWidgets import QApplication
+
+    from sg_widgets_qt.widgets.status_picker import StatusOptionsLoader
+
+    context, _client = context_for(latency_ms=200)
+    loader = StatusOptionsLoader()
+    answers: list = []
+    loader.settled.connect(answers.append)
+    loader.reload(context, "Version", [PROJECT], None)
+    spin(qtbot, 20)
+    loader.deleteLater()
+    del loader
+    # The read is still on its pool thread; the loader goes under it.
+    end = time.time() + 2.0
+    while time.time() < end:
+        QApplication.processEvents()
+        qtbot.wait(10)
+    assert True, "the answer landed on a loader that had gone"

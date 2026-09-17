@@ -54,7 +54,7 @@ def settled(picker, wait, ms: int = 8000) -> bool:
     inner = picker.field_picker
     while time.time() < end:
         wait(60)
-        if inner.options:
+        if inner.derived:
             return True
     return False
 
@@ -72,7 +72,7 @@ def drive(page, wait, find, prefs) -> dict:
             failures.append(f"{name} — the field list never answered")
             continue
         inner = picker.field_picker
-        if not inner.options[0].selectable:
+        if not inner.derived[0].selectable:
             seen[name] = {"skipped": "the list opens on a link, which Enter descends into"}
             continue
         # The column picker consumes a pick at once and clears the picker, which leaves the

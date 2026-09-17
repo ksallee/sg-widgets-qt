@@ -66,7 +66,7 @@ def settled(qtbot, picker, ms: int = 1200) -> None:
     end = time.time() + ms / 1000.0
     while time.time() < end:
         QApplication.processEvents()
-        if picker.field_picker.options:
+        if picker.field_picker.derived:
             break
         qtbot.wait(5)
     spin(qtbot, 60)
@@ -155,7 +155,7 @@ def test_picking_a_field_appends_it_and_takes_it_off_the_list(qtbot):
     picker = build(qtbot, value=["code"])
     settled(qtbot, picker)
     assert "code" in (picker.field_picker.exclude or [])
-    assert all(one.path != "code" for one in picker.field_picker.options)
+    assert all(one.path != "code" for one in picker.field_picker.derived)
     seen: list = []
     picker.value_changed.connect(lambda value: seen.append(list(value)))
     inner = picker.field_picker
@@ -287,7 +287,11 @@ def test_a_drag_emits_the_new_order_once_on_the_release(qtbot):
     drag_move(rows, QPoint(first.left() + 12, first.center().y()))
     spin(qtbot, 20)
     assert heard == [], "the rows gave way but nothing was emitted before the release"
-    assert chosen.paths != COLUMNS, "the rows never gave way"
+    # The order stands still while the gesture runs: the rows give way with a transform, which
+    # is rule 4, and the one change lands on the release.
+    assert chosen.paths == COLUMNS, "the order moved before the drop"
+    assert chosen.motion.lifted == 2, "the row under the pointer is the lifted one"
+    assert chosen.offset_of(0) > 0, "the row the drag passed never gave way"
     QTest.mouseRelease(
         rows,
         Qt.MouseButton.LeftButton,
@@ -297,6 +301,7 @@ def test_a_drag_emits_the_new_order_once_on_the_release(qtbot):
     spin(qtbot, 40)
     assert len(heard) == 1
     assert heard[0] == picker.value == chosen.paths
+    assert chosen.paths[0] == COLUMNS[2], "the dragged row landed where it was dropped"
 
 
 def test_a_cancelled_drag_puts_the_row_back_and_emits_nothing(qtbot):
@@ -418,3 +423,102 @@ def test_the_dual_list_names_the_field_code_beside_its_label(qtbot):
     model = picker.available.list_surface().model()
     codes = [model.index(row, 0).data(Roles.CODE) for row in range(model.rowCount())]
     assert any(codes), "no row names its programmatic field code"
+
+
+def test_a_neighbour_slides_out_of_the_way_and_settles_on_the_drop(qtbot):
+    """The motion of a drag: the row is lifted, its neighbours give way, and all settle back.
+
+    Rule 4 animates a translate and nothing else, so the order stands still while the gesture
+    runs and the rows are only drawn off their slots. Every offset is back at zero once the
+    drop has settled, which is 200ms and never more than 300.
+    """
+    picker = build(qtbot, value=COLUMNS)
+    labelled(qtbot, picker)
+    chosen = picker.chosen_list
+    rows = chosen.viewport()
+    first = chosen.visualRect(chosen.model().index(0, 0))
+    last = chosen.visualRect(chosen.model().index(2, 0))
+    grip = QPoint(first.left() + 12, first.center().y())
+
+    QTest.mousePress(rows, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, grip)
+    drag_move(rows, QPoint(grip.x(), grip.y() + 8))
+    assert chosen.motion.lifted == 0, "the row under the pointer is the lifted one"
+    # Two slots down: past the last row's own midpoint, which is where it gives its place up.
+    drag_move(rows, QPoint(last.left() + 12, last.center().y() + 4))
+    spin(qtbot, 40)
+    assert chosen.paths == COLUMNS, "the order moved before the drop"
+    assert chosen.offset_of(0) > 0, "the lifted row does not follow the pointer"
+    assert chosen.offset_of(1) < 0, "the neighbour never slid out of the way"
+    assert chosen.offset_of(2) < 0, "the second neighbour never slid out of the way"
+
+    QTest.mouseRelease(
+        rows,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        QPoint(last.left() + 12, last.center().y() + 4),
+    )
+    assert chosen.paths == [COLUMNS[1], COLUMNS[2], COLUMNS[0]], "the drop moved the row two slots"
+    end = time.time() + 0.4
+    while time.time() < end and chosen.motion.running:
+        QApplication.processEvents()
+        qtbot.wait(10)
+    assert not chosen.motion.running, "the settle never finished"
+    assert all(abs(chosen.offset_of(row)) < 1 for row in range(3)), "a row was left off its slot"
+    assert chosen.motion.lifted == -1, "nothing is left lifted"
+
+
+def test_a_keyboard_move_slides_the_rows_it_swaps(qtbot):
+    """Alt with an arrow moves a row a place, and the two rows slide rather than jump."""
+    picker = build(qtbot, value=COLUMNS)
+    labelled(qtbot, picker)
+    chosen = picker.chosen_list
+    chosen.setFocus(Qt.FocusReason.TabFocusReason)
+    chosen.set_highlight(0)
+    QTest.keyClick(chosen, Qt.Key.Key_Down, Qt.KeyboardModifier.AltModifier)
+    assert chosen.paths[1] == COLUMNS[0], "the row never moved"
+    # Measured on both sides of the one change: the rows start where they were drawn.
+    assert any(abs(chosen.offset_of(row)) >= 1 for row in range(3)), "the rows jumped"
+    end = time.time() + 0.4
+    while time.time() < end and chosen.motion.running:
+        QApplication.processEvents()
+        qtbot.wait(10)
+    assert all(abs(chosen.offset_of(row)) < 1 for row in range(3)), "a row was left off its slot"
+
+
+def test_reduced_motion_swaps_the_rows_without_a_slide(qtbot):
+    """Rule 4: under `theme.reduced_motion` the rows take their places and nothing moves."""
+    root = QWidget()
+    apply_theme(root, theme_for("default", reduced_motion=True))
+    qtbot.addWidget(root)
+    root.resize(720, 640)
+    picker = ColumnPicker(context=context_for(), entity_type="Version", value=COLUMNS, parent=root)
+    picker.setGeometry(10, 10, 700, 600)
+    root.show()
+    qtbot.waitExposed(root)
+    picker.test_root = root
+    labelled(qtbot, picker)
+    chosen = picker.chosen_list
+    chosen.setFocus(Qt.FocusReason.TabFocusReason)
+    chosen.set_highlight(0)
+    QTest.keyClick(chosen, Qt.Key.Key_Down, Qt.KeyboardModifier.AltModifier)
+    assert chosen.paths[1] == COLUMNS[0], "the row never moved"
+    assert not chosen.motion.running, "reduced motion animated the move"
+    assert all(abs(chosen.offset_of(row)) < 1 for row in range(3)), "a row was drawn off its slot"
+
+
+def test_a_picker_taken_down_under_a_label_read_drops_the_answer(qtbot):
+    """A picker closed or rebuilt while its friendly paths are read has nowhere to put them.
+
+    The answer is written to the chosen list's model on the GUI thread, and writing to a model
+    Qt has deleted raises `RuntimeError` inside the event loop, which pytest-qt fails the test
+    on and the showcase prints as a traceback. The picker takes its ticket as it goes.
+    """
+    picker = build(qtbot, value=COLUMNS)
+    picker.setParent(None)
+    picker.deleteLater()
+    del picker
+    end = time.time() + 2.0
+    while time.time() < end:
+        QApplication.processEvents()
+        qtbot.wait(10)
+    assert True, "the labels landed on a picker that had gone"

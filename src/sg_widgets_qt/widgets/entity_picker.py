@@ -176,13 +176,13 @@ class EntitySearchPicker(QtWidgets.QWidget):
             sub_label_field=sub_label_field,
             sub_label=sub_label,
             secondary_field=secondary_field,
-            secondary=self._secondary_of,
             show_code=show_code,
             round_thumbnail=round_thumbnail,
             size=self._size,
             fields=list(fields) if fields is not None else (),
             site_url=site_url,
         )
+        self._rows.set_secondary(self._own_secondary())
         self._rows.rows_changed.connect(self._refresh_chips)
 
         delegate = RowDelegate(
@@ -287,6 +287,8 @@ class EntitySearchPicker(QtWidgets.QWidget):
     def set_entity_types(self, value: Sequence[str]) -> None:
         self._entity_types = list(value)
         self._search.update(entity_types=list(value))
+        # The type on the right is drawn only while the list is polymorphic and names no field.
+        self._rows.set_secondary(self._own_secondary())
 
     @property
     def context(self) -> Any:
@@ -323,6 +325,7 @@ class EntitySearchPicker(QtWidgets.QWidget):
     def set_secondary_field(self, value: Any) -> None:
         self._rows.set_secondary_field(value)
         self._search.update(secondary_field=value)
+        self._rows.set_secondary(self._own_secondary())
 
     @property
     def secondary(self) -> Callable[[PickerRow], str] | None:
@@ -331,7 +334,7 @@ class EntitySearchPicker(QtWidgets.QWidget):
 
     def set_secondary(self, value: Callable[[PickerRow], str] | None) -> None:
         self._secondary = value
-        self._rows.set_secondary(self._secondary_of)
+        self._rows.set_secondary(self._own_secondary())
 
     @property
     def sub_label_field(self) -> Any:
@@ -611,13 +614,20 @@ class EntitySearchPicker(QtWidgets.QWidget):
             self._control.search_placeholder if filled else self._control.placeholder
         )
 
-    def _secondary_of(self, row: PickerRow) -> str:
-        """The caller's own secondary, and the type on a polymorphic list that names none."""
+    def _own_secondary(self) -> Callable[[PickerRow], str] | None:
+        """What this picker draws on the right itself, or None to leave the column to the field.
+
+        The model resolves `secondary_field` by its data type — a status among them, which is a
+        badge and not a string (rule 9) — so a callable of ours standing in that column would
+        take the field's own rendering away from it and draw nothing. One is handed over only
+        where the picker has something the field cannot say: the caller's own renderer, and the
+        type on a polymorphic list that names no field.
+        """
         if self._secondary is not None:
-            return self._secondary(row)
+            return self._secondary
         if not path_of(self._rows.secondary_field) and len(self._entity_types) > 1:
-            return row.type
-        return ""
+            return lambda row: row.type
+        return None
 
     # --- the chip -----------------------------------------------------------------------------
 

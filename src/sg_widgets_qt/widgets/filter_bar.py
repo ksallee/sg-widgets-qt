@@ -223,6 +223,12 @@ class FilterBar(QtWidgets.QWidget):
         self._pills: dict[str, _FacetPill] = {}
         self._fields_ticket = Ticket()
         self._counts_ticket = Ticket()
+        # A bar taken down under a read in flight — a page left, a demo the toolbar rebuilds —
+        # leaves the counts on their way to pills that have gone, and the answer reaches a
+        # deleted command box and raises into the event loop. The tickets are plain objects and
+        # outlive the widget, so taking them as it goes drops whatever is still out.
+        tickets = (self._fields_ticket, self._counts_ticket)
+        self.destroyed.connect(lambda *_ignored: [one.cancel() for one in tickets])
         self._open_facet: str | None = None
 
         self._flow = _FlowLayout(self, spacing=BAR_GAP)

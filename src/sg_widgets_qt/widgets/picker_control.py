@@ -626,6 +626,10 @@ class PickerControl(ThemedWidget):
         self._open = False
         self._query = query
         self._armed: int | None = None
+        #: The row the cursor sat on when a multi picker last took one, so a rebuild of the
+        #: rows under it does not send the next ArrowDown back to the top. None means the
+        #: cursor is wherever the reader left it.
+        self._seat: int | None = None
         self._chips: list[QtWidgets.QWidget] = []
         self._shown_chips = 0
         self._overflow = 0
@@ -774,6 +778,10 @@ class PickerControl(ThemedWidget):
             if self._row_model is not None
             else QtGui.QStandardItemModel(0, 1, self._list)
         )
+        # A pick is written back by rebuilding the rows, which resets the model and drops the
+        # view's current index with it; the seat is taken again as each rebuild lands. The
+        # list's own proxy is what the view holds, and it outlives every model set on it.
+        self._list.model().modelReset.connect(self._reseat_later)
         if self._set_delegate is not None:
             self._list.setItemDelegate(self._set_delegate)
             self._set_delegate.setParent(self._list)
@@ -1260,6 +1268,9 @@ class PickerControl(ThemedWidget):
         if wanted == self._open:
             return
         self._open = wanted
+        # The seat belongs to the list that is up: a list opened again opens with nothing
+        # highlighted, as clause 3 asks.
+        self._seat = None
         if not wanted:
             self.set_query("")
             if self._popover is not None:
@@ -1432,6 +1443,8 @@ class PickerControl(ThemedWidget):
         super().keyPressEvent(event)
 
     def _on_typed(self, text: str) -> None:
+        # A new query answers rows of its own, and the seat the last pick took is not among them.
+        self._seat = None
         self._query = text
         self._sync_query()
         if self._on_query_change is not None:
@@ -1458,8 +1471,33 @@ class PickerControl(ThemedWidget):
         # A pick keeps a multi picker open and closes a single one.
         if not self._multiple:
             self.set_open(False)
+        else:
+            # Clause 4: the list stays open for the next row, so the cursor stays on the row
+            # the reader is standing on. A picker writes the selection back by rebuilding its
+            # rows, and a model that resets drops the view's current index with it, which
+            # would send the next ArrowDown back to the top of the list.
+            self._seat = row
+            self._reseat_later()
         self.arm(None)
         self._focus_caret()
+
+    def _reseat_later(self) -> None:
+        """Take the seat again on the next turn of the loop.
+
+        A model reset reaches this control and the view it is in, and the view clears its
+        current index on its own turn, so the seat is taken after the rebuild has finished
+        landing rather than in the middle of it.
+        """
+        if self._seat is not None:
+            QtCore.QTimer.singleShot(0, self._reseat)
+
+    def _reseat(self) -> None:
+        """Put the cursor back where the last pick left it, once the rows are there again."""
+        if self._seat is None or not self._open or self._list is None:
+            return
+        if self._list.highlighted() >= 0:
+            return
+        self._list.set_highlight(self._seat)
 
     def _emit_select(self, keys: list) -> None:
         if self._on_select is not None:

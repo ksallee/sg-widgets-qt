@@ -312,6 +312,10 @@ class ContextTrigger(ThemedWidget):
             item = self._row.takeAt(0)
             widget = item.widget()
             if widget is not None:
+                # Hidden before it is let go: a widget reparented to None is a top-level
+                # window, and one Qt never saw explicitly hidden stands as a stray window over
+                # the panel until the deferred delete runs.
+                widget.hide()
                 widget.setParent(None)
                 widget.deleteLater()
         self._apply_insets()
@@ -545,6 +549,10 @@ class ContextSelector(QWidget):
             item = self._recents_column.takeAt(0)
             widget = item.widget()
             if widget is not None:
+                # Hidden before it is let go: a widget reparented to None is a top-level
+                # window, and one Qt never saw explicitly hidden stands as a stray window over
+                # the panel until the deferred delete runs.
+                widget.hide()
                 widget.setParent(None)
                 widget.deleteLater()
         if not self._recents:

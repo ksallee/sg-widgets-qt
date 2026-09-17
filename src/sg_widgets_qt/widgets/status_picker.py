@@ -90,6 +90,12 @@ class StatusOptionsLoader(QtCore.QObject):
     def __init__(self, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent)
         self._runner = QueryRunner(search_pool(), delay_ms=0, parent=self)
+        # A picker torn down under a read in flight — a table cell's editor closing, a demo
+        # rebuilt by the toolbar — leaves the answer on its way to a loader that has gone, and
+        # `settled.emit` on a deleted object raises into the event loop. `destroyed` runs
+        # before the children go, so the runner is still there to be told to drop it.
+        runner = self._runner
+        self.destroyed.connect(lambda *_ignored: runner.cancel())
 
     def reload(
         self,

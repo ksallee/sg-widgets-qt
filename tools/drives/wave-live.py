@@ -48,16 +48,16 @@ def field_picker(page, wait, find) -> dict | None:
         return None
     picker = pickers[0]
     picker.control.set_open(True)
-    if not until(lambda: bool(picker.options), wait, LIVE_MS):
+    if not until(lambda: bool(picker.derived), wait, LIVE_MS):
         return {"verdict": "FAIL the site answered no fields"}
     root = {
-        "rows": len(picker.options),
-        "types": sorted({one.data_type for one in picker.options if one.data_type}),
-        "links": sum(1 for one in picker.options if one.traversable),
+        "rows": len(picker.derived),
+        "types": sorted({one.data_type for one in picker.derived if one.data_type}),
+        "links": sum(1 for one in picker.derived if one.traversable),
     }
     link = next(
-        (one for one in picker.options if one.traversable and one.name == "entity"),
-        next((one for one in picker.options if one.traversable), None),
+        (one for one in picker.derived if one.traversable and one.name == "entity"),
+        next((one for one in picker.derived if one.traversable), None),
     )
     if link is None:
         return {"verdict": "FAIL the site's schema offered no link to descend", "root": root}
@@ -68,11 +68,11 @@ def field_picker(page, wait, find) -> dict | None:
         targets = picker.levels.targets()
         if targets:
             picker.levels.descend(choosing, targets[0])
-    if not until(lambda: bool(picker.hops) and bool(picker.options), wait, LIVE_MS):
+    if not until(lambda: bool(picker.hops) and bool(picker.derived), wait, LIVE_MS):
         return {"verdict": "FAIL the descend never landed", "root": root}
     deep = {
         "hops": len(picker.hops),
-        "rows": len(picker.options),
+        "rows": len(picker.derived),
         "crumbs": len(picker.levels.crumbs()),
     }
     picker.control.set_open(False)
@@ -92,9 +92,9 @@ def column_picker(page, wait, find) -> dict | None:
         return None
     picker = pickers[0]
     picker.field_picker.control.set_open(True)
-    if not until(lambda: bool(picker.field_picker.options), wait, LIVE_MS):
+    if not until(lambda: bool(picker.field_picker.derived), wait, LIVE_MS):
         return {"verdict": "FAIL the site answered no fields for the column list"}
-    offered = picker.field_picker.options
+    offered = picker.field_picker.derived
     picker.field_picker.control.set_open(False)
     return {
         "verdict": "PASS the column picker read the site's schema and resolved its chosen paths",

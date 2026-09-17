@@ -221,3 +221,197 @@ def test_prose_headings_take_the_foreground_in_dark(qtbot):
     for tag in ("h1", "h2", "h3", "li", "td"):
         rule = css[css.index(tag + " {") : css.index("}", css.index(tag + " {"))]
         assert dark.foreground in rule, tag
+
+
+def test_the_entity_table_demo_sorts_on_the_columns_it_shows(qtbot):
+    """`paths` is the visible columns, and it follows them.
+
+    Upstream hands the picker `columns.map((column) => column.path)`, so a toolbar sorts on
+    what its table shows. Ours used to hand it every column the demo can show, which offered
+    fields no reader could see.
+    """
+    import time
+
+    from sg_widgets_core.collection import CollectionColumn
+    from sg_widgets_qt.showcase.demos.entity_table import (
+        PATHS,
+        SHOWN,
+        EntityTableDemo,
+        table_context,
+    )
+
+    demo = EntityTableDemo(table_context(demo_context()))
+    qtbot.addWidget(demo)
+    picker = demo._sort
+    assert picker is not None
+    assert picker.paths == list(SHOWN)
+
+    end = time.time() + 5.0
+    while time.time() < end and not demo.table.columns:
+        QtWidgets.QApplication.processEvents()
+        qtbot.wait(5)
+    resolved = [column.path for column in demo.table.columns]
+    assert resolved == list(SHOWN)
+    assert picker.paths == resolved
+    # The two the demo can show but does not are not on offer.
+    assert [path for path in PATHS if path not in resolved]
+    assert not [path for path in picker.paths if path not in resolved]
+
+    # A column dropped from the table takes its path off the list with it.
+    kept = [column for column in demo.table.columns if column.path != "description"]
+    demo.table.columns_changed.emit(kept)
+    QtWidgets.QApplication.processEvents()
+    assert picker.paths == [column.path for column in kept]
+    assert isinstance(kept[0], CollectionColumn)
+
+
+def field_editor_demo(qtbot):
+    """The field-editor demo on a themed window, the way the showcase stands it up."""
+    from sg_widgets_qt.showcase.demos.field_editor import FieldEditorDemo
+    from sg_widgets_qt.theme import apply_theme, theme_for
+
+    root = QtWidgets.QWidget()
+    apply_theme(root, theme_for("default"))
+    qtbot.addWidget(root)
+    root.resize(900, 700)
+    column = QtWidgets.QVBoxLayout(root)
+    demo = FieldEditorDemo(demo_context(), root)
+    column.addWidget(demo)
+    root.show()
+    qtbot.waitExposed(root)
+    # The window is held on the demo, so neither goes while the test still drives it.
+    demo.test_root = root
+    return demo
+
+
+def test_the_field_editor_toggle_shows_the_values_again(qtbot):
+    """The second press on "Edit every field" puts every row back on its value.
+
+    The press moves the focus off the row that holds it, and an editor commits and closes on
+    a blur, so a toggle that reads its state back off the rows finds one of them closed and
+    opens them all again. The button holds what it last asked for instead.
+    """
+    from qtpy.QtCore import Qt
+    from qtpy.QtTest import QTest
+
+    demo = field_editor_demo(qtbot)
+    toggle = demo.toggle
+
+    def press() -> None:
+        QTest.mouseClick(
+            toggle, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, toggle.rect().center()
+        )
+        for _ in range(40):
+            QtWidgets.QApplication.processEvents()
+        qtbot.wait(120)
+
+    press()
+    assert [one.mode for one in demo._inline] == ["edit"] * len(demo._inline)
+    press()
+    assert [one.mode for one in demo._inline] == ["display"] * len(demo._inline)
+    press()
+    assert [one.mode for one in demo._inline] == ["edit"] * len(demo._inline)
+
+
+def test_cancelling_a_popover_edit_leaves_no_window_behind(qtbot):
+    """A value on its way off the display half is hidden before it is let go.
+
+    A widget reparented to None is a top-level window of its own, and one Qt never saw
+    explicitly hidden stands as a stray window over the page until the deferred delete runs.
+    The value is rebuilt on every cancel, so this was a window per cancelled edit.
+    """
+    from qtpy.QtCore import Qt
+    from qtpy.QtTest import QTest
+
+    demo = field_editor_demo(qtbot)
+    editor = demo.findChild(QtWidgets.QWidget, "field-editor-popover-text")
+    assert editor is not None
+    QTest.mouseClick(
+        editor.display,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        editor.display.rect().center(),
+    )
+    qtbot.wait(150)
+    assert editor.mode == "edit" and editor.popover is not None
+    # Typed into, the way a reader edits: the draft reaches the value, and the value the
+    # display half draws is built again under the popover.
+    caret = editor.control.findChild(QtWidgets.QPlainTextEdit) or editor.control.findChild(
+        QtWidgets.QLineEdit
+    )
+    assert caret is not None
+    caret.setFocus(Qt.FocusReason.OtherFocusReason)
+    QTest.keyClicks(caret, " Cancelled.")
+    qtbot.wait(120)
+    cancel = editor.popover.findChild(QtWidgets.QWidget, "field-editor-cancel")
+    assert cancel is not None
+    QTest.mouseClick(
+        cancel, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, cancel.rect().center()
+    )
+    # Paints and posted events only: a nested event loop would run the deferred delete and
+    # take the stray away before it could be seen, which is not what the showcase does.
+    for _ in range(40):
+        QtWidgets.QApplication.processEvents()
+    assert editor.mode == "display"
+    strays = [
+        one.objectName()
+        for one in QtWidgets.QApplication.topLevelWidgets()
+        if one.isVisible() and one.objectName() == "field-editor-value"
+    ]
+    assert not strays, f"a value was left standing as a window of its own: {strays}"
+
+
+def test_a_demo_rebuilt_with_its_palette_open_takes_the_dialog_with_it(qtbot, qapp):
+    """The toolbar rebuilds the demo under an open palette; the dialog goes with it.
+
+    A command dialog hangs off the host window and holds the search box inside it, so neither
+    is a child of the widget that built them. A demo rebuilt by a size or a density step used
+    to leave the dialog standing over the application with nothing behind it.
+    """
+    import time
+
+    from qtpy.QtCore import Qt
+    from qtpy.QtTest import QTest
+
+    from sg_widgets_qt.showcase.stage import DemoStage
+
+    prefs = Prefs(persist=False)
+    root = QtWidgets.QWidget()
+    qtbot.addWidget(root)
+    root.resize(900, 600)
+    column = QtWidgets.QVBoxLayout(root)
+    stage = DemoStage("global-search", "Global search", demo_context(), prefs, root)
+    column.addWidget(stage)
+    root.show()
+    qtbot.waitExposed(root)
+    end = time.time() + 5.0
+    while time.time() < end and not stage.ready:
+        qapp.processEvents()
+        qtbot.wait(10)
+
+    palette = stage.findChild(QtWidgets.QWidget, "global-search-palette")
+    assert palette is not None
+    trigger = palette.trigger()
+    assert trigger is not None
+    QTest.mouseClick(
+        trigger, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, trigger.rect().center()
+    )
+    qtbot.wait(200)
+    assert palette.open
+    assert [
+        one for one in QtWidgets.QApplication.topLevelWidgets()
+        if one.isVisible() and one.objectName() == "dialog-content"
+    ], "the palette never opened its dialog"
+
+    # The size step is one of the keys a stage rebuilds on.
+    prefs.set("size", "lg")
+    qtbot.wait(400)
+    for _ in range(10):
+        qapp.processEvents()
+        qtbot.wait(40)
+    strays = [
+        one.objectName()
+        for one in QtWidgets.QApplication.topLevelWidgets()
+        if one.isVisible() and one.objectName() == "dialog-content"
+    ]
+    assert not strays, f"the rebuilt demo left its dialog standing: {strays}"

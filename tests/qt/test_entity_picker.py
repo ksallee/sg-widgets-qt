@@ -3,13 +3,15 @@ from __future__ import annotations
 
 import time
 
-from qtpy.QtCore import QTimer
+from qtpy.QtCore import Qt, QTimer
+from qtpy.QtTest import QTest
 from qtpy.QtWidgets import QApplication, QWidget
 
 from sg_widgets_core.context import SgContextOptions, create_sg_context
 from sg_widgets_core.filter import EntityRef
 from sg_widgets_core.mock import MOCK_NOW, MockClient
 from sg_widgets_core.picker import PageResult, PickerRow
+from sg_widgets_qt.primitives.roles import Roles
 from sg_widgets_qt.theme import apply_theme, theme_for
 from sg_widgets_qt.widgets.entity_picker import EntityPicker
 
@@ -178,20 +180,67 @@ def test_a_failed_read_surfaces_on_the_error_signal_and_the_line(qtbot):
     assert picker.control.state_line().label
 
 
+def secondary_of(picker, row: int = 0):
+    """What the first row draws on the right: its text, and the painter under it."""
+    index = picker.control.list_surface().model().index(row, 0)
+    return index.data(Roles.SECONDARY), index.data(Roles.PAINTER)
+
+
 def test_the_type_is_the_secondary_on_a_polymorphic_list(qtbot):
     picker = build(qtbot, entity_types=["Shot", "Asset"])
     picker.set_open(True)
     settled(qtbot, picker)
-    row = picker.state.rows[0]
-    assert picker._secondary_of(row) == row.type
+    text, _paint = secondary_of(picker)
+    assert text == picker.state.rows[0].type
 
 
 def test_a_caller_secondary_wins(qtbot):
     picker = build(qtbot, entity_types=["Shot"], secondary=lambda row: f"#{row.id}")
     picker.set_open(True)
     settled(qtbot, picker)
-    row = picker.state.rows[0]
-    assert picker._secondary_of(row) == f"#{row.id}"
+    text, paint = secondary_of(picker)
+    assert text == f"#{picker.state.rows[0].id}"
+    assert paint is None, "the caller's own text is not drawn by the field"
+
+
+def test_a_field_secondary_is_drawn_from_the_field(qtbot):
+    """The column a `secondary_field` names is drawn, and by the field's own data type.
+
+    The picker used to hand the model a renderer of its own whatever it had been given, and a
+    renderer standing in that column takes the field's rendering away from it: the status badge
+    never appeared, and a plain field drew nothing at all.
+    """
+    picker = build(qtbot, entity_types=["Shot"], secondary_field="id")
+    # Opened by hand, the way a person opens it.
+    QTest.mouseClick(
+        picker.control,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        picker.control.rect().center(),
+    )
+    settled(qtbot, picker)
+    text, _paint = secondary_of(picker)
+    assert text == str(picker.state.rows[0].id), "the field the caller named is not drawn"
+
+
+def test_a_status_secondary_draws_its_badge(qtbot):
+    """A status is a glyph and a name, which no string renders: rule 9 of the design rules."""
+    picker = build(qtbot, entity_types=["Shot"], secondary_field="sg_status_list")
+    QTest.mouseClick(
+        picker.control,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        picker.control.rect().center(),
+    )
+    settled(qtbot, picker)
+    # The field's schema and the status table land on threads of their own.
+    end = time.time() + 2.0
+    while time.time() < end and not callable(secondary_of(picker)[1]):
+        QApplication.processEvents()
+        qtbot.wait(10)
+    text, paint = secondary_of(picker)
+    assert callable(paint), "the status secondary drew no badge"
+    assert text == "", "a status is drawn as a badge, never as its raw code"
 
 
 def test_a_page_of_five_offers_a_load_more_row(qtbot):

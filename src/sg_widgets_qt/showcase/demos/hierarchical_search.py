@@ -66,6 +66,9 @@ class HierarchicalSearchDemo(QtWidgets.QWidget):
             item = self._path_row.takeAt(0)
             widget = item.widget()
             if widget is not None:
+                # Hidden before it is let go: a widget reparented to None is a window of its
+                # own, and one Qt never saw hidden stands over the page until it is deleted.
+                widget.hide()
                 widget.setParent(None)
                 widget.deleteLater()
         for step in path:

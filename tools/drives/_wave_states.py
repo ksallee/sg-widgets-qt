@@ -145,7 +145,7 @@ def field_picker_deep(page, wait, find, prefs=None) -> dict:
     if not opened(picker, wait):
         return {"verdict": "FAIL the field list never answered"}
     link = next(
-        (row for row in picker.options if row.name == DEEP_FIELD and row.traversable), None
+        (row for row in picker.derived if row.name == DEEP_FIELD and row.traversable), None
     )
     if link is None:
         return {"verdict": f"FAIL Version has no traversable {DEEP_FIELD} field"}

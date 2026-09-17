@@ -1,4 +1,4 @@
-"""Pointer and keyboard reordering for a column of row widgets.
+"""Pointer and keyboard reordering for a column of rows, and the motion it moves with.
 
 The Qt half of `packages/react/src/registry/sg/components/sortable.tsx`. The order itself lives
 in `sg_widgets_core.sortable`: the model answers what a move does and what a screen reader is
@@ -9,6 +9,17 @@ rows nor the order: it watches the grips, reports where a drop would land, and e
     rows.set_rows(ids, widgets)
     rows.attach_grip(grip, index)
     rows.moved.connect(commit)
+
+`SortableMotion` is the other half: the offsets the rows are drawn at while a gesture runs. It
+is the port of `playSortableFlip` and the transform half of `createSortableController`
+(`packages/core/src/sortable.ts`): the row under the pointer follows it as a lifted layer, and a
+row the drag passes slides one row out of the way over 200ms on an out-cubic curve, transform
+only — rule 4 of `docs/design-rules.md` animates a translate, never a sibling's position in the
+layout. Under `theme.reduced_motion` the rows take their offsets at once and nothing moves.
+
+A column of widgets (the sort picker's, the filter editor's) hands the offsets to `move`; a list
+that draws its rows with a delegate (the column picker's) reads them in `paint`. Both are the
+same gesture, so they share one object.
 """
 from __future__ import annotations
 
@@ -23,15 +34,237 @@ from sg_widgets_core.sortable import (
     SortablePoint,
     SortableRect,
     sortable_drop_index,
+    sortable_stride,
 )
 
-__all__ = ["DRAG_THRESHOLD", "DROP_LINE", "SortableRows", "paint_drop_line"]
+
+def _alive(widget: QtWidgets.QWidget) -> bool:
+    """False once Qt has deleted the widget under the Python wrapper this object still holds."""
+    try:
+        widget.objectName()
+    except RuntimeError:
+        return False
+    return True
+
+__all__ = [
+    "DRAG_THRESHOLD",
+    "DROP_LINE",
+    "LIFT_OPACITY",
+    "LIFT_SCALE",
+    "SLIDE_MS",
+    "SortableMotion",
+    "SortableRows",
+    "paint_drop_line",
+]
 
 #: How far the pointer travels before a press on a grip becomes a drag.
 DRAG_THRESHOLD = 4
 
 #: The insertion mark drawn between two rows while one is carried.
 DROP_LINE = 2
+
+#: How long a row takes to slide out of the way, and to settle into its slot on the drop.
+#: `DURATION["item"]` of the primitives: a row entering or leaving, rule 4.
+SLIDE_MS = 200
+
+#: What a lifted row wears while it is carried: `data-[dragging]:opacity-90 shadow-md` of
+#: `column-picker.tsx`, and the press scale of rule 4.
+LIFT_OPACITY = 0.9
+LIFT_SCALE = 0.98
+
+#: How far the shadow under a lifted row reaches, and how dark it is at the row's own edge.
+LIFT_SHADOW = 8
+LIFT_SHADOW_ALPHA = 0.18
+
+
+class SortableMotion(QtCore.QObject):
+    """Where each row of a sortable column is drawn while a gesture runs.
+
+    Offsets are held per index, in pixels along the column. `changed` fires on every frame, so
+    a widget column re-places its rows and a list repaints; nothing is laid out again, which is
+    what rule 4 asks for. `lifted` names the row the pointer carries, which is drawn over the
+    rest with a shadow and the press scale.
+    """
+
+    #: The offsets moved. A column redraws from them.
+    changed = Signal()
+    #: The last slide or settle finished, so a drive can wait for the motion to end.
+    finished = Signal()
+
+    def __init__(
+        self,
+        widget: QtWidgets.QWidget,
+        duration_ms: int = SLIDE_MS,
+        parent: QtCore.QObject | None = None,
+    ) -> None:
+        super().__init__(parent if parent is not None else widget)
+        self._widget = widget
+        self._duration = int(duration_ms)
+        self._from: dict[int, float] = {}
+        self._to: dict[int, float] = {}
+        self._now: dict[int, float] = {}
+        self._lifted = -1
+        self._carry = 0.0
+        self._animation = QtCore.QVariantAnimation(self)
+        self._animation.setStartValue(0.0)
+        self._animation.setEndValue(1.0)
+        self._animation.setEasingCurve(QtCore.QEasingCurve(QtCore.QEasingCurve.Type.OutCubic))
+        self._animation.valueChanged.connect(self._on_frame)
+        self._animation.finished.connect(self._on_done)
+
+    # --- what it holds --------------------------------------------------------------------
+
+    @property
+    def running(self) -> bool:
+        """True while a slide or a settle is still playing."""
+        return self._animation.state() == QtCore.QAbstractAnimation.State.Running
+
+    @property
+    def lifted(self) -> int:
+        """The row the pointer is carrying, or -1."""
+        return self._lifted
+
+    @property
+    def carry(self) -> float:
+        """How far the lifted row stands from its slot, which is the pointer's own travel."""
+        return self._carry
+
+    @property
+    def moving(self) -> bool:
+        """True while any row is drawn away from its slot."""
+        return self._lifted >= 0 or any(abs(value) >= 0.5 for value in self._now.values())
+
+    def offset_of(self, index: int) -> float:
+        """How far the row at `index` is drawn from where the layout puts it."""
+        if index == self._lifted:
+            return self._carry
+        return self._now.get(index, 0.0)
+
+    def offsets(self) -> dict:
+        """Every offset that is not zero, by index."""
+        out = {index: value for index, value in self._now.items() if abs(value) >= 0.5}
+        if self._lifted >= 0:
+            out[self._lifted] = self._carry
+        return out
+
+    # --- the gesture ----------------------------------------------------------------------
+
+    def _reduced(self) -> bool:
+        from ..theme import theme_of
+
+        try:
+            return bool(theme_of(self._widget).reduced_motion)
+        except RuntimeError:
+            return True
+
+    def lift(self, index: int) -> None:
+        """Take the row at `index` off the column: it follows the pointer from here on."""
+        self._lifted = int(index)
+        self._carry = 0.0
+        self.changed.emit()
+
+    def carry_to(self, offset: float) -> None:
+        """The lifted row follows the pointer at once: a carried row never lags behind it."""
+        if self._lifted < 0 or abs(offset - self._carry) < 0.5:
+            return
+        self._carry = float(offset)
+        self.changed.emit()
+
+    def slide(self, targets: dict) -> None:
+        """Send every row to its offset, over `SLIDE_MS`. Offsets left out go back to zero."""
+        wanted = {int(index): float(value) for index, value in targets.items()}
+        if wanted == {index: value for index, value in self._to.items() if abs(value) >= 0.5}:
+            return
+        self._animation.stop()
+        self._from = dict(self._now)
+        self._to = wanted
+        if self._reduced() or not self._widget.isVisible():
+            self._now = dict(wanted)
+            self.changed.emit()
+            self.finished.emit()
+            return
+        self._animation.setDuration(self._duration)
+        self._animation.start()
+
+    def flip(self, offsets: dict) -> None:
+        """Put the rows back where they were and let them slide to where they are now.
+
+        The port of `playSortableFlip`: the caller measures before the order changes and again
+        after the column has been laid out again, and hands over the difference. Nothing is
+        laid out here; the rows are only drawn off their slots and animated onto them.
+        """
+        wanted = {int(index): float(value) for index, value in offsets.items() if abs(value) >= 1}
+        self._animation.stop()
+        self._now = dict(wanted)
+        self._from = dict(wanted)
+        self._to = {}
+        if not wanted:
+            self.changed.emit()
+            self.finished.emit()
+            return
+        if self._reduced() or not self._widget.isVisible():
+            self._now = {}
+            self.changed.emit()
+            self.finished.emit()
+            return
+        self._animation.setDuration(self._duration)
+        self._animation.start()
+
+    def settle(self) -> None:
+        """The drop: the lifted row takes its slot and every other row its own, over `SLIDE_MS`.
+
+        The lifted row is put down where it stands, so the settle runs from the place the
+        pointer left it rather than jumping to the slot and sliding back.
+        """
+        if self._lifted >= 0:
+            self._now[self._lifted] = self._carry
+            self._lifted = -1
+            self._carry = 0.0
+        self.slide({})
+
+    def stop(self) -> None:
+        """Drop everything at once: nothing is carried and no row stands off its slot."""
+        self._animation.stop()
+        self._from = {}
+        self._to = {}
+        self._now = {}
+        self._lifted = -1
+        self._carry = 0.0
+        self.changed.emit()
+
+    def _on_frame(self, value: object) -> None:
+        share = float(value) if isinstance(value, (int, float)) else 0.0
+        keys = set(self._from) | set(self._to)
+        self._now = {}
+        for index in keys:
+            start = self._from.get(index, 0.0)
+            end = self._to.get(index, 0.0)
+            self._now[index] = start + (end - start) * share
+        self.changed.emit()
+
+    def _on_done(self) -> None:
+        self._now = dict(self._to)
+        self.changed.emit()
+        self.finished.emit()
+
+
+def slide_targets(count: int, carried: int, landing: int, stride: float) -> dict:
+    """Where every row stands while a row dragged from `carried` hangs over `landing`.
+
+    The port of the loop in `createSortableController`'s `project`: a row between the two
+    gives way by one row, and every other row stays where the layout put it.
+    """
+    out: dict = {}
+    if carried < 0 or landing < 0:
+        return out
+    for index in range(count):
+        if index == carried:
+            continue
+        if carried < index <= landing:
+            out[index] = -stride
+        elif landing <= index < carried:
+            out[index] = stride
+    return out
 
 
 class SortableRows(QtCore.QObject):
@@ -66,6 +299,16 @@ class SortableRows(QtCore.QObject):
         self._dragging = False
         self._drop = -1
         self._enabled = True
+        #: Where each row is drawn while a gesture runs, and the row the pointer carries.
+        self._motion = SortableMotion(container, parent=self)
+        self._motion.changed.connect(self._place)
+        #: Where the layout put each row when the gesture began, which the offsets are from.
+        self._bases: list[int] = []
+        #: The rows as they were measured at pickup. The drag draws them elsewhere, so the
+        #: landing is read off the measure rather than off where they stand now.
+        self._start_rects: list[SortableRect] = []
+        #: Where each id stood before the last `set_rows`, for the slide onto its new slot.
+        self._was: dict[str, int] = {}
 
     # --- what it holds --------------------------------------------------------------------
 
@@ -94,6 +337,15 @@ class SortableRows(QtCore.QObject):
         """Where a drop would land, or -1 while nothing is carried."""
         return self._drop
 
+    @property
+    def motion(self) -> SortableMotion:
+        """Where the rows are drawn while the gesture runs."""
+        return self._motion
+
+    def offset_of(self, index: int) -> float:
+        """How far the row at `index` is drawn from where the layout puts it."""
+        return self._motion.offset_of(index)
+
     def set_enabled(self, value: bool) -> None:
         """A disabled column neither drags nor moves."""
         self._enabled = bool(value)
@@ -111,10 +363,57 @@ class SortableRows(QtCore.QObject):
                 grip.removeEventFilter(self)
             except RuntimeError:
                 pass
+        # Where every row stood before this change, so the one that moved slides onto its new
+        # slot rather than appearing there: `playSortableFlip`, measured on both sides.
+        self._was = {
+            one: widget.pos().y()
+            for one, widget in zip(self._ids, self._widgets)
+            if _alive(widget)
+        }
         self._ids = [str(one) for one in ids]
         self._widgets = list(widgets)
         self._grips = {}
         self._end(commit=False)
+        if self._was:
+            QtCore.QTimer.singleShot(0, self._flip_from_last)
+
+    def _place(self) -> None:
+        """Draw every row at its slot plus its offset. Nothing is laid out again, rule 4."""
+        if not self._bases or len(self._bases) != len(self._widgets):
+            self._container.update()
+            return
+        lifted = self._motion.lifted
+        for index, widget in enumerate(self._widgets):
+            if not _alive(widget):
+                continue
+            offset = int(round(self._motion.offset_of(index)))
+            widget.move(widget.x(), self._bases[index] + offset)
+        if 0 <= lifted < len(self._widgets) and _alive(self._widgets[lifted]):
+            self._widgets[lifted].raise_()
+        self._container.update()
+
+    def _flip_from_last(self) -> None:
+        """Slide every row that moved from where it stood onto where the layout now puts it."""
+        was, self._was = self._was, {}
+        if not was or self._dragging:
+            return
+        offsets: dict = {}
+        for index, (one, widget) in enumerate(zip(self._ids, self._widgets)):
+            if not _alive(widget) or one not in was:
+                continue
+            offsets[index] = float(was[one] - widget.pos().y())
+        self._bases = [widget.pos().y() for widget in self._widgets if _alive(widget)]
+        if len(self._bases) != len(self._widgets):
+            self._bases = []
+            return
+        self._motion.flip(offsets)
+
+    def _stride(self) -> float:
+        """How far one row is from the next, which is how far a row the drag passes gives way."""
+        rects = self._start_rects if self._start_rects else self._rects()
+        if not 0 <= self._press_index < len(rects):
+            return 0.0
+        return sortable_stride(rects, self._press_index)
 
     def model(self) -> SortableModel:
         """A frozen view of the order, with the labels a live region announces."""
@@ -163,7 +462,12 @@ class SortableRows(QtCore.QObject):
             if abs(point.y() - self._press_at.y()) < DRAG_THRESHOLD:
                 return False
             self._dragging = True
+            self._bases = [widget.pos().y() for widget in self._widgets if _alive(widget)]
+            self._start_rects = self._rects()
+            self._motion.lift(self._press_index)
             self.announced.emit(self.model().picked_up(self._id_at(self._press_index)))
+        # The lifted row follows the pointer, and the rows it passes give way by one row.
+        self._motion.carry_to(float(point.y() - self._press_at.y()))
         self._set_drop(self._landing(point))
         return True
 
@@ -190,7 +494,7 @@ class SortableRows(QtCore.QObject):
         return out
 
     def _landing(self, point: QtCore.QPoint) -> int:
-        rects = self._rects()
+        rects = self._start_rects if self._dragging else self._rects()
         if not 0 <= self._press_index < len(rects):
             return -1
         return sortable_drop_index(
@@ -204,6 +508,10 @@ class SortableRows(QtCore.QObject):
         if index == self._drop:
             return
         self._drop = index
+        if self._dragging:
+            self._motion.slide(
+                slide_targets(len(self._widgets), self._press_index, index, self._stride())
+            )
         self.drop_changed.emit(index)
         self._container.update()
 
@@ -215,6 +523,11 @@ class SortableRows(QtCore.QObject):
         self._press_at = None
         self._press_index = -1
         self._set_drop(-1)
+        self._start_rects = []
+        if was:
+            # The row is put down where the pointer left it and settles into its slot; a
+            # commit lays the column out again, and `set_rows` slides the rows from there.
+            self._motion.settle()
         if not was:
             return
         if commit and landing >= 0 and landing != carried:

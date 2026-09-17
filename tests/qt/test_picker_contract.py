@@ -28,6 +28,7 @@ CLAUSES: tuple[str, ...] = (
     "value keys",
     "highlight in view",
     "pick",
+    "cursor after a pick",
     "outside press",
     "clear control",
     "readonly",
@@ -226,6 +227,7 @@ def check_contract(qtbot: Any, picker: QWidget, shape: PickerShape) -> list:  # 
     # 6. A pick keeps a multi picker open and closes a single one.
     if surface.row_count() > 0:
         surface.highlight_first()
+        seat = surface.highlighted()
         before = list(control.keys)
         QTest.keyClick(target, Qt.Key.Key_Return)
         settle(shape, qtbot)
@@ -233,6 +235,13 @@ def check_contract(qtbot: Any, picker: QWidget, shape: PickerShape) -> list:  # 
             assert list(control.keys) != before, "Enter takes the highlighted row"
         assert control.is_open is bool(shape.multiple), "a pick closes a single picker only"
         checked.append("pick")
+        # A list that stays open stays where the reader is: a picker writes the selection
+        # back by rebuilding its rows, and the cursor the rebuild drops would send the next
+        # ArrowDown to the top of the list rather than to the next row.
+        if shape.multiple and control.is_open and surface.row_count() > seat:
+            spin(qtbot, 20)
+            assert surface.highlighted() == seat, "a multi picker keeps the cursor on the row it took"
+            checked.append("cursor after a pick")
 
     # 7. An outside press closes the list.
     if not control.is_open:

@@ -792,6 +792,15 @@ class SearchControl(ThemedWidget):
 
     # --- the shell ---------------------------------------------------------------------------
 
+    @staticmethod
+    def _retire_dialog(dialog: Any) -> None:
+        """Close a dialog whose owner has gone, and let Qt delete it and the box inside it."""
+        try:
+            dialog.close()
+            dialog.deleteLater()
+        except RuntimeError:
+            pass
+
     def _build_dialog(self) -> None:
         """The modal panel the box sits in. The dialog owns the box from here on.
 
@@ -810,6 +819,13 @@ class SearchControl(ThemedWidget):
         self._dialog.set_content(self)
         self._dialog.dismissed.connect(self._on_dialog_closed)
         self._dialog.rejected.connect(self._on_dialog_closed)
+        # The dialog hangs off the host window and holds this box inside it, so neither goes
+        # when the widget that built them does: a demo rebuilt by the toolbar, or a panel
+        # closed, with the palette open would leave a dialog standing over the application
+        # with nothing behind it. The owner takes it with it.
+        if parent is not None:
+            dialog = self._dialog
+            parent.destroyed.connect(lambda *_ignored: self._retire_dialog(dialog))
 
     def _on_dialog_closed(self) -> None:
         if self._open:
