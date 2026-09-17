@@ -215,3 +215,32 @@ def test_the_keyboard_takes_a_field_the_same_way(qtbot):
     assert len(picker.value) == 1
     assert picker.open is True
     assert len(picker.key_rows().rows()) == 1
+
+
+def test_escape_on_the_trigger_closes_the_panel(qtbot):
+    """`Escape` closes the list, which is what the keyboard table promises.
+
+    The panel is a popover that does not take focus, so the trigger keeps the caret: without the
+    trigger forwarding its keys to the open surface the panel could only be closed by pressing
+    the trigger again or the page behind it.
+    """
+    picker = build(qtbot, value=list(KEYS))
+    picker.set_open(True)
+    spin(qtbot, 200)
+    assert picker.open
+    picker.trigger().setFocus(Qt.FocusReason.MouseFocusReason)
+    QTest.keyClick(picker.trigger(), Qt.Key.Key_Escape)
+    spin(qtbot, 200)
+    assert not picker.open
+    assert not picker._popover.is_open  # noqa: SLF001
+
+
+def test_escape_with_the_panel_shut_is_left_to_the_trigger(qtbot):
+    """A key the open surface does not want falls through, so a shut picker answers nothing."""
+    picker = build(qtbot, value=list(KEYS))
+    assert not picker.open
+    picker.trigger().setFocus(Qt.FocusReason.MouseFocusReason)
+    QTest.keyClick(picker.trigger(), Qt.Key.Key_Escape)
+    spin(qtbot, 120)
+    assert not picker.open
+    assert [key.field for key in picker.value] == ["sg_status_list", "code"]

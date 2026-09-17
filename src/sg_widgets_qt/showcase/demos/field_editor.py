@@ -129,6 +129,11 @@ class FieldEditorDemo(QtWidgets.QWidget):
         self._editors: list[FieldEditor] = []
         #: The rows the toggle opens. A popover is opened one at a time, from its own value.
         self._inline: list[FieldEditor] = []
+        #: What the toggle last asked for. An editor commits and closes when the focus leaves
+        #: it, and the press on the toggle is one such focus change, so the rows are no longer
+        #: all in their editors by the time the press is handled; the button holds the state
+        #: rather than reading it back off them. Upstream holds the same flag in `useState`.
+        self._editing = False
         #: Nothing here waits on a read, so the page is ready as soon as it stands.
         self.demo_ready = True
 
@@ -213,10 +218,10 @@ class FieldEditorDemo(QtWidgets.QWidget):
             line.set_text(str(value))
 
     def _toggle(self) -> None:
-        editing = all(editor.mode == "edit" for editor in self._inline)
+        self._editing = not self._editing
         for editor in self._inline:
-            editor.set_mode("display" if editing else "edit")
-        self.toggle.set_text("Show values" if not editing else "Edit every field")
+            editor.set_mode("edit" if self._editing else "display")
+        self.toggle.set_text("Show values" if self._editing else "Edit every field")
 
     def set_size(self, size: str) -> None:
         """Wear the size step the toolbar holds."""

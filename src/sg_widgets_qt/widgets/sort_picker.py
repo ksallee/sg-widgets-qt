@@ -261,6 +261,18 @@ class SortPicker(QtWidgets.QWidget):
         """Open a closed list, close an open one."""
         self.set_open(not self._open)
 
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:  # noqa: N802
+        """Escape closes the list, which is what the keyboard table promises.
+
+        The panel is a popover that does not take focus, so the trigger keeps the caret and the
+        keys the open surface should answer reach it through here, the way every other anchor in
+        this package forwards them. A key the surface does not want falls through to the button.
+        """
+        if self._popover.handle_key(event):
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
     # --- the parts ------------------------------------------------------------------------
 
     def trigger(self) -> QtWidgets.QWidget:

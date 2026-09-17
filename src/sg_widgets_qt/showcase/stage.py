@@ -220,6 +220,10 @@ class DemoStage(QtWidgets.QWidget):
             item = self._body.takeAt(0)
             widget = item.widget()
             if widget is not None:
+                # Hidden before it is let go: a widget reparented to None is a top-level
+                # window, and one Qt never saw explicitly hidden stands as a stray window over
+                # the page until the deferred delete runs.
+                widget.hide()
                 widget.setParent(None)
                 widget.deleteLater()
 

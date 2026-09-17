@@ -990,6 +990,10 @@ class _GroupBody(ThemedWidget):
                 parent=self,
             )
             column.addWidget(empty)
+        # `flex flex-col` upstream: a row keeps the height its own controls ask for and the room
+        # left over falls to the bottom of the group. Without this a caller whose box is taller
+        # than the tree stretches every row into it and the cells no longer read on one line.
+        column.addStretch(0)
 
         self._sortable.set_rows(ids, widgets)
         for i, grip in enumerate(grips):
@@ -1051,7 +1055,7 @@ class _ConditionRow(ThemedWidget):
         self._grip.slot_path = (tuple(self._path), "grip")
         # The grip and the cross hold the row's own axis at every height, so a value that
         # grows onto several lines never moves them off the first one.
-        line.addWidget(self._grip, 0, Qt.AlignmentFlag.AlignTop)
+        line.addWidget(_axis_box(self._grip, owner.size, self), 0, Qt.AlignmentFlag.AlignTop)
 
         content = QtWidgets.QWidget(self)
         content.setObjectName("filter-row-content")
@@ -1074,9 +1078,10 @@ class _ConditionRow(ThemedWidget):
         cross.slot_path = (tuple(self._path), "remove")
         cross.setEnabled(not owner.disabled)
         cross.clicked.connect(lambda: owner.remove(self._path))
-        # `items-center` on `filter-row`: the cross sits on the row's centre line, wherever a
-        # value editor that wrapped has put that line.
-        line.addWidget(cross, 0, Qt.AlignmentFlag.AlignVCenter)
+        # `self-start` on the cross's own box upstream: it keeps the axis of the row's first
+        # line, so a value grown onto three lines leaves it beside the first of them rather
+        # than floating to the middle of the row.
+        line.addWidget(_axis_box(cross, owner.size, self), 0, Qt.AlignmentFlag.AlignTop)
 
         if not deferred:
             self.fill()
@@ -1456,7 +1461,13 @@ def _scalar_editor(  # noqa: PLR0911
 
 
 class _ListValues(QtWidgets.QWidget):
-    """A list of values, one to a line, each in its data type's control with a cross."""
+    """A list of values, one to a line, each in its data type's control with a cross.
+
+    The lines are this control's own. A value typed into one needs no new line, so the tree is
+    left standing where it is (`FilterEditor.set_condition_value`); adding a value and taking one
+    away change how many lines there are, and upstream renders those from the new value, so the
+    lines are drawn again here rather than by rebuilding the row and the caret with it.
+    """
 
     def __init__(
         self,
@@ -1471,11 +1482,50 @@ class _ListValues(QtWidgets.QWidget):
         super().__init__(parent)
         self.setObjectName("filter-list")
         self.setMinimumWidth(0)
-        column = QtWidgets.QVBoxLayout(self)
-        column.setContentsMargins(0, 0, 0, 0)
-        column.setSpacing(ROW_GAP)
-        items = condition_list(value)
-        for i, item in enumerate(items):
+        self._owner = owner
+        self._kind = kind
+        self._data_type = data_type
+        self._label = label
+        self._commit = commit
+        self._values = condition_list(value)
+        self._column = QtWidgets.QVBoxLayout(self)
+        self._column.setContentsMargins(0, 0, 0, 0)
+        self._column.setSpacing(ROW_GAP)
+        self._draw()
+
+    @property
+    def values(self) -> list:
+        """The values the lines hold, in order."""
+        return list(self._values)
+
+    def _apply(self, next_values: list) -> None:
+        """Take the new list, tell the tree, and draw the lines it now needs."""
+        self._values = list(next_values)
+        self._commit(self._values)
+        self._draw()
+
+    def _clear(self) -> None:
+        while self._column.count():
+            item = self._column.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
+                continue
+            inner = item.layout()
+            if inner is not None:
+                while inner.count():
+                    held = inner.takeAt(0)
+                    child = held.widget()
+                    if child is not None:
+                        child.setParent(None)
+                        child.deleteLater()
+                inner.setParent(None)
+
+    def _draw(self) -> None:
+        owner = self._owner
+        self._clear()
+        for i, item in enumerate(self._values):
             line = QtWidgets.QWidget(self)
             line.setObjectName("filter-list-value")
             row = QtWidgets.QHBoxLayout(line)
@@ -1485,33 +1535,39 @@ class _ListValues(QtWidgets.QWidget):
                 row,
                 _scalar_editor(
                     owner,
-                    kind,
-                    data_type,
-                    label,
+                    self._kind,
+                    self._data_type,
+                    self._label,
                     item,
-                    lambda next_value, at=i: commit(with_list_value(value, at, next_value)),
+                    # A typed value replaces one line and draws no new one, so the tree alone
+                    # is told: redrawing here would take the caret with it.
+                    lambda next_value, at=i: self._typed(at, next_value),
                     line,
                 ),
             )
             cross = _cross(line, owner.size, "Remove value")
             cross.setObjectName("filter-list-remove")
             cross.setEnabled(not owner.disabled)
-            cross.clicked.connect(lambda at=i: commit(without_list_value(value, at)))
+            cross.clicked.connect(lambda at=i: self._apply(without_list_value(self._values, at)))
             row.addWidget(cross)
             row.addStretch(1)
-            column.addWidget(line)
+            self._column.addWidget(line)
         add = Button(
             "Value", icon="plus", variant="ghost", size=CONTROL_BUTTON[owner.size], parent=self
         )
         add.setObjectName("filter-list-add")
         add.setEnabled(not owner.disabled)
-        add.clicked.connect(lambda: commit(with_added_list_value(value)))
+        add.clicked.connect(lambda: self._apply(with_added_list_value(self._values)))
         holder = QtWidgets.QHBoxLayout()
         holder.setContentsMargins(0, 0, 0, 0)
         holder.setSpacing(0)
         holder.addWidget(add)
         holder.addStretch(1)
-        column.addLayout(holder)
+        self._column.addLayout(holder)
+
+    def _typed(self, at: int, next_value: Any) -> None:
+        self._values = with_list_value(self._values, at, next_value)
+        self._commit(self._values)
 
 
 class _TwoValues(QtWidgets.QWidget):
@@ -1646,6 +1702,28 @@ def _place(line: QtWidgets.QHBoxLayout, widget: QtWidgets.QWidget) -> None:
         line.addWidget(widget, 1)
         return
     line.addWidget(widget, 0, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+
+
+def _axis_box(
+    widget: QtWidgets.QWidget, size: str, parent: QtWidgets.QWidget
+) -> QtWidgets.QWidget:
+    """One control held on the axis of a row's first line, whatever the row grew to.
+
+    Upstream puts the remove control in a `flex items-center self-start h-8` box, so a row whose
+    value has grown onto three lines keeps the cross beside the first of them rather than letting
+    it drift to the middle (`filter-editor.tsx`, the `ConditionRow` and `GroupHeader` boxes). The
+    grip rides the same axis, so the pair reads as one.
+    """
+    holder = QtWidgets.QWidget(parent)
+    holder.setObjectName("filter-row-axis")
+    holder.setFixedHeight(CONTROL_HEIGHT[size])
+    holder.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
+    inner = QtWidgets.QHBoxLayout(holder)
+    inner.setContentsMargins(0, 0, 0, 0)
+    inner.setSpacing(0)
+    widget.setParent(holder)
+    inner.addWidget(widget, 0, Qt.AlignmentFlag.AlignVCenter)
+    return holder
 
 
 def _grip(parent: QtWidgets.QWidget, size: str) -> Button:
