@@ -727,6 +727,9 @@ class FieldPicker(QtWidgets.QWidget):
         self._label_parts: list[str] | None = None
         self._label_ticket = Ticket()
 
+        #: The breadcrumb over the popup's search row, which comes with the popup.
+        self._breadcrumb: Breadcrumb | None = None
+
         self._levels = FieldLevels(
             self,
             context=context,
@@ -773,7 +776,6 @@ class FieldPicker(QtWidgets.QWidget):
             loading_block=FieldSkeletons,
             parent=self,
         )
-        delegate.setParent(self._control.list_surface())
         self._control.set_chip_factory(self._chip_for)
         self._control.selected.connect(self._on_selected)
         self._control.open_changed.connect(self._on_open_changed)
@@ -781,13 +783,9 @@ class FieldPicker(QtWidgets.QWidget):
         self._control.remove_requested.connect(lambda _index: self.set_value(""))
         self._control.cleared.connect(lambda: self.set_value(""))
 
-        self._breadcrumb = Breadcrumb("field-picker", self._control.popup())
-        self._breadcrumb.back_requested.connect(self._go_back)
-        self._breadcrumb.reset_requested.connect(self._go_root)
-        self._breadcrumb.hide()
-        layout = self._control.popup().layout()
-        if layout is not None:
-            layout.insertWidget(0, self._breadcrumb)
+        # The breadcrumb and the filters live in the control's popup, which is built on the
+        # first open. Asking for any part of it here would build it for every picker on a page.
+        self._control.on_popup_built(self._wire_popup)
 
         column = QtWidgets.QVBoxLayout(self)
         column.setContentsMargins(0, 0, 0, 0)
@@ -797,14 +795,6 @@ class FieldPicker(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred
         )
         self.setMinimumWidth(0)
-
-        # Left, Right and Enter belong to the levels rather than to the flat list, and these
-        # filters run before the control's own handlers, so a descend never closes the popup.
-        self._control.caret().installEventFilter(self)
-        caret = self._search_caret()
-        if caret is not None:
-            caret.installEventFilter(self)
-        self._control.list_surface().viewport().installEventFilter(self)
 
         self._levels.read()
         self._resolve_label()
@@ -831,7 +821,11 @@ class FieldPicker(QtWidgets.QWidget):
 
     @property
     def breadcrumb(self) -> Breadcrumb:
-        """The bar over the search row. Hidden at the root."""
+        """The bar over the search row. Hidden at the root.
+
+        It comes with the popup, so asking for it builds the popup the way opening would.
+        """
+        self._control.popup()
         return self._breadcrumb
 
     @property
@@ -1133,6 +1127,30 @@ class FieldPicker(QtWidgets.QWidget):
         self._control.set_search_placeholder(
             CHOOSING_PLACEHOLDER if self._levels.choosing is not None else self._search_placeholder
         )
+        self._sync_breadcrumb()
+
+    def _wire_popup(self) -> None:
+        """The parts of this picker that live in the control's popup, once it has one."""
+        self._breadcrumb = Breadcrumb("field-picker", self._control.popup())
+        self._breadcrumb.back_requested.connect(self._go_back)
+        self._breadcrumb.reset_requested.connect(self._go_root)
+        self._breadcrumb.hide()
+        layout = self._control.popup().layout()
+        if layout is not None:
+            layout.insertWidget(0, self._breadcrumb)
+        # Left, Right and Enter belong to the levels rather than to the flat list, and these
+        # filters run before the control's own handlers, so a descend never closes the popup.
+        self._control.caret().installEventFilter(self)
+        caret = self._search_caret()
+        if caret is not None:
+            caret.installEventFilter(self)
+        self._control.list_surface().viewport().installEventFilter(self)
+        self._sync_breadcrumb()
+
+    def _sync_breadcrumb(self) -> None:
+        """Where the list stands, on the bar over the search row."""
+        if self._breadcrumb is None:
+            return
         self._breadcrumb.set_path(
             self._levels.entity_type,
             self._levels.crumbs(),

@@ -223,9 +223,11 @@ class StatusPicker(QtWidgets.QWidget):
             secondary=secondary,
             sub_label=sub_label,
         )
+        # The control parents this to its list when it builds one, so asking for the list
+        # here — before anyone has opened the picker — is what is avoided.
         self._delegate = StatusLeadDelegate(
             self._sources,
-            self._list.control.list_surface(),
+            None,
             size=self._size,
             thumbnail=True,
             indicator="checkbox" if self.MULTIPLE else "tick",

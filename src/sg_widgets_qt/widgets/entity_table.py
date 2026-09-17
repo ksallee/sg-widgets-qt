@@ -63,7 +63,7 @@ from ..theme import Theme, theme_of, with_alpha
 from .collection_control import COLLECTION_GAP, CollectionControl, CollectionModel
 from .collection_footer import DEFAULT_PAGE_SIZES, CollectionFooter
 from .field_editor import FieldEditor
-from .field_value import FieldValueOptions, paint_field_value
+from .field_value import FieldValueOptions, field_value_size_hint, paint_field_value
 from .state_line import StateLine
 
 __all__ = [
@@ -380,22 +380,23 @@ class _Cells(CellDelegate):
         count = str(len(group.rows))
         mono = theme.font(12)
         mono.setFamily(theme.font_mono)
-        count_width = QtGui.QFontMetrics(mono).horizontalAdvance(count) + 8
-        box = QRect(left, rect.top(), max(0, rect.width() - left - CELL_PAD_X - count_width), rect.height())
+        count_width = QtGui.QFontMetrics(mono).horizontalAdvance(count)
+        room = max(0, rect.width() - left - CELL_PAD_X - count_width - 6)
+        box = QRect(left, rect.top(), room, rect.height())
         column = self._table.group_column()
-        paint_field_value(
-            painter,
-            box,
-            group.value,
-            column if column is not None else "text",
-            self._table.value_options(),
-        )
+        options = self._table.value_options()
+        target = column if column is not None else "text"
+        paint_field_value(painter, box, group.value, target, options)
+        # The count follows the value in the same line, a gap away, which is what the
+        # heading's own flex row does upstream. A spanned row is wide, and a count at its
+        # far edge reads as a column of its own.
+        used = min(field_value_size_hint(group.value, target, options).width(), room)
         painter.save()
         painter.setFont(mono)
         painter.setPen(theme.color("muted_foreground"))
         painter.drawText(
-            QRect(box.right() + 1, rect.top(), count_width, rect.height()),
-            int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter),
+            QRect(left + used + 6, rect.top(), count_width, rect.height()),
+            int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
             count,
         )
         painter.restore()

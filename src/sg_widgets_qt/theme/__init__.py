@@ -341,6 +341,13 @@ def theme_for(
     return Theme(name=palette, dark=dark, reduced_motion=reduced_motion, **values)
 
 
+#: The last host theme, against the palette and family it was derived from. Building a widget
+#: tree asks for this once per widget that has not joined a themed root yet — a picker's popup
+#: alone is a dozen — and every answer walks the whole palette. A `QPalette`'s cache key changes
+#: whenever its contents do, so a host that restyles itself is answered afresh.
+_HOST_CACHE: dict[tuple, Theme] = {}
+
+
 def host_theme(palette: QtGui.QPalette | None = None) -> Theme:
     """A theme derived from a host's `QPalette`, so a widget wears the host's greys and accent."""
     if palette is None:
@@ -348,6 +355,12 @@ def host_theme(palette: QtGui.QPalette | None = None) -> Theme:
         if app is None:
             return theme_for(_DEFAULT_PALETTE).with_(name=_HOST_NAME)
         palette = app.palette()
+
+    family = _application_family()
+    key = (palette.cacheKey(), family)
+    held = _HOST_CACHE.get(key)
+    if held is not None:
+        return held
 
     role = QtGui.QPalette.ColorRole
     window = palette.color(role.Window)
@@ -396,12 +409,16 @@ def host_theme(palette: QtGui.QPalette | None = None) -> Theme:
         sidebar_border=mid.name(),
         sidebar_ring=highlight.name(),
         radius=ground.radius,
-        font_sans=_application_family(),
+        font_sans=family,
         font_mono=MONO_FAMILY,
         dark=dark,
         name=_HOST_NAME,
     )
-    return Theme(**values)  # type: ignore[arg-type]
+    made = Theme(**values)  # type: ignore[arg-type]
+    # A host wears one palette at a time, so a new key replaces the last rather than joining it.
+    _HOST_CACHE.clear()
+    _HOST_CACHE[key] = made
+    return made
 
 
 def _application_family() -> str:

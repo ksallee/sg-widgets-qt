@@ -158,7 +158,7 @@ class CollectionControlDemo(QtWidgets.QWidget):
         for value, label in PAGING:
             made = chrome.toggle(label, size="sm", parent=row)
             made.setObjectName(f"paging-{value}")
-            made.toggled.connect(lambda _on, mode=value: self.set_paging(mode))
+            made.toggled.connect(lambda on, mode=value: self._on_paging(mode, on))
             self._toggles[value] = made
             toggles.addWidget(made)
         self._count = chrome.TextLine("0 selected", size=12, parent=row)
@@ -223,10 +223,27 @@ class CollectionControlDemo(QtWidgets.QWidget):
         """True once the first read has settled, which is what the stage waits for."""
         return self.control.snapshot().status in ("ready", "error")
 
+    def _on_paging(self, mode: str, on: bool) -> None:
+        """One toggle reports going down and coming up; only the first is a pick.
+
+        Reading every report as a pick sets the others down, is reported for each of them,
+        and never returns.
+        """
+        if not on:
+            if not any(made.checked for made in self._toggles.values()):
+                made = self._toggles[mode]
+                made.blockSignals(True)
+                made.set_checked(True)
+                made.blockSignals(False)
+            return
+        self.set_paging(mode)
+
     def set_paging(self, mode: str) -> None:
         self.control.set_paging(mode)
         for value, made in self._toggles.items():
-            made.set_checked(value == mode)
+            if value != mode:
+                made.set_checked(False)
+        self._toggles[mode].set_checked(True)
         self._sync()
 
     def toggle_at(self, line: int) -> None:

@@ -335,3 +335,27 @@ def test_an_editable_cell_says_it_can_be_edited(context, qtbot):
     assert table.edit_hint(table.model.index(row, editable)) == EDIT_HINT
     table.set_editable(False)
     assert table.edit_hint(table.model.index(row, editable)) == ""
+
+
+def test_a_group_heading_reads_its_count_beside_its_value(context, qtbot):
+    # Upstream's heading is one flex row: chevron, value, count. A spanned row is wide, so
+    # a count at its far edge would read as a column of its own.
+    from qtpy.QtGui import QImage, QPainter
+
+    table = _table(context, qtbot, group_by="sg_status_list")
+    settle(table, table.control.binding)
+    assert table.model.groups
+    rect = QtCore.QRect(0, 0, 900, ENTITY_TABLE_ROW_HEIGHT["default"])
+    image = QImage(rect.size(), QImage.Format.Format_ARGB32)
+    image.fill(Qt.GlobalColor.white)
+    painter = QPainter(image)
+    option = QtWidgets.QStyleOptionViewItem()
+    option.rect = rect
+    table.view.itemDelegate().paint(painter, option, table.model.index(0, 0))
+    painter.end()
+    ink = {
+        image.pixel(x, y)
+        for x in range(rect.width() // 2, rect.width(), 3)
+        for y in range(2, rect.height() - 2, 3)
+    }
+    assert len(ink) == 1

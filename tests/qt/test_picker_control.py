@@ -343,3 +343,63 @@ def test_the_popup_follows_the_row_count_down_as_well_as_up(qtbot):
     spin(qtbot, 80)
     assert control.list_surface().height() == tall
     control.set_open(False)
+
+
+def test_a_closed_picker_has_no_popup_until_it_is_opened(qtbot):
+    # The shell is the costly half of a picker and a page holding many opens few of them, so
+    # nothing of it exists until the first open or the first call that needs one of its parts.
+    from sg_widgets_qt.primitives.popover import Popover
+
+    control = build_static(qtbot)
+    root = control.test_root
+    assert control.has_popup() is False
+    assert root.findChildren(Popover) == []
+
+    control.set_open(True)
+    spin(qtbot, 20)
+
+    assert control.has_popup() is True
+    assert root.findChildren(Popover) == [control.popover()]
+    assert control.popover().is_open
+    # The model and the delegate set before the open are on the list the build made.
+    assert control.list_surface().source_model() is control.row_model()
+    assert control.list_surface().row_count() == len(DEPARTMENTS)
+    assert control.list_surface().isVisibleTo(control.popup())
+
+    picked: list = []
+    control.selected.connect(lambda keys: picked.append(list(keys)))
+    control.list_surface().activate(0)
+    assert picked == [[DEPARTMENTS[0][0]]]
+    # Clause 6: a pick closes a single picker.
+    assert control.is_open is False
+
+
+def test_an_accessor_builds_the_shell_a_closed_picker_never_had(qtbot):
+    control = build_static(qtbot)
+    assert control.has_popup() is False
+    surface = control.list_surface()
+    assert control.has_popup() is True
+    assert surface.row_count() == len(DEPARTMENTS)
+    assert control.state_line() is not None
+    assert control.skeletons() is not None
+    assert control.search_row() is not None
+
+
+def test_the_states_set_before_the_first_open_are_worn_on_the_build(qtbot):
+    control = build_static(qtbot, inline=False)
+    control.set_loading(True)
+    control.set_search_placeholder("Search departments…")
+    control.set_empty_label("Nothing here")
+    assert control.has_popup() is False
+    assert control.status_text() == "Searching…"
+
+    control.set_open(True)
+    spin(qtbot, 20)
+
+    assert control.skeletons().isVisibleTo(control.popup())
+    assert not control.list_surface().isVisibleTo(control.popup())
+    assert control.caret().placeholderText() == "Search departments…"
+    control.set_loading(False)
+    control.set_items([])
+    control.set_empty(True)
+    assert control.state_line().label == "Nothing here"

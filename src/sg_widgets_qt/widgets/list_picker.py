@@ -376,7 +376,6 @@ class ListPicker(QtWidgets.QWidget):
         }
         shape.update(self._control_options())
         self._control = PickerControl(parent=self, **shape)
-        delegate.setParent(self._control.list_surface())
         self._control.set_chip_factory(self._chip_for)
         self._control.selected.connect(self._on_selected)
         self._control.open_changed.connect(self._on_open_changed)

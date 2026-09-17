@@ -118,16 +118,10 @@ def first_row_line(table) -> int:
     return -1
 
 
-def column_at(table, path: str) -> int:
-    for at, column in enumerate(table.columns):
-        if column.path == path:
-            return at
-    return -1
-
-
 def cell(table, path: str, line: int = -1) -> QtCore.QModelIndex:
+    """One cell of the model, by field path. The select column shifts the data columns."""
     row = first_row_line(table) if line < 0 else line
-    return table.model.index(row, column_at(table, path))
+    return table.model.index(row, table.model.column_index_of(path))
 
 
 def editor_open(table) -> bool:
@@ -241,8 +235,8 @@ def _reach(state, page, wait, holder, table):  # noqa: C901
     if state == "sort-open":
         if holder._sort is None:
             return {"verdict": "FAIL the toolbar carries no sort picker"}
-        click(holder._sort)
-        wait(500)
+        click(holder._sort.trigger())
+        wait(600)
         if not holder._sort.open:
             return {"verdict": "FAIL the sort picker stayed shut"}
         return None
@@ -265,7 +259,7 @@ def _edit(state, wait, holder, table):
     if not wait_for(lambda: table._editing is not None, wait, 4000):
         return {"verdict": f"FAIL {state} opened no editor on the description cell"}
     if state in ("popover-edit", "inline-edit"):
-        placement = table.placement_for(table.columns[index.column()])
+        placement = table.placement_for(table.model.column_at(index.column()))
         wanted = "popover" if state == "popover-edit" else "inline"
         if placement != wanted:
             return {"verdict": f"FAIL {state} opened {placement!r}"}
@@ -287,14 +281,15 @@ def _edit(state, wait, holder, table):
 
 def _key_of(table, index):
     line = table.model.lines[index.row()]
-    return table.control.row_id(line.row), table.columns[index.column()].path
+    return table.model.key_of(line.row), table.model.column_at(index.column()).path
 
 
 def _cell_text(table, index) -> str:
     from sg_widgets_core.collection import cell_value
 
     line = table.model.lines[index.row()]
-    return str(cell_value(line.row, table.columns[index.column()].path) or "")
+    column = table.model.column_at(index.column())
+    return str(cell_value(line.row, column.path) or "")
 
 
 def _refuse_writes(table) -> None:

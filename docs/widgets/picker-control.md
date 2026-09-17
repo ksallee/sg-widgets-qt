@@ -73,6 +73,17 @@ The list fades at whichever edge has more content past it and holds a gutter for
 rows never shift as a page lands. It is `primitives/list_view.py`, which reads the same numbers from
 core's `overflow_edges`.
 
+The shell is built on the first open, not with the control. A page holding many pickers — a filter
+editor is five editors of several rows each — opens few of them, and the popover window, the search
+row, the list, the state line and the skeletons cost more than the box in front of them. Whatever a
+picker sets before then is held and worn on the build: the row model, the delegate, the query, the
+loading, empty and error states, the placeholders. `popover()`, `popup()`, `list_surface()`,
+`search_row()`, `state_line()`, `skeletons()`, `row_delegate()` and a summary control's `caret()`
+each build the shell if it is not there yet, so nothing a caller reaches for is ever missing;
+`has_popup()` says whether one exists, and a picker that wants something of its own in the popup —
+the field picker's breadcrumb over the search row — registers it through `on_popup_built` rather
+than reaching for a part while the control is being built.
+
 ## Props
 
 ::props{name="picker-control" kind="props"}

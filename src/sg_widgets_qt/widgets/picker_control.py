@@ -648,26 +648,48 @@ class PickerControl(ThemedWidget):
         self._trigger.setObjectName(f"{slot}-trigger")
         self._trigger.pressed_signal.connect(self._toggle_from_trigger)
 
-        self._build_popup(row_model, row_delegate, loop, loading_block)
+        # The popup shell — the popover window, the search row, the list, the state block
+        # and the skeletons — is the costly half of a picker, and a page holding many pickers
+        # opens few of them. It is built on the first open, or on the first call that needs one
+        # of its parts. What a caller sets before then is held here and worn on the build.
+        self._popup: _Popup | None = None
+        self._popover: Popover | None = None
+        self._list: ListSurface | None = None
+        self._search_row: _SearchRow | None = None
+        self._search_caret: _Caret | None = None
+        self._state_line: StateLine | None = None
+        self._skeletons: QtWidgets.QWidget | None = None
+        self._row_model = row_model
+        self._row_delegate = row_delegate
+        #: A delegate set after the control was built, which replaces the one the list draws
+        #: with without taking the place of the one the list was handed.
+        self._set_delegate: RowDelegate | None = None
+        self._loop = bool(loop)
+        self._loading_block = loading_block
+        #: What a picker wants done to the shell the moment there is one.
+        self._popup_hooks: list[Callable[[], None]] = []
+        if row_delegate is not None:
+            # A picker's load-more row is `text-xs`, the metadata step, where a search widget's
+            # is the body one; the shared delegate is told which this is before it draws a row.
+            row_delegate.set_load_more_text(PILL_TEXT)
+
         self._apply_shape()
         self._apply_theme()
         self._sync_query()
         self.set_items(items)
-        if row_model is not None:
-            self.set_row_model(row_model)
         self.set_labels(labels)
         if open:
             self.set_open(True)
 
     # --- the popup ------------------------------------------------------------------------
 
-    def _build_popup(
-        self,
-        row_model: QtCore.QAbstractItemModel | None,
-        row_delegate: RowDelegate | None,
-        loop: bool = False,
-        loading_block: Callable[[QtWidgets.QWidget], QtWidgets.QWidget] | None = None,
-    ) -> None:
+    def _ensure_popup(self) -> None:
+        """Build the shell if this is the first call that needs it."""
+        if self._popup is None:
+            self._build_popup()
+
+    def _build_popup(self) -> None:
+        """Build the shell and put on everything the control was told before it existed."""
         self._popup = _Popup()
         self._popup.setObjectName(f"{self._slot}-content")
         self._popup.setProperty("data_picker", self._picker)
@@ -682,12 +704,15 @@ class PickerControl(ThemedWidget):
         self._popup.add_widget(self._search_row)
 
         self._list = ListSurface(
-            self._popup, size=self.size_step, delegate=row_delegate, loop=loop
+            self._popup, size=self.size_step, delegate=self._row_delegate, loop=self._loop
         )
         self._list.setObjectName(f"{self._slot}-list")
         # A picker's load-more row is `text-xs`, the metadata step, where a search widget's is
         # the body one; the shared delegate is told which this is.
         self._list.row_delegate().set_load_more_text(PILL_TEXT)
+        # The delegate a picker handed in belongs to the list that draws with it.
+        if self._row_delegate is not None:
+            self._row_delegate.setParent(self._list)
         self._list.activated.connect(self._on_activated)
         self._list.load_more_requested.connect(self._on_load_more_row)
         self._popup.add_widget(self._list)
@@ -695,7 +720,9 @@ class PickerControl(ThemedWidget):
         # A picker whose rows are two lines stands behind a block shaped like them; the
         # shared one is the single bar upstream's own picker control draws.
         self._skeletons = (
-            loading_block(self._popup) if loading_block is not None else _Skeletons(self._popup)
+            self._loading_block(self._popup)
+            if self._loading_block is not None
+            else _Skeletons(self._popup)
         )
         self._skeletons.setObjectName(f"{self._slot}-loading")
         self._popup.add_widget(self._skeletons)
@@ -720,8 +747,22 @@ class PickerControl(ThemedWidget):
         self._popover.set_dismiss_guard(self._claims_press)
         self._popover.set_key_handler(self._on_key)
         self._popover.dismissed.connect(lambda: self.set_open(False))
-        if row_model is None:
-            self._list.setModel(QtGui.QStandardItemModel(0, 1, self._list))
+
+        self._list.setModel(
+            self._row_model
+            if self._row_model is not None
+            else QtGui.QStandardItemModel(0, 1, self._list)
+        )
+        if self._set_delegate is not None:
+            self._list.setItemDelegate(self._set_delegate)
+            self._set_delegate.setParent(self._list)
+        hooks, self._popup_hooks = self._popup_hooks, []
+        for hook in hooks:
+            hook()
+        self._apply_shape()
+        self._search_caret.apply_theme(self.theme)
+        self._sync_query()
+        self._sync_popup()
 
     def _claims_press(self, point: QtCore.QPoint) -> bool:
         """A press on the control, its chips or its trailing controls is never a dismissal."""
@@ -754,7 +795,8 @@ class PickerControl(ThemedWidget):
 
     def set_picker(self, value: str) -> None:
         self._picker = value
-        self._popup.setProperty("data_picker", value)
+        if self._popup is not None:
+            self._popup.setProperty("data_picker", value)
 
     @property
     def multiple(self) -> bool:
@@ -877,7 +919,10 @@ class PickerControl(ThemedWidget):
         self.set_size_step(value if value in PICKER_SIZE_VALUES else "md")
         self._clear.set_size(self.size_step)
         self._trigger.set_size(self.size_step)
-        self._list.row_delegate().set_size(self.size_step)
+        if self._list is not None:
+            self._list.row_delegate().set_size(self.size_step)
+        elif self._row_delegate is not None:
+            self._row_delegate.set_size(self.size_step)
         self.rebuild_chips()
 
     @property
@@ -953,6 +998,8 @@ class PickerControl(ThemedWidget):
 
     def set_anchored(self, value: bool) -> None:
         self._anchored = bool(value)
+        if self._popover is None:
+            return
         self._popover._match_anchor_width = self._anchored
         self._popover._width = None if self._anchored else POPUP_WIDTH
         if self._open:
@@ -1063,24 +1110,35 @@ class PickerControl(ThemedWidget):
 
     def set_row_model(self, model: QtCore.QAbstractItemModel | None) -> None:
         """The rows the list draws, one per item key, in the same order."""
-        self._list.setModel(model if model is not None else QtGui.QStandardItemModel(0, 1))
+        self._row_model = model
+        if self._list is not None:
+            self._list.setModel(model if model is not None else QtGui.QStandardItemModel(0, 1))
         self._sync_popup()
 
     def row_model(self) -> QtCore.QAbstractItemModel | None:
         """The model the list draws."""
+        if self._list is None:
+            return self._row_model
         return self._list.source_model()
 
     def set_row_delegate(self, delegate: RowDelegate) -> None:
         """The delegate that draws a row."""
         delegate.set_load_more_text(PILL_TEXT)
-        self._list.setItemDelegate(delegate)
+        self._set_delegate = delegate
+        if self._list is not None:
+            self._list.setItemDelegate(delegate)
+            delegate.setParent(self._list)
 
     def row_delegate(self) -> RowDelegate:
+        self._ensure_popup()
         return self._list.row_delegate()
 
     def caret(self) -> _Caret:
         """The input the keys reach: the control's own, or the popup's search box."""
-        return self._caret if self._inline else self._search_caret
+        if self._inline:
+            return self._caret
+        self._ensure_popup()
+        return self._search_caret
 
     def chips(self) -> list:
         """The chip widgets, in order, hidden ones included."""
@@ -1100,27 +1158,49 @@ class PickerControl(ThemedWidget):
 
     def search_row(self) -> QtWidgets.QWidget:
         """The search row a summary trigger keeps at the top of its popup."""
+        self._ensure_popup()
         return self._search_row
 
     def state_line(self) -> StateLine:
         """The empty or error line the list is replaced by."""
+        self._ensure_popup()
         return self._state_line
 
     def skeletons(self) -> QtWidgets.QWidget:
         """The rows a read stands behind."""
+        self._ensure_popup()
         return self._skeletons
 
     def popup(self) -> QtWidgets.QWidget:
         """What the popover holds."""
+        self._ensure_popup()
         return self._popup
 
     def list_surface(self) -> ListSurface:
         """The list itself, for a picker that wants its highlight."""
+        self._ensure_popup()
         return self._list
 
     def popover(self) -> Popover:
         """The popup, which never takes focus."""
+        self._ensure_popup()
         return self._popover
+
+    def has_popup(self) -> bool:
+        """True once the shell has been built. A picker never opened has none."""
+        return self._popup is not None
+
+    def on_popup_built(self, hook: Callable[[], None]) -> None:
+        """Run `hook` once the shell exists, or now if it already does.
+
+        A picker that puts something of its own in the popup — a breadcrumb over the search
+        row, an event filter on the list — registers it here rather than reaching for the parts
+        while the control is being built, which would build the shell it is meant to wait for.
+        """
+        if self._popup is not None:
+            hook()
+            return
+        self._popup_hooks.append(hook)
 
     # --- the callback keywords ------------------------------------------------------------
 
@@ -1161,8 +1241,10 @@ class PickerControl(ThemedWidget):
         self._open = wanted
         if not wanted:
             self.set_query("")
-            self._popover.close()
+            if self._popover is not None:
+                self._popover.close()
         else:
+            self._ensure_popup()
             self._sync_popup()
             self._resize_popup(now=True)
             self._popover.open()
@@ -1265,6 +1347,7 @@ class PickerControl(ThemedWidget):
         if self._inline:
             self._caret.setFocus(Qt.FocusReason.OtherFocusReason)
         elif self._searchable:
+            self._ensure_popup()
             self._search_caret.setFocus(Qt.FocusReason.OtherFocusReason)
         else:
             self.setFocus(Qt.FocusReason.OtherFocusReason)
@@ -1316,8 +1399,8 @@ class PickerControl(ThemedWidget):
             self.set_open(True)
             return True
         if kind == "follow":
-            return self._list.handle_key(event)
-        if self._open:
+            return self._list is not None and self._list.handle_key(event)
+        if self._open and self._list is not None:
             return self._list.handle_key(event)
         return False
 
@@ -1372,12 +1455,13 @@ class PickerControl(ThemedWidget):
     def _apply_shape(self) -> None:
         """Which caret exists, and who takes the focus."""
         self._caret.setVisible(self._inline)
-        self._search_row.setVisible(not self._inline and self._searchable)
         self.setFocusPolicy(
             Qt.FocusPolicy.NoFocus if self._inline else Qt.FocusPolicy.StrongFocus
         )
         self._caret.setReadOnly(self._readonly or not self.interactive)
-        self._search_caret.setReadOnly(not self.interactive)
+        if self._search_row is not None:
+            self._search_row.setVisible(not self._inline and self._searchable)
+            self._search_caret.setReadOnly(not self.interactive)
         self._sync_placeholder()
 
     def _sync_placeholder(self) -> None:
@@ -1386,18 +1470,25 @@ class PickerControl(ThemedWidget):
             shown = "" if self._labels else self._placeholder
         self._caret.setPlaceholderText(shown)
         self._caret.setAccessibleName(self._placeholder)
-        self._search_caret.setPlaceholderText(self._search_placeholder)
-        self._search_caret.setAccessibleName(self._search_placeholder)
+        if self._search_caret is not None:
+            self._search_caret.setPlaceholderText(self._search_placeholder)
+            self._search_caret.setAccessibleName(self._search_placeholder)
 
     def _sync_query(self) -> None:
         for caret in (self._caret, self._search_caret):
-            if caret.text() != self._query:
+            if caret is not None and caret.text() != self._query:
                 blocked = caret.blockSignals(True)
                 caret.setText(self._query)
                 caret.blockSignals(blocked)
 
     def _sync_popup(self) -> None:
         """One of four things: the error line, the skeletons, the empty line, or the rows."""
+        # The line the control itself carries is its own, and is right whether or not the shell
+        # behind it has been built yet.
+        self.setAccessibleDescription(self.status_text())
+        if self._popup is None:
+            # Nothing to sync yet: the shell wears all of this the moment it is built.
+            return
         failed = self._error is not None and self._error != ""
         if failed:
             self._state_line.apply_state("error", self._labels_state, self._error)
@@ -1416,7 +1507,6 @@ class PickerControl(ThemedWidget):
             state_line("loading", self._labels_state) if self._loading else _LOAD_MORE_LABEL,
         )
         self._list.setAccessibleDescription(self.status_text())
-        self.setAccessibleDescription(self.status_text())
         if self._open:
             # The rows of an open list land after it opened, so a picker that opens on a row
             # takes it as the rows arrive rather than only when the list was already full.
@@ -1432,6 +1522,8 @@ class PickerControl(ThemedWidget):
         costs a size hint per row, so the measuring is coalesced onto the next turn of the loop
         and five calls in one answer become one.
         """
+        if self._popup is None:
+            return
         if now or not self._open:
             self._sync_timer.stop()
             self._popup.adjustSize()
@@ -1642,7 +1734,8 @@ class PickerControl(ThemedWidget):
     def _apply_theme(self) -> None:
         theme = self.theme
         self._caret.apply_theme(theme)
-        self._search_caret.apply_theme(theme)
+        if self._search_caret is not None:
+            self._search_caret.apply_theme(theme)
 
     def _on_theme(self, theme: object) -> None:
         self._apply_theme()
@@ -1656,7 +1749,7 @@ class PickerControl(ThemedWidget):
         """True while this picker's own text input holds the caret, by any reason."""
         if self._inline:
             caret = self._caret
-        elif self._searchable and self._open:
+        elif self._searchable and self._open and self._search_caret is not None:
             caret = self._search_caret
         else:
             # A fixed set has no input, and a closed popup keeps its last focus widget, so a
