@@ -65,6 +65,37 @@ def test_scrolling_up_at_the_top_follows_the_same_rule(qtbot):
     view = _view(qtbot)
     now = [0.0]
     latch = WheelLatch(view, more=lambda: True, clock=lambda: now[0])
-    assert latch.keeps(_Wheel(120)) is False  # a fresh gesture at the top reaches the page
+    bar = view.verticalScrollBar()
+    bar.setValue(bar.maximum())
+    assert latch.keeps(_Wheel(120)) is False  # the view scrolls up: the gesture is its own
+    bar.setValue(bar.minimum())
     now[0] = 0.1
-    assert latch.keeps(_Wheel(120)) is True  # the same gesture stays
+    assert latch.keeps(_Wheel(120)) is True  # the same gesture stays at the top
+    now[0] = 1.0
+    assert latch.keeps(_Wheel(120)) is False  # a fresh gesture at the top reaches the page
+
+
+def test_a_gesture_that_began_at_the_edge_never_stays(qtbot):
+    """A view already at its edge when the wheel arrives never scrolled, so the page scrolls.
+
+    A grid that shows every row it has is at both edges at once; before, its second event
+    within the pause was held, so a page stalled each time the pointer crossed such a grid.
+    """
+    view = _view(qtbot)
+    now = [0.0]
+    latch = WheelLatch(view, clock=lambda: now[0])
+    view.verticalScrollBar().setValue(view.verticalScrollBar().maximum())
+    for step in range(5):
+        now[0] = step * 0.02
+        assert latch.keeps(_Wheel(-120)) is False
+
+
+def test_a_view_with_no_range_never_stays(qtbot):
+    view = _view(qtbot, rows=3)
+    now = [0.0]
+    latch = WheelLatch(view, clock=lambda: now[0])
+    assert view.verticalScrollBar().maximum() == 0
+    for step in range(5):
+        now[0] = step * 0.02
+        assert latch.keeps(_Wheel(-120)) is False
+        assert latch.keeps(_Wheel(120)) is False

@@ -40,22 +40,29 @@ class WheelLatch:
 
         Call it before the view's own wheel handling: when it answers True, accept the event and
         do nothing, so the page under the view stays put.
+
+        A gesture is the view's only once the view scrolled during it: a view that never moved,
+        one with no range at all or one already at its edge when the gesture began, hands every
+        event to the page, so a page scrolls past a list that shows all of its rows.
         """
         delta = event.angleDelta().y() if hasattr(event, "angleDelta") else 0
         pixel = event.pixelDelta().y() if hasattr(event, "pixelDelta") else 0
         moving = delta or pixel
         now = self._clock()
-        continuing = self._last >= 0 and (now - self._last) < self._pause
-        self._last = now
         if not moving:
             return False
         bar = self._view.verticalScrollBar()
         at_edge = bar.value() >= bar.maximum() if moving < 0 else bar.value() <= bar.minimum()
         if not at_edge:
+            # The view scrolls this event, so the gesture is its own from here.
+            self._last = now
             return False
         if moving < 0 and self._more is not None and self._more():
             return True
-        return continuing
+        owned = self._last >= 0 and (now - self._last) < self._pause
+        if owned:
+            self._last = now
+        return owned
 
     def reset(self) -> None:
         """Forget the gesture, so the next wheel at the edge reaches the page."""

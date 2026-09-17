@@ -95,6 +95,8 @@ DEFAULT_MAX_HEIGHT = 448
 #: Rows a first read stands behind, and the block one costs.
 SKELETON_ROWS = 8
 SKELETON_HEIGHT = 20
+#: The row height a first read's skeletons stand at, before any row has been measured.
+SKELETON_ROW_HEIGHT = 44
 
 #: A list given nothing to group on says so rather than drawing one group of everything.
 GROUPING_REQUIRED = "GroupedList needs group_by or group_key."
@@ -464,6 +466,9 @@ class GroupedList(QtWidgets.QWidget):
         body.addWidget(self._state)
         self._skeleton = _ListSkeleton(self._box)
         self._skeleton.hide()
+        #: The height the rows last stood at, and their row height, for the next read's skeletons.
+        self._rows_height = 0
+        self._row_height = SKELETON_ROW_HEIGHT
         body.addWidget(self._skeleton)
         self._bottom = _BottomBlock(self._box)
         self._bottom.setObjectName("grouped-list-bottom")
@@ -993,6 +998,16 @@ class GroupedList(QtWidgets.QWidget):
     def _sync(self) -> None:
         state = self.control.snapshot()
         view = self.control.view(len(self.model.lines))
+        if view == "rows" and self.model.lines and self.view.isVisible():
+            # Remembered for the next read, so its skeletons fill the height the rows had.
+            first = next((i for i, line in enumerate(self.model.lines) if line.kind == "row"), 0)
+            self._rows_height = self.view.height()
+            self._row_height = max(SKELETON_HEIGHT + 2, self.view.sizeHintForRow(first))
+        if view == "loading":
+            if self._rows_height > 0:
+                self._skeleton.set_rows(max(1, round(self._rows_height / self._row_height)), self._row_height)
+            else:
+                self._skeleton.set_rows(SKELETON_ROWS, self._row_height)
         self.view.setVisible(view == "rows")
         self._skeleton.setVisible(view == "loading")
         self._state.setVisible(view in ("empty", "error"))
@@ -1025,15 +1040,65 @@ class GroupedList(QtWidgets.QWidget):
         )
 
 
+class _SkeletonRow(QtWidgets.QWidget):
+    """One row a read stands behind: a bar in the row's own inset, a half-tone rule under it.
+
+    Upstream's loading row is the row's own class holding a `Skeleton h-5 w-full`, with
+    `border-b border-border/50` between rows.
+    """
+
+    def __init__(self, height: int, last: bool, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._last = last
+        self.setFixedHeight(height)
+        line = QtWidgets.QHBoxLayout(self)
+        line.setContentsMargins(ROW_PAD_X, 0, ROW_PAD_X, 0)
+        line.addWidget(Skeleton(height=SKELETON_HEIGHT, parent=self))
+
+    def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
+        if self._last:
+            return
+        painter = QtGui.QPainter(self)
+        theme = theme_of(self)
+        painter.fillRect(
+            QRect(0, self.height() - 1, self.width(), 1), with_alpha(theme.color("border"), 0.5)
+        )
+        painter.end()
+
+
 class _ListSkeleton(SkeletonBlock):
-    """Rows a first read stands behind: the same inset, the same height, the same zero gap."""
+    """Rows a read stands behind, at the row height and as many as stood there.
+
+    A first read draws upstream's eight; a re-read of rows already on screen, a sort or a new
+    page, draws as many as fill the height the rows had, so the list keeps its height and
+    nothing under it moves while the answer is on its way.
+    """
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("grouped-list-loading")
         self.setAccessibleName("Loading…")
-        column = QtWidgets.QVBoxLayout(self)
-        column.setContentsMargins(ROW_PAD_X, ROW_PAD_Y, ROW_PAD_X, ROW_PAD_Y)
-        column.setSpacing(0)
-        for _ in range(SKELETON_ROWS):
-            column.addWidget(Skeleton(height=SKELETON_HEIGHT, parent=self))
+        self._column = QtWidgets.QVBoxLayout(self)
+        self._column.setContentsMargins(0, 0, 0, 0)
+        self._column.setSpacing(0)
+        self._rows = 0
+        self.set_rows(SKELETON_ROWS, SKELETON_ROW_HEIGHT)
+
+    @property
+    def rows(self) -> int:
+        """How many rows stand in the block."""
+        return self._rows
+
+    def set_rows(self, count: int, row_height: int) -> None:
+        count = max(1, int(count))
+        row_height = max(SKELETON_HEIGHT + 2, int(row_height))
+        while self._column.count():
+            item = self._column.takeAt(0)
+            made = item.widget()
+            if made is not None:
+                made.setParent(None)
+                made.deleteLater()
+        for index in range(count):
+            self._column.addWidget(_SkeletonRow(row_height, index == count - 1, self))
+        self._rows = count
+        self.setFixedHeight(count * row_height)

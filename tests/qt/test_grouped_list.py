@@ -250,3 +250,26 @@ def test_the_heading_of_the_group_scrolled_into_stays_at_the_top(context, qtbot)
     QTest.mouseClick(view.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, band.center())
     qtbot.wait(20)
     assert model.rowCount() == whole - len(groups[1].rows)
+
+
+def test_a_re_read_stands_behind_rows_that_keep_the_lists_height(qtbot):
+    """A sort re-reads the rows; the skeletons that stand in fill the height the rows had.
+
+    Upstream draws eight rows on any read; here a first read draws those eight and a re-read
+    draws as many as the rows on screen filled, so the page under the list does not jump.
+    """
+    slow = mock_context(latency_ms=400)
+    listing = _listing(slow, qtbot)
+    settle(listing, listing.control.binding)
+    before = listing.height()
+    rows_height = listing.view.height()
+    listing.control.apply_sort([SortSpec(path="content", descending=True)])
+    qtbot.wait(40)
+    assert listing.control.snapshot().status == "loading"
+    skeleton = listing.findChild(QtWidgets.QWidget, "grouped-list-loading")
+    assert skeleton.isVisible() and not listing.view.isVisible()
+    assert skeleton.rows > 1
+    assert abs(skeleton.height() - rows_height) <= listing._row_height // 2
+    assert abs(listing.height() - before) <= listing._row_height // 2
+    settle(listing, listing.control.binding)
+    assert listing.view.isVisible() and abs(listing.height() - before) <= 2
