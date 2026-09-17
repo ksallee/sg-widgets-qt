@@ -4,9 +4,9 @@ from __future__ import annotations
 import threading
 
 import pytest
-from qtpy.QtCore import Qt
-from qtpy.QtGui import QKeyEvent
-from qtpy.QtWidgets import QWidget
+from qtpy.QtCore import QEvent, QPointF, Qt
+from qtpy.QtGui import QKeyEvent, QMouseEvent
+from qtpy.QtWidgets import QApplication, QWidget
 
 from sg_widgets_qt.primitives.roles import Roles
 from sg_widgets_qt.showcase.context import demo_context
@@ -219,3 +219,71 @@ def test_a_level_carries_the_back_row_and_a_heading(host, qtbot, context):
 
 def _key(key: Qt.Key) -> QKeyEvent:
     return QKeyEvent(QKeyEvent.Type.KeyPress, int(key), Qt.KeyboardModifier.NoModifier)
+
+
+def test_a_press_on_the_drill_control_opens_the_level_and_a_press_on_the_row_picks(
+    host, qtbot, context
+):
+    """Upstream's drill is a button inside the row that the press never reaches past."""
+    tree = make(host, qtbot, context)
+    settle(qtbot, tree)
+    control = tree.search_control()
+    surface = control.list_surface()
+    surface.resize(480, 320)
+    model = control.model
+    at = next(
+        i
+        for i in range(model.rowCount())
+        if isinstance(model.row_at(i), HierarchicalSearchRow)
+        and model.row_at(i).has_children
+    )
+    where = model.index(at, 0)
+    assert bool(model.data(where, Roles.DRILLABLE)) is True
+    drill = surface.row_delegate().drill_rect(surface.visualRect(surface.model().index(at, 0)), where)
+    assert not drill.isNull()
+
+    # A press on the chevron walks the level.
+    before = tree.level_path
+    _press(surface, drill.center())
+    settle(qtbot, tree)
+    assert tree.level_path != before
+
+    # A press on the row itself takes it, which is what `activated` carries.
+    control.list_surface().set_highlight(0)
+    picked: list = []
+    tree.selected.connect(lambda leaf, path: picked.append(leaf))
+    row_at = next(
+        i
+        for i in range(control.model.rowCount())
+        if isinstance(control.model.row_at(i), HierarchicalSearchRow)
+        and control.model.row_at(i).selectable
+    )
+    control.activated.emit(row_at)
+    assert picked
+
+
+def test_a_searched_row_draws_no_drill_control(host, qtbot, context):
+    tree = make(host, qtbot, context)
+    settle(qtbot, tree)
+    tree.set_query("sh010_0010")
+    settle(qtbot, tree)
+    model = tree.search_control().model
+    marked = [
+        i for i in range(model.rowCount()) if bool(model.data(model.index(i, 0), Roles.DRILLABLE))
+    ]
+    assert marked == []
+
+
+def _press(surface, point) -> None:
+    for kind in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease):
+        QApplication.sendEvent(
+            surface.viewport(),
+            QMouseEvent(
+                kind,
+                QPointF(point),
+                QPointF(point),
+                Qt.MouseButton.LeftButton,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+            ),
+        )

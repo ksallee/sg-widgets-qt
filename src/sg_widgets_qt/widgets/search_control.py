@@ -136,6 +136,8 @@ class SearchControl(ThemedWidget):
     dismissed = Signal()
     #: A page landed, or the list emptied.
     rows_changed = Signal()
+    #: A press landed on a row's drill control. The payload is its index in the model.
+    drill_requested = Signal(int)
 
     def __init__(
         self,
@@ -231,6 +233,7 @@ class SearchControl(ThemedWidget):
         self._sync_delegate()
         self._sync_query()
         self._list.activated.connect(self._on_activated)
+        self._list.drill_requested.connect(self.drill_requested.emit)
         self._list.load_more_requested.connect(self.load_more)
 
         self._skeleton = SearchSkeleton(

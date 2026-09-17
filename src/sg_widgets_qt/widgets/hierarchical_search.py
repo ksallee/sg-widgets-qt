@@ -199,6 +199,7 @@ class HierarchicalSearch(QWidget):
         )
         column.addWidget(self._control)
         self._control.activated.connect(self._on_activated)
+        self._control.drill_requested.connect(self._on_drill)
         self._control.query_changed.connect(self._on_query)
         self._apply_row_props()
 
@@ -479,6 +480,7 @@ class HierarchicalSearch(QWidget):
         model.set_size(self._size)
         model.set_kind_of(lambda row: "heading" if isinstance(row, _Heading) else "row")
         model.set_glyph_of(self._glyph_of)
+        model.set_drillable_of(self._drillable)
         model.set_crumbs_of(lambda row: getattr(row, "crumbs", ()) or ())
         named = self._sub_label is not None or not path_of(self._sub_label_field)
         model.set_sub_label(self._sub_of if named else None)
@@ -488,6 +490,21 @@ class HierarchicalSearch(QWidget):
     def _refresh_rows(self) -> None:
         if self._control is not None:
             self._control.set_row_mapper(self._rows_of)
+
+    def _drillable(self, row: Any) -> bool:
+        """A level of the tree opens; a search shows paths, so a result opens nothing."""
+        return (
+            isinstance(row, HierarchicalSearchRow)
+            and row.has_children
+            and not row.up
+            and not self.searching
+        )
+
+    def _on_drill(self, index: int) -> None:
+        """A press on the drill control opens the level, where a press on the row picks it."""
+        row = self._model.row_at(index)
+        if isinstance(row, HierarchicalSearchRow):
+            self.drill(row)
 
     def _glyph_of(self, row: Any) -> str:
         if getattr(row, "up", False):

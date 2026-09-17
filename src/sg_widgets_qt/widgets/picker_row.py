@@ -160,6 +160,8 @@ class PickerRowModel(QAbstractListModel):
 
         self._checked: set[str] = set()
         self._crumbs_of: Callable[[RowLike], Sequence[str]] | None = None
+        self._row_painter_of: Callable[[RowLike], Callable[..., None] | None] | None = None
+        self._drillable_of: Callable[[RowLike], bool] | None = None
         self._glyph_of: Callable[[RowLike], str] | None = None
         self._kind_of: Callable[[RowLike], str] | None = None
         self._pictures: dict[str, QPixmap] = {}
@@ -374,6 +376,22 @@ class PickerRowModel(QAbstractListModel):
         self._glyph_of = fn
         self._redraw()
 
+    def set_row_painter_of(
+        self, fn: Callable[[RowLike], Callable[..., None] | None] | None
+    ) -> None:
+        """A painter for the whole of a row that is not the anatomy, per row.
+
+        The palette's recents are an entity chip and the type beside it, which is a row of its
+        own shape; every other row answers None and is drawn by the delegate as usual.
+        """
+        self._row_painter_of = fn
+        self._redraw()
+
+    def set_drillable_of(self, fn: Callable[[RowLike], bool] | None) -> None:
+        """Which rows open a level of their own, and so draw the drill control."""
+        self._drillable_of = fn
+        self._redraw()
+
     def set_kind_of(self, fn: Callable[[RowLike], str] | None) -> None:
         """What a row is: `row`, `heading`, `separator` or `load_more`, per row."""
         self._kind_of = fn
@@ -418,6 +436,10 @@ class PickerRowModel(QAbstractListModel):
             return row_code(_values(row), label, self._show_code)
         if role == Roles.SUB_LABEL:
             return self._sub_label_of(row, anatomy)
+        if role == Roles.DRILLABLE:
+            return bool(self._drillable_of(row)) if self._drillable_of is not None else False
+        if role == Roles.ROW_PAINTER:
+            return self._row_painter_of(row) if self._row_painter_of is not None else None
         if role == Roles.SUB_RUNS:
             sub = self._sub_label_of(row, anatomy)
             return [(run.text, run.match) for run in match_runs(sub, self._query)] if sub else []

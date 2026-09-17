@@ -531,6 +531,7 @@ class PickerControl(ThemedWidget):
         open: bool = False,
         query: str = "",
         anchored: bool = False,
+        highlight_on_open: bool = False,
         loading: bool = False,
         error: str | None = None,
         empty: bool = False,
@@ -575,6 +576,7 @@ class PickerControl(ThemedWidget):
         self._placeholder = placeholder
         self._search_placeholder = search_placeholder
         self._anchored = bool(anchored)
+        self._highlight_on_open = bool(highlight_on_open)
         self._loading = bool(loading)
         self._error = error
         self._empty = bool(empty)
@@ -934,6 +936,19 @@ class PickerControl(ThemedWidget):
             self._popover.reposition()
 
     @property
+    def highlight_on_open(self) -> bool:
+        """Whether opening the list puts the cursor on the first row.
+
+        Upstream's combobox does not: it opens with nothing highlighted and the first `Down`
+        takes the first row, which is what `tools/drives/upstream/entity-picker-query.js`
+        reads off the page. A picker that opens on a value of its own passes `True`.
+        """
+        return self._highlight_on_open
+
+    def set_highlight_on_open(self, value: bool) -> None:
+        self._highlight_on_open = bool(value)
+
+    @property
     def loading(self) -> bool:
         return self._loading
 
@@ -1127,7 +1142,8 @@ class PickerControl(ThemedWidget):
             self._sync_popup()
             self._popover.open()
             self._focus_caret()
-            self._list.highlight_first()
+            if self._highlight_on_open:
+                self._list.highlight_first()
         self.update()
         if self._on_open_change is not None:
             self._on_open_change(wanted)
@@ -1378,9 +1394,9 @@ class PickerControl(ThemedWidget):
         self.setAccessibleDescription(self.status_text())
         self._popup.adjustSize()
         if self._open:
-            # The rows of an open list land after it opened, so the first one takes the
-            # highlight as it arrives rather than only when the list was already full.
-            if self._list.highlighted() < 0:
+            # The rows of an open list land after it opened, so a picker that opens on a row
+            # takes it as the rows arrive rather than only when the list was already full.
+            if self._highlight_on_open and self._list.highlighted() < 0:
                 self._list.highlight_first()
             self._popover.reposition()
 

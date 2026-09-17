@@ -55,3 +55,8 @@ class Roles(IntEnum):
     SORTABLE = int(Qt.ItemDataRole.UserRole) + 14
     #: The sub-label as runs, so a row matched on its login or its email shows why.
     SUB_RUNS = int(Qt.ItemDataRole.UserRole) + 15
+    #: `painter(painter, rect, option)` drawing the whole row, for a row that is not the
+    #: anatomy: the palette's recents are an entity chip and the type beside it.
+    ROW_PAINTER = int(Qt.ItemDataRole.UserRole) + 16
+    #: True on a row that opens a level of its own, which draws the drill control.
+    DRILLABLE = int(Qt.ItemDataRole.UserRole) + 17

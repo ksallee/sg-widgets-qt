@@ -184,6 +184,30 @@ def test_the_recents_show_on_an_empty_query(host, qtbot, context):
     assert named[0].name == "sh010_0010"
 
 
+def test_a_recent_draws_as_a_chip_and_its_type(host, qtbot, context):
+    """Upstream draws a recent as an entity chip with the type beside it, not as the row."""
+    recent = EntityRef(type="Shot", id=862, name="sh010_0010")
+    search = make(host, qtbot, context, recents=[recent])
+    qtbot.wait(4 * DEBOUNCE_MS)
+    model = search.search_control().model
+    at = next(
+        i for i in range(model.rowCount()) if isinstance(model.row_at(i), GlobalSearchRow)
+    )
+    assert callable(model.data(model.index(at, 0), Roles.ROW_PAINTER))
+
+    # A row that came from a read is the shared anatomy, and draws itself.
+    search.set_query("sh")
+    settle(qtbot, search)
+    found = search.search_control().model
+    rows = [
+        i
+        for i in range(found.rowCount())
+        if isinstance(found.row_at(i), GlobalSearchRow) and not found.row_at(i).recent
+    ]
+    assert rows
+    assert found.data(found.index(rows[0], 0), Roles.ROW_PAINTER) is None
+
+
 def test_escape_clears_the_query_and_then_closes_the_palette(host, qtbot, context):
     search = make(host, qtbot, context, inline=False)
     search.search_control().set_debounce_ms(DEBOUNCE_MS)

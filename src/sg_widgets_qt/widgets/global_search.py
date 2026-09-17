@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from dataclasses import field as dc_field
 from typing import Any
 
-from qtpy.QtCore import QEvent, QSize, Qt, Signal
+from qtpy.QtCore import QEvent, QRect, QSize, Qt, Signal
 from qtpy.QtGui import QKeySequence, QPainter
 from qtpy.QtWidgets import QShortcut, QSizePolicy, QVBoxLayout, QWidget
 
@@ -49,8 +49,9 @@ from ..primitives.base import (
     elide,
     fill_round_rect,
 )
-from ..theme import with_alpha
+from ..theme import theme_of, with_alpha
 from ..workers import default_pool
+from .field_value import FieldValueOptions, field_value_size_hint, paint_field_value
 from .picker_row import PickerRowModel
 from .search_control import SearchAnswer, SearchControl, SearchRequest
 
@@ -81,6 +82,9 @@ RECENT_HEADING = "Recent"
 #: Room inside the kbd pill, and its type step.
 KBD_PAD = 6
 KBD_TEXT = 11
+
+#: The room between the chip of a recent and the type name beside it, rule 2.
+RECENT_GAP = 8
 
 
 @dataclass
@@ -625,6 +629,7 @@ class GlobalSearch(QWidget):
         model.set_fields(self._fields)
         model.set_size(self._size)
         model.set_kind_of(lambda row: "heading" if isinstance(row, _Heading) else "row")
+        model.set_row_painter_of(self._recent_painter)
         named = self._sub_label is not None or not path_of(self._sub_label_field)
         model.set_sub_label(self._sub_of if named else None)
         model.set_secondary(self._secondary_of if self._secondary is not None else None)
@@ -633,6 +638,37 @@ class GlobalSearch(QWidget):
     def _refresh_rows(self) -> None:
         if self._control is not None:
             self._control.set_row_mapper(self._rows_of)
+
+    def _recent_painter(self, row: Any) -> Callable[..., None] | None:
+        """A recent is an entity chip and the type beside it, as upstream draws it."""
+        if not isinstance(row, GlobalSearchRow) or not row.recent:
+            return None
+        ref = row.ref
+        label = self._type_label(ref.type)
+        site = str(getattr(self._context, "site_url", "") or "")
+
+        def paint(painter: QPainter, rect: Any, option: Any) -> None:
+            theme = theme_of(option.widget) if getattr(option, "widget", None) else None
+            if theme is None:
+                return
+            options = FieldValueOptions(theme=theme, site_url=site)
+            wanted = field_value_size_hint(ref, "entity", options).width()
+            width = max(0, min(wanted, rect.width()))
+            chip = QRect(rect.left(), rect.top(), width, rect.height())
+            paint_field_value(painter, chip, ref, "entity", options)
+            left = chip.right() + 1 + RECENT_GAP
+            room = max(0, rect.right() + 1 - left)
+            if room <= 0 or not label:
+                return
+            painter.setFont(theme.font(KBD_TEXT + 1))
+            painter.setPen(theme.color("muted_foreground"))
+            painter.drawText(
+                QRect(left, rect.top(), room, rect.height()),
+                int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
+                elide(painter, label, room),
+            )
+
+        return paint
 
     def _sub_of(self, row: Any) -> str:
         if self._sub_label is not None and getattr(row, "hit", None) is not None:

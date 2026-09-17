@@ -23,11 +23,13 @@ from sg_widgets_core.render import name_hue as core_name_hue
 
 from .. import icons
 from ..theme import Theme, theme_of, with_alpha
-from .base import THUMB_SIZE, elide
+from .base import CHIP_HEIGHT, THUMB_SIZE, elide
 from .roles import Roles
 
 __all__ = [
+    "CHIP_STEP",
     "CODE_TEXT",
+    "DRILL_WIDTH",
     "GAP",
     "INDICATOR_HEIGHT",
     "INDICATOR_WIDTH",
@@ -45,6 +47,14 @@ __all__ = [
 
 #: The leading slot follows the thumbnail ladder.
 LEAD = THUMB_SIZE
+
+#: A chip inside a row sits one step under the row, rule 3.
+CHIP_STEP: dict[str, str] = {"sm": "xs", "md": "sm", "lg": "md"}
+
+#: The drill control at the trailing edge of a row that opens a level: an icon button's hit
+#: box, with the chevron drawn at the glyph's own size inside it.
+DRILL_WIDTH = 24
+DRILL_GLYPH = "chevron-right"
 
 #: A glyph standing in for a picture, a step under the slot it sits in.
 LEAD_GLYPH: dict[str, int] = {"sm": 14, "md": 16, "lg": 20}
@@ -194,6 +204,10 @@ class RowDelegate(QStyledItemDelegate):
             metrics = QFontMetrics(theme.font(ROW_TEXT[self._size]))
             return QSize(width, metrics.height() + 2 * ROW_PAD_Y)
 
+        if callable(index.data(Roles.ROW_PAINTER)):
+            chip = CHIP_HEIGHT[CHIP_STEP.get(self._size, "sm")]
+            return QSize(width, chip + 2 * self._pad_y(False))
+
         sub = _text(index, Roles.SUB_LABEL)
         label_height = QFontMetrics(theme.font(ROW_TEXT[self._size])).height()
         height = label_height
@@ -253,6 +267,17 @@ class RowDelegate(QStyledItemDelegate):
         self._paint_row(painter, option, index, theme, rect)
         painter.restore()
 
+    def drill_rect(self, rect: QRect, index: QModelIndex) -> QRect:
+        """Where the drill control of a row sits, so a view can tell a press on it apart."""
+        if not bool(index.data(Roles.DRILLABLE)):
+            return QRect()
+        pad_y = self._pad_y(bool(_text(index, Roles.SUB_LABEL)))
+        box = rect.adjusted(ROW_PAD_X, pad_y, -ROW_PAD_X, -pad_y)
+        right = box.right() + 1
+        if self._indicator == "tick":
+            right -= INDICATOR_WIDTH + GAP
+        return QRect(right - DRILL_WIDTH, box.top(), DRILL_WIDTH, box.height())
+
     def _paint_background(
         self, painter: QPainter, option: QStyleOptionViewItem, theme: Theme, rect: QRect
     ) -> None:
@@ -288,6 +313,15 @@ class RowDelegate(QStyledItemDelegate):
         box = rect.adjusted(ROW_PAD_X, pad_y, -ROW_PAD_X, -pad_y)
         left, right = box.left(), box.right() + 1
 
+        # A row the caller draws whole takes the inset and nothing else: no leading slot, no
+        # label column. The palette's recents are that row.
+        whole = index.data(Roles.ROW_PAINTER)
+        if callable(whole):
+            painter.save()
+            whole(painter, QRect(box), option)
+            painter.restore()
+            return
+
         if self._indicator == "checkbox":
             column = QRect(left, box.top(), INDICATOR_WIDTH, box.height())
             self._paint_checkbox(painter, column, index, theme)
@@ -303,6 +337,14 @@ class RowDelegate(QStyledItemDelegate):
             column = QRect(right - INDICATOR_WIDTH, box.top(), INDICATOR_WIDTH, box.height())
             self._paint_tick(painter, column, index, ink)
             right -= INDICATOR_WIDTH + GAP
+
+        if bool(index.data(Roles.DRILLABLE)):
+            column = QRect(right - DRILL_WIDTH, box.top(), DRILL_WIDTH, box.height())
+            glyph = LEAD_GLYPH[self._size]
+            mark = QRect(0, 0, glyph, glyph)
+            mark.moveCenter(column.center())
+            icons.paint_icon(painter, mark, DRILL_GLYPH, muted)
+            right -= DRILL_WIDTH + GAP
 
         secondary = _text(index, Roles.SECONDARY)
         painter_role = index.data(Roles.PAINTER)

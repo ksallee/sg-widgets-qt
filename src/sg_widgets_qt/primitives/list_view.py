@@ -15,6 +15,7 @@ from qtpy.QtCore import (
     QAbstractProxyModel,
     QEvent,
     QModelIndex,
+    QPoint,
     QSize,
     Qt,
     Signal,
@@ -198,6 +199,8 @@ class ListSurface(QListView):
     highlighted_changed = Signal(int)
     activated = Signal(int)
     load_more_requested = Signal()
+    #: A press landed on a row's drill control rather than on the row.
+    drill_requested = Signal(int)
 
     def __init__(
         self,
@@ -435,8 +438,32 @@ class ListSurface(QListView):
             self.set_highlight(index.row())
         super().mouseMoveEvent(event)
 
+    def _on_drill(self, index: QModelIndex, point: QPoint) -> bool:
+        """True when a press landed on the row's drill control rather than on the row.
+
+        Upstream's drill is a button inside the row that stops the press reaching it, so a
+        press on the chevron opens the level and a press anywhere else takes the row.
+        """
+        if not index.isValid():
+            return False
+        rect = self._delegate.drill_rect(self.visualRect(index), index)
+        return not rect.isNull() and rect.contains(point)
+
+    def mousePressEvent(self, event: QEvent) -> None:  # noqa: N802
+        point = _point(event)
+        index = self.indexAt(point)
+        if event.button() == Qt.MouseButton.LeftButton and self._on_drill(index, point):
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
     def mouseReleaseEvent(self, event: QEvent) -> None:  # noqa: N802
-        index = self.indexAt(_point(event))
+        point = _point(event)
+        index = self.indexAt(point)
+        if event.button() == Qt.MouseButton.LeftButton and self._on_drill(index, point):
+            event.accept()
+            self.drill_requested.emit(index.row())
+            return
         super().mouseReleaseEvent(event)
         if index.isValid() and event.button() == Qt.MouseButton.LeftButton:
             self.activate(index.row())
