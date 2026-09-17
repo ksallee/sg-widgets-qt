@@ -224,11 +224,12 @@ def test_prose_headings_take_the_foreground_in_dark(qtbot):
 
 
 def test_the_entity_table_demo_sorts_on_the_columns_it_shows(qtbot):
-    """`paths` is the visible columns, and it follows them.
+    """`options` is the visible columns, flat, and it follows them.
 
     Upstream hands the picker `columns.map((column) => column.path)`, so a toolbar sorts on
     what its table shows. Ours used to hand it every column the demo can show, which offered
-    fields no reader could see.
+    fields no reader could see. It goes through `options` now, so the linked column the table
+    shows is on the list without the reader having to walk a link to it.
     """
     import time
 
@@ -244,7 +245,9 @@ def test_the_entity_table_demo_sorts_on_the_columns_it_shows(qtbot):
     qtbot.addWidget(demo)
     picker = demo._sort
     assert picker is not None
-    assert picker.paths == list(SHOWN)
+    assert picker.options == list(SHOWN)
+    # The flat list takes the place of the nested one, which is left alone.
+    assert picker.paths is None
 
     end = time.time() + 5.0
     while time.time() < end and not demo.table.columns:
@@ -252,16 +255,18 @@ def test_the_entity_table_demo_sorts_on_the_columns_it_shows(qtbot):
         qtbot.wait(5)
     resolved = [column.path for column in demo.table.columns]
     assert resolved == list(SHOWN)
-    assert picker.paths == resolved
+    assert picker.options == resolved
+    # A column through a link is shown and therefore offered.
+    assert "entity.Shot.sg_turnover_date" in resolved
     # The two the demo can show but does not are not on offer.
     assert [path for path in PATHS if path not in resolved]
-    assert not [path for path in picker.paths if path not in resolved]
+    assert not [path for path in picker.options if path not in resolved]
 
     # A column dropped from the table takes its path off the list with it.
     kept = [column for column in demo.table.columns if column.path != "description"]
     demo.table.columns_changed.emit(kept)
     QtWidgets.QApplication.processEvents()
-    assert picker.paths == [column.path for column in kept]
+    assert picker.options == [column.path for column in kept]
     assert isinstance(kept[0], CollectionColumn)
 
 

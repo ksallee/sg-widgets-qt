@@ -36,7 +36,14 @@
       "type": "`string[]`",
       "py_type": "`list[str]`",
       "default": "—",
-      "meaning": "Only these paths are offered, so a table's toolbar sorts on the columns it shows. A link stays in the list while an offered path runs through it."
+      "meaning": "Only these paths are offered in the nested list. A link stays in the list while an offered path runs through it."
+    },
+    {
+      "name": "options",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "—",
+      "meaning": "Exactly these paths, offered as one flat list, so a table's toolbar sorts on the columns it shows, a linked one included. Takes the place of `paths`."
     },
     {
       "name": "disabled",

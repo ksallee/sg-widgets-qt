@@ -1,4 +1,4 @@
-"""The field-picker demo: drill-down, restrictions, computed columns and the states.
+"""The field-picker demo: drill-down, restrictions, computed columns, a fixed list and states.
 
 The port of `apps/site/src/demos/field-picker/Demo.tsx`.
 """
@@ -25,6 +25,9 @@ COMPUTED = [
 
 #: A dotted value the picker shows as its friendly path.
 PRESET = "entity.Shot.sg_turnover_date"
+
+#: The three paths the fixed example offers flat, one of them through a link.
+FIXED = ["code", "sg_status_list", "entity.Shot.sg_turnover_date"]
 
 #: The width an example takes, so the popup has an anchor of a real size.
 EXAMPLE_WIDTH = 360
@@ -84,6 +87,18 @@ class FieldPickerDemo(QtWidgets.QWidget):
                 filterable_only=True,
                 hide_paths=HIDDEN,
                 extra_fields=COMPUTED,
+            )
+        )
+        body.addWidget(
+            self._case(
+                "fixed",
+                "Fixed options: three paths, flat, one of them through a link",
+                "No breadcrumb and no descending; the search reads the label and the path",
+                context=context,
+                entity_type="Version",
+                options=FIXED,
+                show_code=True,
+                placeholder="Sort on",
             )
         )
         body.addWidget(self._states(context))

@@ -5,12 +5,14 @@ from collections.abc import Sequence
 
 from sg_widgets_core.client import EntityTypeInfo
 from sg_widgets_core.pickers import (
+    UNRESOLVED_PATH_LABEL,
     EntityTypeOptionsInput,
     EntityTypeRestrictions,
     ExtraField,
     FieldHop,
     FieldOption,
     FieldOptionsInput,
+    FieldPathOption,
     current_type,
     derive_field_options,
     entity_type_options,
@@ -20,7 +22,9 @@ from sg_widgets_core.pickers import (
     matches_tokens,
     move_field_path,
     path_types,
+    resolve_field_path_options,
     search_field_options,
+    search_field_path_options,
     toggle_field_path,
     traversal_targets,
 )
@@ -36,7 +40,7 @@ def fields_of(entity_type: str) -> dict[str, FieldSchema]:
     return schema.fields(entity_type)
 
 
-def paths_of(options: Sequence[FieldOption]) -> list[str]:
+def paths_of(options: Sequence[FieldOption | FieldPathOption]) -> list[str]:
     return [o.path for o in options]
 
 
@@ -310,3 +314,52 @@ class TestMoveFieldPath:
         assert move_field_path(self.paths, 2, 3) == self.paths
         assert move_field_path(self.paths, 1, 1) == self.paths
         assert move_field_path([], 0, 0) == []
+
+
+class TestResolveFieldPathOptions:
+    paths = ["code", "entity.Shot.sg_turnover_date", "sg_nope.Thing.code"]
+
+    def test_keeps_the_order_it_was_given_and_labels_a_plain_path_by_its_field(self) -> None:
+        options = resolve_field_path_options(schema, "Version", self.paths)
+        assert paths_of(options) == self.paths
+        assert options[0].label == "Version Name"
+        assert options[0].name == "code"
+        assert options[0].data_type == "text"
+        assert options[0].resolved is True
+
+    def test_labels_a_dotted_path_by_every_display_name_it_travels(self) -> None:
+        dotted = resolve_field_path_options(schema, "Version", ["entity.Shot.sg_turnover_date"])[0]
+        assert dotted.label == "Link › Shot › Turnover Date"
+        assert dotted.name == "sg_turnover_date"
+        assert dotted.data_type == "date"
+        assert dotted.sub_label == "date"
+        assert dotted.resolved is True
+
+    def test_keeps_a_path_the_schema_does_not_hold_marked_in_its_sub_label(self) -> None:
+        options = resolve_field_path_options(schema, "Version", self.paths)
+        assert options[2] == FieldPathOption(
+            path="sg_nope.Thing.code",
+            label="sg_nope.Thing.code",
+            name="",
+            data_type="",
+            sub_label=UNRESOLVED_PATH_LABEL,
+            resolved=False,
+        )
+
+    def test_carries_the_leaf_code_a_row_shows_under_show_code(self) -> None:
+        options = resolve_field_path_options(
+            schema, "Version", ["sg_status_list", "entity.Shot.sg_turnover_date"]
+        )
+        assert [o.name for o in options] == ["sg_status_list", "sg_turnover_date"]
+
+
+class TestSearchFieldPathOptions:
+    def test_matches_the_label_and_the_path_and_leaves_an_empty_query_alone(self) -> None:
+        options = resolve_field_path_options(
+            schema, "Version", ["code", "entity.Shot.sg_turnover_date", "sg_nope"]
+        )
+        assert paths_of(search_field_path_options(options, "turnover")) == ["entity.Shot.sg_turnover_date"]
+        assert paths_of(search_field_path_options(options, "entity.Shot")) == ["entity.Shot.sg_turnover_date"]
+        assert paths_of(search_field_path_options(options, "sg_nope")) == ["sg_nope"]
+        assert len(search_field_path_options(options, "   ")) == 3
+        assert len(search_field_path_options(options, "zzznope")) == 0

@@ -19,7 +19,7 @@ ordered multi, an array of paths ordered by drag.
 from sg_widgets_qt.widgets.field_picker import FieldPicker
 ```
 
-::demo{name="field-picker" title="FieldPicker: drill-down, restrictions, computed columns and states"}
+::demo{name="field-picker" title="FieldPicker: drill-down, restrictions, computed columns, a fixed list and states"}
 
 ## Props
 
@@ -46,6 +46,16 @@ alone.
 A link that declares one target type descends at once. One declaring several replaces the list with
 one row per type and asks which, and the search box asks `Which type?` while they are on show. A
 type already on the path is not offered again, and the path stops at `max_depth`.
+
+`options` fills the list a second way: the paths you name, flat, in the order you give them, each
+labelled by its resolved path with its data-type glyph and, under `show_code`, its code. A path the
+schema cannot resolve keeps its place, shown as it was written and marked in its sub-label. With
+`options` set the list does not nest, so `deep_links`, `max_depth`, `hide_paths`, `exclude`,
+`data_types`, `valid_types`, `filterable_only`, `extra_fields` and `filter` do not apply and the
+breadcrumb never shows. The search box narrows the flat list on the label and on the path.
+
+The Qt picker reads `options` back as the prop, so the schema rows the nested list derives are
+`picker.derived`, which is the name upstream gives that same list inside the component.
 
 The closed control shows the friendly path, the display names joined with a chevron, never the raw
 one.

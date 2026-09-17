@@ -8,6 +8,9 @@ key wins, and id ascending breaks every remaining tie whether or not it is in th
 A key may be a dotted path, so the field list descends through links. An unsortable or unknown
 field is a silent 200 no-op with the rows in default order, so only types that sort are offered.
 
+`options` hands the field picker a flat list instead: a table's toolbar offers exactly the
+columns it shows, a linked one included, with no descending.
+
     picker = SortPicker(entity_type="Version", context=context, value=[SortKey("code", "asc")])
     picker.changed.connect(apply)
 """
@@ -85,6 +88,7 @@ class SortPicker(QtWidgets.QWidget):
         value: Sequence[SortKey] | None = None,
         hide_paths: Sequence[str] | None = None,
         paths: Sequence[str] | None = None,
+        options: Sequence[str] | None = None,
         size: str = "md",
         disabled: bool = False,
         open: bool = False,  # noqa: A002
@@ -97,6 +101,7 @@ class SortPicker(QtWidgets.QWidget):
         self._value: list[SortKey] = list(value or [])
         self._hide_paths = list(hide_paths or [])
         self._paths = list(paths) if paths is not None else None
+        self._options = list(options) if options is not None else None
         self._size = size if size in SORT_PICKER_SIZE_VALUES else "md"
         self._disabled = bool(disabled)
         self._open = False
@@ -129,6 +134,7 @@ class SortPicker(QtWidgets.QWidget):
             context=context,
             entity_type=self._entity_type,
             hide_paths=self._hide_paths,
+            options=self._flat(),
             disabled=self._disabled,
             value="",
             deep_links=True,
@@ -214,6 +220,26 @@ class SortPicker(QtWidgets.QWidget):
     def set_paths(self, value: Sequence[str] | None) -> None:
         self._paths = list(value) if value is not None else None
         self._field_picker.set_filter(self.offers)
+
+    @property
+    def options(self) -> list[str] | None:
+        """Exactly these paths, offered as one flat list. Takes the place of `paths`."""
+        return list(self._options) if self._options is not None else None
+
+    def set_options(self, value: Sequence[str] | None) -> None:
+        self._options = list(value) if value is not None else None
+        self._field_picker.set_options(self._flat())
+
+    def _flat(self) -> list[str] | None:
+        """The flat list the field picker is handed, or None while the nested one stands.
+
+        A flat list offers no `exclude` and takes no `filter`, so a key already held is
+        dropped here (sort-picker.tsx:120-121).
+        """
+        if self._options is None:
+            return None
+        chosen = [key.field for key in self._value]
+        return [path for path in self._options if path not in chosen]
 
     @property
     def size(self) -> str:
@@ -342,7 +368,11 @@ class SortPicker(QtWidgets.QWidget):
         self._field_picker.set_value("")
 
     def offers(self, field: FieldSchema, path: str) -> bool:
-        """A sortable field the caller offers, and never one already chosen."""
+        """A sortable field the caller offers, and never one already chosen.
+
+        The nested list only. A flat list is bound by `options` alone, which `_flat` drops
+        the chosen keys from.
+        """
         if not is_sortable(field.data_type):
             return False
         if path in [k.field for k in self._value]:
@@ -394,6 +424,7 @@ class SortPicker(QtWidgets.QWidget):
         self._trigger.set_count_size(COUNT_CHIP_SIZE[self._size])
         self._trigger.set_count(str(len(self._value)) if len(self._value) > 1 else "")
         self._field_picker.set_filter(self.offers)
+        self._field_picker.set_options(self._flat())
         self._keys.rebuild()
 
 

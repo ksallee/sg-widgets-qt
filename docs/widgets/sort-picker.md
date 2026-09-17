@@ -29,6 +29,11 @@ chip inside its own border.
 Every other attribute is spread onto the root: `id`, `aria-*`, `data-*`, key handlers and a
 `ref` to the root element.
 
+`paths` narrows the nested list, which still descends through links. `options` replaces it with a
+flat one: the paths you name and nothing else, each labelled by its resolved path. A table's toolbar
+hands its columns to `options`, so it offers exactly the columns the table shows, a linked one
+included. A key already in the list is dropped from both.
+
 ## Events
 
 ::props{name="sort-picker" kind="events"}

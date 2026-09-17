@@ -44,7 +44,7 @@ def settled(qtbot, picker, ms: int = 1200) -> None:
     end = time.time() + ms / 1000.0
     while time.time() < end:
         QApplication.processEvents()
-        if picker.options:
+        if picker.derived:
             break
         qtbot.wait(5)
     spin(qtbot, 30)
@@ -94,22 +94,22 @@ def test_a_row_behind_a_hop_is_its_label_alone(qtbot):
 def test_a_non_filterable_field_is_kept_out_when_asked(qtbot):
     every = build(qtbot, entity_type="Shot", deep_links=False)
     settled(qtbot, every)
-    loose = {one.data_type for one in every.options}
+    loose = {one.data_type for one in every.derived}
     assert loose & {"url", "summary", "calculated", "password", "serializable"}
 
     only = build(qtbot, entity_type="Shot", deep_links=False, filterable_only=True)
     settled(qtbot, only)
-    tight = {one.data_type for one in only.options}
+    tight = {one.data_type for one in only.derived}
     assert not tight & {"url", "summary", "calculated", "password", "serializable"}
 
 
 def test_restrictions_keep_links_on_the_list(qtbot):
     picker = build(qtbot, data_types=["date", "date_time"])
     settled(qtbot, picker)
-    kinds = {one.data_type for one in picker.options if one.selectable}
+    kinds = {one.data_type for one in picker.derived if one.selectable}
     assert kinds <= {"date", "date_time"}
     # A picker restricted to dates still lists the link fields, so a date behind one is reachable.
-    assert any(one.traversable and not one.selectable for one in picker.options)
+    assert any(one.traversable and not one.selectable for one in picker.derived)
 
 
 def test_a_computed_column_is_offered_and_reads_as_its_name(qtbot):
@@ -123,8 +123,8 @@ def test_a_computed_column_is_offered_and_reads_as_its_name(qtbot):
     settled(qtbot, picker)
     spin(qtbot, 60)
     assert picker.label == "Row Number"
-    assert picker.options[0].computed is True
-    assert picker.options[0].path == "row_number"
+    assert picker.derived[0].computed is True
+    assert picker.derived[0].path == "row_number"
 
 
 def test_choosing_a_field_emits_its_path_and_closes(qtbot):
@@ -278,7 +278,7 @@ def test_the_search_box_asks_which_type_while_a_link_is_being_resolved(qtbot):
     picker.control.set_open(True)
     spin(qtbot, 60)
     assert picker.control.search_placeholder == "Search fields…"
-    link = next(one for one in picker.options if one.traversable and len(one.targets) > 1)
+    link = next(one for one in picker.derived if one.traversable and len(one.targets) > 1)
     picker.levels.descend_into(link)
     spin(qtbot, 60)
     assert picker.levels.choosing is not None
@@ -295,7 +295,7 @@ def test_back_and_reset_from_the_bar_clear_the_query(qtbot):
     settled(qtbot, picker)
     picker.control.set_open(True)
     spin(qtbot, 60)
-    link = next(one for one in picker.options if one.traversable)
+    link = next(one for one in picker.derived if one.traversable)
     picker.levels.descend_into(link)
     spin(qtbot, 200)
     picker.control.set_query("dat")
@@ -367,3 +367,162 @@ def test_a_schema_read_stands_behind_two_line_skeletons(qtbot):
     assert label.height() > sub.height(), "the two bars are the same step"
     assert label.width() > sub.width(), "the sub-label bar is not the shorter one"
     settled(qtbot, picker)
+
+
+# --- a caller's own paths, offered flat ----------------------------------------------------
+
+#: The three paths the demo offers flat, one of them through a link.
+FIXED = ["code", "sg_status_list", DOTTED]
+
+#: A path the fixtures do not hold, which keeps its place in the list all the same.
+MISSING = "sg_nope.Thing.code"
+
+
+def flat(qtbot, picker, ms: int = 1200) -> None:
+    """Spin until the fixed paths have been resolved."""
+    end = time.time() + ms / 1000.0
+    while time.time() < end:
+        QApplication.processEvents()
+        if not picker.levels.loading:
+            break
+        qtbot.wait(5)
+    spin(qtbot, 30)
+
+
+def row_of(picker, row: int) -> dict:
+    """One drawn row, read off the roles the delegate paints."""
+    model = picker.rows_model
+    index = model.index(row, 0)
+    return {
+        "label": model.data(index, Roles.LABEL),
+        "code": model.data(index, Roles.CODE),
+        "sub": model.data(index, Roles.SUB_LABEL),
+        "glyph": model.data(index, Roles.GLYPH),
+        "drill": model.data(index, Roles.DRILLABLE),
+    }
+
+
+def test_a_fixed_list_draws_the_paths_it_was_given_flat(qtbot):
+    """`options` offers exactly those paths, in order, with nothing to descend into."""
+    picker = build(qtbot, options=FIXED, show_code=True)
+    flat(qtbot, picker)
+    assert picker.options == FIXED
+    assert picker.levels.flat is True
+    assert picker.rows_model.keys() == FIXED
+    assert all(row_of(picker, i)["drill"] is False for i in range(3))
+    # The schema list is not read at all while a fixed one is on show.
+    assert picker.derived == []
+
+
+def test_a_fixed_list_never_shows_the_breadcrumb(qtbot):
+    """Upstream: `breadcrumb = !options && (hops.length > 0 || choosing !== null)`."""
+    picker = build(qtbot, options=FIXED)
+    flat(qtbot, picker)
+    picker.control.set_open(True)
+    spin(qtbot, 60)
+    assert picker.levels.deep is False
+    assert picker.breadcrumb.isVisible() is False
+
+
+def test_a_fixed_row_is_labelled_by_the_path_it_resolves_to(qtbot):
+    """A link that could have gone elsewhere names its type, so the row reads the whole path."""
+    picker = build(qtbot, options=FIXED, show_code=True)
+    flat(qtbot, picker)
+    linked = row_of(picker, 2)
+    assert linked["label"] == "Link" + CRUMB_SEPARATOR + "Shot" + CRUMB_SEPARATOR + "Turnover Date"
+    assert linked["code"] == "sg_turnover_date"
+    assert linked["sub"] == "date"
+    assert linked["glyph"] == "calendar"
+
+
+def test_a_path_the_schema_does_not_hold_keeps_its_place_marked(qtbot):
+    """A list of columns never comes back shorter than it went in."""
+    from sg_widgets_core.pickers import UNRESOLVED_PATH_LABEL
+
+    picker = build(qtbot, options=[*FIXED, MISSING], show_code=True)
+    flat(qtbot, picker)
+    assert picker.rows_model.rowCount() == 4
+    missing = row_of(picker, 3)
+    assert missing["label"] == MISSING
+    assert missing["code"] == ""
+    assert missing["sub"] == UNRESOLVED_PATH_LABEL
+
+
+def test_the_search_narrows_a_fixed_list_on_the_label_and_on_the_path(qtbot):
+    picker = build(qtbot, options=FIXED)
+    flat(qtbot, picker)
+    picker.control.set_open(True)
+    spin(qtbot, 60)
+    picker.control.set_query("turnover")
+    spin(qtbot, 60)
+    assert picker.rows_model.keys() == [DOTTED]
+    picker.control.set_query("entity.Shot")
+    spin(qtbot, 60)
+    assert picker.rows_model.keys() == [DOTTED]
+    picker.control.set_query("zzznope")
+    spin(qtbot, 60)
+    assert picker.rows_model.keys() == []
+    picker.control.set_query("")
+    spin(qtbot, 60)
+    assert picker.rows_model.keys() == FIXED
+
+
+def test_a_pick_from_a_fixed_list_emits_the_dotted_path(qtbot):
+    """The emitted value is the path the caller wrote, and the control reads the resolved one."""
+    picker = build(qtbot, options=FIXED, show_code=True)
+    flat(qtbot, picker)
+    picker.control.set_open(True)
+    spin(qtbot, 60)
+    seen: list[str] = []
+    picker.value_changed.connect(seen.append)
+    picker.control.list_surface().set_highlight(2)
+    QTest.keyClick(search_caret(picker), Qt.Key.Key_Return)
+    spin(qtbot, 200)
+    assert seen == [DOTTED]
+    assert picker.value == DOTTED
+    assert picker.label_parts == ["Link", "Shot", "Turnover Date"]
+    chips = picker.control.chips()
+    assert len(chips) == 1
+    assert chips[0].text() == picker.label
+
+
+def test_a_fixed_list_set_after_the_fact_replaces_the_schema_one(qtbot):
+    """`set_options` puts the picker in the flat mode, and dropping it gives the schema back."""
+    picker = build(qtbot, options=None)
+    settled(qtbot, picker)
+    assert picker.levels.flat is False
+    assert len(picker.derived) > 0
+
+    picker.set_options(FIXED)
+    flat(qtbot, picker)
+    assert picker.rows_model.keys() == FIXED
+
+    picker.set_options(None)
+    settled(qtbot, picker)
+    assert picker.levels.flat is False
+    assert len(picker.derived) > 0
+
+
+def test_levels_taken_down_under_a_read_drop_the_answer(qtbot):
+    """A picker closed or rebuilt while its schema is being read has nowhere for it to land.
+
+    The answer reaches the levels on the GUI thread through the pool, and `changed.emit` on a
+    deleted object raises `RuntimeError` inside the event loop, which pytest-qt fails the test
+    on and the showcase prints as a traceback. The levels take their tickets as they go.
+    """
+    import time
+
+    from qtpy.QtWidgets import QApplication
+
+    from sg_widgets_qt.widgets.field_picker import FieldLevels
+
+    context = context_for(latency_ms=200)
+    levels = FieldLevels(context=context, entity_type="Version", deep_links=True)
+    levels.read()
+    levels.deleteLater()
+    del levels
+    end = time.time() + 2.0
+    while time.time() < end:
+        QApplication.processEvents()
+        qtbot.wait(10)
+    assert True, "the schema landed on levels that had gone"

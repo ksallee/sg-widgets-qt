@@ -160,8 +160,12 @@ def test_a_header_sort_shows_in_the_toolbar_s_sort_control(qtbot):
     qtbot.waitUntil(lambda: built.table.control.rows != [], timeout=5000)
     built.table.control.apply_sort([SortSpec(path="code", descending=True)])
     qtbot.waitUntil(lambda: built.table.control.snapshot().sort == [SortSpec(path="code", descending=True)], timeout=5000)
-    keys = built._sort.value
-    assert [(k.field, k.direction) for k in keys] == [("code", "desc")]
+    # The columns land on a worker, and the table only names its sort once it has them, so
+    # the control catches up a beat after the read does.
+    qtbot.waitUntil(
+        lambda: [(k.field, k.direction) for k in built._sort.value] == [("code", "desc")],
+        timeout=5000,
+    )
 
 
 def test_the_wire_block_reads_in_dark(qtbot):

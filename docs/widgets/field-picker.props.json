@@ -32,6 +32,13 @@
       "meaning": "Receives the new path, or the empty string on clear."
     },
     {
+      "name": "options",
+      "type": "`string[]`",
+      "py_type": "`list[str]`",
+      "default": "—",
+      "meaning": "A fixed list of paths, offered flat. Each row is labelled by its resolved path; the list restrictions below do not apply."
+    },
+    {
       "name": "deep_links",
       "type": "`boolean`",
       "py_type": "`bool`",

@@ -36,6 +36,7 @@ __all__ = ["build"]
 WIDTHS: dict[str, int] = {
     "code": 260,
     "entity": 150,
+    "entity.Shot.sg_turnover_date": 170,
     "sg_status_list": 150,
     "image": 90,
     "description": 260,
@@ -44,7 +45,15 @@ WIDTHS: dict[str, int] = {
     "updated_at": 170,
 }
 PATHS = tuple(WIDTHS)
-SHOWN = ("code", "entity", "sg_status_list", "image", "description", "user")
+SHOWN = (
+    "code",
+    "entity",
+    "entity.Shot.sg_turnover_date",
+    "sg_status_list",
+    "image",
+    "description",
+    "user",
+)
 
 #: The three ways a set is walked, and the two places an editor opens.
 PAGING = (("pages", "Pages"), ("more", "Load more"), ("scroll", "Scroll"))
@@ -149,9 +158,12 @@ class EntityTableDemo(QtWidgets.QWidget):
             context=context,
             entity_type="Version",
             value=list(SHOWN),
-            deep_links=False,
+            deep_links=True,
             size="sm",
-            filter=lambda _field, path: path in PATHS,
+            # A linked column is on the list, so the walk to it has to stay open: a link is
+            # offered while an offered path runs through it.
+            filter=lambda _field, path: path in PATHS
+            or any(one.startswith(f"{path}.") for one in PATHS),
             parent=self._columns_box,
         )
         self._picker.setFixedWidth(PICKER_WIDTH)
@@ -208,18 +220,19 @@ class EntityTableDemo(QtWidgets.QWidget):
         columns, statuses = answer
         self.table.set_statuses(statuses)
         self.table.set_columns(columns)
-        self._sort_paths(columns)
+        self._sort_options(columns)
         self.table.control.count()
         self._ready = True
 
-    def _sort_paths(self, columns: object) -> None:
-        """Offer the sort picker the columns the table shows, as upstream's `paths` does.
+    def _sort_options(self, columns: object) -> None:
+        """Offer the sort picker the columns the table shows, as upstream's `options` does.
 
         A toolbar sorts on the columns it shows, so the list follows every change to them:
-        the column picker's own writes, and a column hidden from a header menu.
+        the column picker's own writes, and a column hidden from a header menu. The flat
+        list is exactly those columns, a linked one included.
         """
         if self._sort is not None:
-            self._sort.set_paths([column.path for column in columns or []])
+            self._sort.set_options([column.path for column in columns or []])
 
     def _failed(self, error: BaseException) -> None:
         if lay.alive(self):
@@ -234,7 +247,7 @@ class EntityTableDemo(QtWidgets.QWidget):
 
     def _on_columns(self, columns: object) -> None:
         self._picker.set_value([column.path for column in columns or []])
-        self._sort_paths(columns)
+        self._sort_options(columns)
 
     # --- the toggles ----------------------------------------------------------------------
 
@@ -307,10 +320,10 @@ def _sort_picker(context: DemoContext, parent: QtWidgets.QWidget) -> Any:
         from ...widgets.sort_picker import SortPicker
     except Exception:
         return None
-    # `paths` is the columns on show, never every column the demo can show: the table opens
-    # on `SHOWN` and `_sort_paths` follows it from there.
+    # `options` is the columns on show, never every column the demo can show: the table opens
+    # on `SHOWN` and `_sort_options` follows it from there.
     return SortPicker(
-        entity_type="Version", context=context, paths=list(SHOWN), size="sm", parent=parent
+        entity_type="Version", context=context, options=list(SHOWN), size="sm", parent=parent
     )
 
 

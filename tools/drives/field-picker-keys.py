@@ -39,7 +39,7 @@ def caret_of(picker):
 
 
 def a_link(picker):
-    return next((row for row in picker.options if row.traversable), None)
+    return next((row for row in picker.derived if row.traversable), None)
 
 
 def highlight(picker, row) -> int:
@@ -104,7 +104,7 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
     dated = picker_of(find, "field-picker-dates")
     if not opened(dated, wait):
         return {"verdict": "FAIL the date-bound list never answered"}
-    link = next((row for row in dated.options if row.traversable and not row.selectable), None)
+    link = next((row for row in dated.derived if row.traversable and not row.selectable), None)
     if link is None:
         note("enter", "the date-bound list offered no link that cannot be chosen")
     else:
@@ -128,7 +128,7 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
         until(lambda: not dated.levels.deep, wait, 8000)
 
     # 4. A picker bound to dates offers no date-less field, and keeps the links.
-    offered = dated.options
+    offered = dated.derived
     wrong = [row.name for row in offered if row.selectable and row.data_type not in DATES]
     links = [row.name for row in offered if row.traversable]
     seen["data_types"] = {"rows": len(offered), "wrong": wrong[:4], "links": len(links)}
@@ -142,7 +142,7 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901
     computed = picker_of(find, "field-picker-computed")
     if not opened(computed, wait):
         return {"verdict": "FAIL the filterable list never answered"}
-    rows = computed.options
+    rows = computed.derived
     refused = [row.name for row in rows if row.data_type in UNFILTERABLE]
     hidden = [row.name for row in rows if row.data_type == "image"]
     extra = [row.name for row in rows if row.computed]

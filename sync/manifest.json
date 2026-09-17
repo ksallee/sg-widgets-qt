@@ -2,7 +2,7 @@
   "upstream": {
     "path": "~/dev/sg-widgets",
     "branch": "dev",
-    "commit": "130d4633433cb26733fc5589c04dd56417afeeab"
+    "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6"
   },
   "items": {
     "core/client": {
@@ -203,15 +203,15 @@
     "core/pickers": {
       "status": "complete",
       "upstream": {
-        "packages/core/src/pickers.ts": "4109e418983a84f29a5e88fbe8343774b8b525a7f31d273d26213c2b63503506",
-        "packages/core/test/pickers.test.ts": "d0e4a32264e1eb1624f19620bbcc70dfe33ff1332133aa82783a113a7cca357d"
+        "packages/core/src/pickers.ts": "f05e1d1fd918af93c73501d2778a5453f4b3537ac95c73e13a403c268c0438ae",
+        "packages/core/test/pickers.test.ts": "b311035e7f1b1f339246f692320e72e3328ebade591040ed4d0498dbb4e38dc5"
       },
       "ported": [
         "src/sg_widgets_core/pickers.py",
         "tests/core/test_pickers.py"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "FieldOptionsInput carries root_type, hops and the FieldPickerRestrictions fields in one dataclass, because a dataclass cannot add a required field to one with defaults. Options are ordered case-insensitively by display name, the way localeCompare collates them upstream. move_field_path takes from_index and to_index."
+      "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6",
+      "note": "Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. FieldOptionsInput carries root_type, hops and the FieldPickerRestrictions fields in one dataclass, because a dataclass cannot add a required field to one with defaults. Options are ordered case-insensitively by display name, the way localeCompare collates them upstream. move_field_path takes from_index and to_index. resolve_field_path_options is synchronous and takes the SchemaService itself where upstream takes Pick<SchemaService, 'resolvePath'>; FieldPathOption.data_type and .sub_label are the snake_case of dataType and subLabel."
     },
     "core/presentation": {
       "status": "complete",
@@ -469,13 +469,13 @@
     "demos/entity-table": {
       "status": "complete",
       "upstream": {
-        "apps/site/src/demos/entity-table/Demo.tsx": "de81bca821741e5b3341bb489076b07178a846dc917edee0e510018b1622c67d"
+        "apps/site/src/demos/entity-table/Demo.tsx": "874a48d51191ed142acd6dd249a8d81d3d506a5b27a430a5fbf8e1c2b32db7fb"
       },
       "ported": [
         "src/sg_widgets_qt/showcase/demos/entity_table.py"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": ""
+      "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6",
+      "note": "Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. The toolbar's sort control takes the shown columns through options, so it sorts on the linked column too."
     },
     "demos/entity-table-infinite": {
       "status": "complete",
@@ -817,15 +817,15 @@
     "docs/field-picker": {
       "status": "complete",
       "upstream": {
-        "apps/site/src/content/docs/widgets/field-picker.mdx": "d5feb511b6a101d295ce13b5c2558b1b38c5f8cd76dc27ff728cc3bb74464731",
-        "apps/site/src/props/field-picker.ts": "9207ef7fccabf03435f29f23ebdae9684029e583e48246f76e33d9c9bfc88ee6"
+        "apps/site/src/content/docs/widgets/field-picker.mdx": "68c59701a907c9c6906cd90bd71ece6965f383ecc11b09fd35ab4f6ab1acb665",
+        "apps/site/src/props/field-picker.ts": "4fd91525d0b7071fc35ab4b5e898aa2b62ba3ade6678f402fb21463b97528b0a"
       },
       "ported": [
         "docs/widgets/field-picker.md",
         "docs/widgets/field-picker.props.json"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "Qt notes written by the widget pass"
+      "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6",
+      "note": "Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. Qt notes written by the widget pass."
     },
     "docs/field-value": {
       "status": "complete",
@@ -1069,15 +1069,15 @@
     "docs/sort-picker": {
       "status": "complete",
       "upstream": {
-        "apps/site/src/content/docs/widgets/sort-picker.mdx": "b76da2101eaf35d64b740e97f3784540b9de9b49433d38d0ff249af04033d6f3",
-        "apps/site/src/props/sort-picker.ts": "3b5d9f193c73de324810d767435a4ce1973515ae008330bfc1a398e950fbae06"
+        "apps/site/src/content/docs/widgets/sort-picker.mdx": "4ca53929da27ce34b97bae67364ff9220d97d9760bef4360850b54b366e3090b",
+        "apps/site/src/props/sort-picker.ts": "242eaf12dc673fd5c33a87c716333af680998bcf587dfb5107088ccb127d65d3"
       },
       "ported": [
         "docs/widgets/sort-picker.md",
         "docs/widgets/sort-picker.props.json"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "Qt notes written by the widget pass"
+      "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6",
+      "note": "Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. Qt notes written by the widget pass."
     },
     "docs/start-install": {
       "status": "complete",
@@ -1882,11 +1882,11 @@
     "widgets/field-picker": {
       "status": "complete",
       "upstream": {
-        "packages/react/src/registry/sg/components/field-picker.tsx": "50b9f4d303065b2a48d3591ea9cc8f202ea30e81108beee5224fc2c749af0646",
-        "packages/svelte/src/lib/registry/components/field-picker.svelte": "21792cc2403c33034cf619811b0dc8bc08540077a0115369edecf7c1350e2028",
-        "apps/site/src/props/field-picker.ts": "9207ef7fccabf03435f29f23ebdae9684029e583e48246f76e33d9c9bfc88ee6",
-        "apps/site/src/content/docs/widgets/field-picker.mdx": "d5feb511b6a101d295ce13b5c2558b1b38c5f8cd76dc27ff728cc3bb74464731",
-        "apps/site/src/demos/field-picker/Demo.tsx": "b3c21714dac37048e8e7ddc2ae073a09489c2ea27f1c5538de8cbf28698b0748"
+        "packages/react/src/registry/sg/components/field-picker.tsx": "511aada5e4c6e68468e9e6f2a55369602ad4e36eabb7fc8f09d20a3c9cfd902f",
+        "packages/svelte/src/lib/registry/components/field-picker.svelte": "78a14d4ff84563b7c6c5b58bef842cef9fe44f72fdd29de8ee1660e5d0946308",
+        "apps/site/src/props/field-picker.ts": "4fd91525d0b7071fc35ab4b5e898aa2b62ba3ade6678f402fb21463b97528b0a",
+        "apps/site/src/content/docs/widgets/field-picker.mdx": "68c59701a907c9c6906cd90bd71ece6965f383ecc11b09fd35ab4f6ab1acb665",
+        "apps/site/src/demos/field-picker/Demo.tsx": "d84181b7e194237b58da7ea7e7d09b5500df1a81ff531c099f661a4d941b2bdc"
       },
       "ported": [
         "src/sg_widgets_qt/widgets/field_picker.py",
@@ -1895,10 +1895,12 @@
         "docs/widgets/field-picker.props.json",
         "tests/qt/test_field_picker.py",
         "shots/field-picker-light.png",
-        "shots/field-picker-dark.png"
+        "shots/field-picker-dark.png",
+        "shots/field-picker-options-light.png",
+        "shots/field-picker-options-dark.png"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "Built on picker_control with text_value and a breadcrumb over the search row, rather than upstream's Popover over a Command list. Left, Right and Enter on a link belong to the levels, so a descend never closes the popup."
+      "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6",
+      "note": "Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. Built on picker_control with text_value and a breadcrumb over the search row, rather than upstream's Popover over a Command list. Left, Right and Enter on a link belong to the levels, so a descend never closes the popup. The options prop takes the name the Qt picker used for its derived schema rows, which are now picker.derived, upstream's own name for that list. A fixed row is a FlatFieldRow, a FieldOption carrying its own sub_label, so both lists draw through one delegate."
     },
     "widgets/field-value": {
       "status": "complete",
@@ -2241,10 +2243,10 @@
     "widgets/sort-picker": {
       "status": "complete",
       "upstream": {
-        "packages/react/src/registry/sg/components/sort-picker.tsx": "4262b9a51b9af1605b0ccf6556ca2615c6a5fd3fe5563a7cb76919569345fa8b",
-        "packages/svelte/src/lib/registry/components/sort-picker.svelte": "ebbe42ae7c2cfc406522fd08b0e17d56e53994480d4c7781d89c7ed66ae7fa70",
-        "apps/site/src/props/sort-picker.ts": "3b5d9f193c73de324810d767435a4ce1973515ae008330bfc1a398e950fbae06",
-        "apps/site/src/content/docs/widgets/sort-picker.mdx": "b76da2101eaf35d64b740e97f3784540b9de9b49433d38d0ff249af04033d6f3",
+        "packages/react/src/registry/sg/components/sort-picker.tsx": "cedf7a6243794376b67beb9753fdde6544ea4fcf6459df8384d17692702b6563",
+        "packages/svelte/src/lib/registry/components/sort-picker.svelte": "f6cb729d3138fb791a88d16b36b9647377440ce70013d776d15a1123753cf3a5",
+        "apps/site/src/props/sort-picker.ts": "242eaf12dc673fd5c33a87c716333af680998bcf587dfb5107088ccb127d65d3",
+        "apps/site/src/content/docs/widgets/sort-picker.mdx": "4ca53929da27ce34b97bae67364ff9220d97d9760bef4360850b54b366e3090b",
         "apps/site/src/demos/sort-picker/Demo.tsx": "8ed70c9ab6175e0f35c9525be6fb9100394414fc8febf68c214a082996f6e55f",
         "packages/react/src/registry/sg/components/sortable.tsx": "7ab06e259fb8ed1d37d3cb86307d654e72daa16c9f08ae3850475a4cb6c746cb"
       },
@@ -2258,8 +2260,8 @@
         "shots/sort-picker-light.png",
         "shots/sort-picker-dark.png"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "The rows in that order are entity-table, as upstream draws them."
+      "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6",
+      "note": "Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. The rows in that order are entity-table, as upstream draws them. options hands the field picker a flat list and drops the chosen keys from it itself, as upstream's flat does; paths keeps its meaning and still nests."
     },
     "widgets/state-line": {
       "status": "complete",

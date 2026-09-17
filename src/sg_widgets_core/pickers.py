@@ -15,11 +15,13 @@ from typing import Callable
 
 from .client import EntityTypeInfo
 from .field_types import is_filterable
+from .presentation import PathLabelOptions, path_label
 from .schema import FieldSchema
-from .schema_service import PathSegment
+from .schema_service import PathSegment, SchemaService
 
 __all__ = [
     "DEFAULT_MAX_DEPTH",
+    "UNRESOLVED_PATH_LABEL",
     "EntityTypeOptions",
     "EntityTypeOptionsInput",
     "EntityTypeRestrictions",
@@ -27,6 +29,7 @@ __all__ = [
     "FieldHop",
     "FieldOption",
     "FieldOptionsInput",
+    "FieldPathOption",
     "FieldPickerRestrictions",
     "current_type",
     "derive_field_options",
@@ -37,7 +40,9 @@ __all__ = [
     "matches_tokens",
     "move_field_path",
     "path_types",
+    "resolve_field_path_options",
     "search_field_options",
+    "search_field_path_options",
     "toggle_field_path",
     "traversal_targets",
 ]
@@ -348,3 +353,74 @@ def move_field_path(paths: Sequence[str], from_index: int, to_index: int) -> lis
     moved = next_paths.pop(from_index)
     next_paths.insert(to_index, moved)
     return next_paths
+
+
+# ---------------------------------------------------------------------------- #
+# fixed field paths                                                            #
+# ---------------------------------------------------------------------------- #
+
+#: The sub-label of a row whose path the schema does not hold.
+UNRESOLVED_PATH_LABEL = "not in the schema"
+
+
+@dataclass
+class FieldPathOption:
+    """One row of a fixed list of paths: what a caller offered, read through the schema."""
+
+    #: The path as the caller wrote it. This is the emitted value.
+    path: str
+    #: The resolved path, display names joined, or the raw path where the schema has no such path.
+    label: str
+    #: Code of the leaf field, empty where the path does not resolve.
+    name: str
+    #: Data type of the leaf field, empty where the path does not resolve.
+    data_type: str
+    #: The muted line under the label: the leaf's data type, or that the schema has no such path.
+    sub_label: str
+    #: The schema resolved the path.
+    resolved: bool
+
+
+def resolve_field_path_options(
+    schema: SchemaService,
+    root_type: str,
+    paths: Sequence[str],
+    options: PathLabelOptions | None = None,
+) -> list[FieldPathOption]:
+    """A caller's fixed list of paths as flat rows, in the order given.
+
+    Each path is resolved through every type it travels and labelled as the picker
+    labels a chosen value. A path the schema does not hold keeps its place and is
+    marked, so a list of columns never comes back shorter than it went in.
+    """
+    rows: list[FieldPathOption] = []
+    for path in paths:
+        try:
+            segments = schema.resolve_path(root_type, path)
+        except Exception:
+            rows.append(FieldPathOption(
+                path=path,
+                label=path,
+                name="",
+                data_type="",
+                sub_label=UNRESOLVED_PATH_LABEL,
+                resolved=False,
+            ))
+            continue
+        leaf = segments[-1]
+        rows.append(FieldPathOption(
+            path=path,
+            label=path_label(segments, options),
+            name=leaf.name,
+            data_type=leaf.data_type,
+            sub_label=leaf.data_type,
+            resolved=True,
+        ))
+    return rows
+
+
+def search_field_path_options(options: Sequence[FieldPathOption], query: str) -> list[FieldPathOption]:
+    """Rows matching the search box, read on what the row shows and on the path behind it."""
+    if not query.strip():
+        return list(options)
+    return [o for o in options if matches_tokens(query, o.label, o.path)]

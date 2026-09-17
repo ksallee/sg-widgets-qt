@@ -244,3 +244,74 @@ def test_escape_with_the_panel_shut_is_left_to_the_trigger(qtbot):
     spin(qtbot, 120)
     assert not picker.open
     assert [key.field for key in picker.value] == ["sg_status_list", "code"]
+
+
+# --- the flat list a table's toolbar hands it ----------------------------------------------
+
+#: A table's columns, one of them through a link, as the entity-table demo offers them.
+COLUMNS = ["code", "entity", "entity.Shot.sg_turnover_date", "sg_status_list"]
+
+
+def flat(qtbot, picker: SortPicker, ms: int = 2000) -> None:
+    """Spin until the field picker has resolved the flat list."""
+    end = time.time() + ms / 1000.0
+    while time.time() < end:
+        QApplication.processEvents()
+        if not picker.field_picker().levels.loading:
+            break
+        qtbot.wait(5)
+    spin(qtbot, 60)
+
+
+def test_options_hands_the_field_picker_a_flat_list(qtbot):
+    """`options` offers exactly those paths, a linked one included, with nothing to descend."""
+    picker = build(qtbot, options=list(COLUMNS))
+    flat(qtbot, picker)
+    inner = picker.field_picker()
+    assert picker.options == COLUMNS
+    assert inner.levels.flat is True
+    assert inner.rows_model.keys() == COLUMNS
+    assert inner.levels.deep is False
+
+
+def test_a_flat_list_drops_a_key_already_chosen(qtbot):
+    """A flat list takes no `filter`, so the picker drops the chosen keys from it itself."""
+    picker = build(qtbot, options=list(COLUMNS), value=[SortKey(field="code", direction="asc")])
+    flat(qtbot, picker)
+    assert picker.field_picker().rows_model.keys() == [
+        "entity",
+        "entity.Shot.sg_turnover_date",
+        "sg_status_list",
+    ]
+    picker.add("sg_status_list")
+    flat(qtbot, picker)
+    assert picker.field_picker().rows_model.keys() == ["entity", "entity.Shot.sg_turnover_date"]
+
+
+def test_a_linked_column_of_the_flat_list_becomes_a_key(qtbot):
+    """The toolbar sorts on a linked column, which the nested list would have to walk to."""
+    picker = build(qtbot, options=list(COLUMNS))
+    flat(qtbot, picker)
+    picker.field_picker().set_value("entity.Shot.sg_turnover_date")
+    spin(qtbot, 200)
+    assert [key.field for key in picker.value] == ["entity.Shot.sg_turnover_date"]
+    assert picker.sort == "entity.Shot.sg_turnover_date"
+
+
+def test_paths_is_left_alone_and_still_nests(qtbot):
+    """`options` is another way, not a replacement: without it the list is the schema's."""
+    picker = build(qtbot, paths=list(COLUMNS))
+    assert picker.options is None
+    assert picker.field_picker().levels.flat is False
+    assert picker.paths == COLUMNS
+
+
+def test_set_options_swaps_the_two_lists(qtbot):
+    picker = build(qtbot)
+    assert picker.field_picker().levels.flat is False
+    picker.set_options(list(COLUMNS))
+    flat(qtbot, picker)
+    assert picker.field_picker().rows_model.keys() == COLUMNS
+    picker.set_options(None)
+    spin(qtbot, 200)
+    assert picker.field_picker().levels.flat is False

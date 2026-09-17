@@ -17,6 +17,7 @@ where the list stands, so the column picker's own list walks the same path.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from qtpy import QtCore, QtGui, QtWidgets
@@ -29,9 +30,12 @@ from sg_widgets_core.pickers import (
     FieldHop,
     FieldOption,
     FieldOptionsInput,
+    FieldPathOption,
     current_type,
     derive_field_options,
+    resolve_field_path_options,
     search_field_options,
+    search_field_path_options,
 )
 from sg_widgets_core.schema import FieldSchema
 from sg_widgets_core.search import match_runs
@@ -56,9 +60,11 @@ __all__ = [
     "FieldOptionModel",
     "FieldPicker",
     "FieldSkeletons",
+    "FlatFieldRow",
     "PathLabel",
     "descend_hit",
     "extra_fields_of",
+    "flat_field_row",
     "schema_of",
 ]
 
@@ -101,6 +107,35 @@ ROW_SKELETON_LABEL = 20
 ROW_SKELETON_SUB = 12
 ROW_SKELETON_LABEL_SHARE = 2.0 / 3.0
 ROW_SKELETON_SUB_SHARE = 1.0 / 4.0
+
+
+@dataclass
+class FlatFieldRow(FieldOption):
+    """One row of a caller's fixed list, shaped like a schema row so both lists draw the same.
+
+    Upstream folds the two lists into one row shape before drawing them
+    (field-picker.tsx:311-329). Here that shape is `FieldOption` itself, with the
+    sub-label carried alongside because a path the schema does not hold says so in
+    words where a schema row names its data type.
+    """
+
+    #: The muted line under the label: the leaf's data type, or that the schema has no such path.
+    sub_label: str = ""
+
+
+def flat_field_row(option: FieldPathOption) -> FlatFieldRow:
+    """A fixed path as a row: its resolved label, never traversable, always its own value."""
+    return FlatFieldRow(
+        path=option.path,
+        name=option.name,
+        display_name=option.label,
+        data_type=option.data_type,
+        selectable=True,
+        traversable=False,
+        targets=[],
+        computed=False,
+        sub_label=option.sub_label,
+    )
 
 
 def extra_fields_of(value: Any) -> list[ExtraField]:
@@ -179,6 +214,9 @@ class FieldLevels(QtCore.QObject):
     One read per type, off the GUI thread. `/schema/<Type>/fields` is 48KB and about 330ms
     (probe 002), and the schema service caches it, so a hop back to a type already visited
     costs nothing. `changed` fires whenever the rows a list should draw have moved.
+
+    `options` puts the levels in the flat mode: the caller's own paths, resolved once
+    through every type they travel, drawn as one list that never descends.
     """
 
     #: The level, the fields or a failure moved.
@@ -189,6 +227,7 @@ class FieldLevels(QtCore.QObject):
         parent: QtCore.QObject | None = None,
         context: Any = None,
         entity_type: str = "",
+        options: Sequence[str] | None = None,
         deep_links: bool = False,
         max_depth: int = DEFAULT_MAX_DEPTH,
         data_types: str | Sequence[str] | None = None,
@@ -202,6 +241,7 @@ class FieldLevels(QtCore.QObject):
         super().__init__(parent)
         self.context = context
         self.entity_type = entity_type
+        self.options = list(options) if options is not None else None
         self.deep_links = bool(deep_links)
         self.max_depth = int(max_depth)
         self.data_types = data_types
@@ -216,8 +256,16 @@ class FieldLevels(QtCore.QObject):
         self._choosing: FieldOption | None = None
         self._fields: dict[str, FieldSchema] | None = None
         self._loaded_type = ""
+        self._fixed: list[FieldPathOption] | None = None
         self._failure: str | None = None
         self._ticket = Ticket()
+        self._fixed_ticket = Ticket()
+        # A picker taken down under a read in flight — a demo the toolbar rebuilds, a popover
+        # closed — leaves the schema on its way to levels that have gone, and `changed.emit`
+        # on a deleted object raises into the event loop. The tickets are plain objects and
+        # outlive this one, so taking them as it goes drops whatever is still out.
+        tickets = (self._ticket, self._fixed_ticket)
+        self.destroyed.connect(lambda *_ignored: [one.cancel() for one in tickets])
 
     # --- where it stands ------------------------------------------------------------------
 
@@ -237,8 +285,20 @@ class FieldLevels(QtCore.QObject):
         return current_type(self.entity_type, self._hops)
 
     @property
+    def flat(self) -> bool:
+        """True while a caller's own paths stand in for the schema list."""
+        return self.options is not None
+
+    @property
+    def fixed(self) -> list[FieldPathOption]:
+        """The caller's paths as the schema read them. Empty until the read lands."""
+        return list(self._fixed or [])
+
+    @property
     def loading(self) -> bool:
-        """True while the fields of the current type are in flight."""
+        """True while what the list draws is in flight: the fixed paths, or a type's fields."""
+        if self.flat:
+            return self._fixed is None and self._failure is None
         return self._fields is None and self._failure is None
 
     @property
@@ -248,8 +308,12 @@ class FieldLevels(QtCore.QObject):
 
     @property
     def deep(self) -> bool:
-        """True once the list is off the root, which is when the breadcrumb shows."""
-        return len(self._hops) > 0 or self._choosing is not None
+        """True once the list is off the root, which is when the breadcrumb shows.
+
+        A flat list has no levels to be off, so it never shows one
+        (field-picker.tsx:`breadcrumb = !options && …`).
+        """
+        return not self.flat and (len(self._hops) > 0 or self._choosing is not None)
 
     def crumbs(self) -> list[str]:
         """The hop names drawn muted before a row's label."""
@@ -257,8 +321,8 @@ class FieldLevels(QtCore.QObject):
 
     # --- the rows -------------------------------------------------------------------------
 
-    def options(self) -> list[FieldOption]:
-        """Every option of the type the list stands on, before the search."""
+    def derived(self) -> list[FieldOption]:
+        """Every schema option of the type the list stands on, before the search."""
         if self._fields is None or self._loaded_type != self.type:
             return []
         types = self.data_types
@@ -280,10 +344,17 @@ class FieldLevels(QtCore.QObject):
         )
 
     def rows(self, query: str = "") -> list[FieldOption]:
-        """The field rows the search leaves. Empty while a link's targets are on show."""
+        """The field rows the search leaves. Empty while a link's targets are on show.
+
+        A flat list narrows on the label and on the path behind it; a schema list on the
+        display name, the code and the data type.
+        """
+        if self.flat:
+            found = search_field_path_options(self._fixed or [], query)
+            return [flat_field_row(row) for row in found]
         if self._choosing is not None:
             return []
-        return search_field_options(self.options(), query)
+        return search_field_options(self.derived(), query)
 
     def targets(self, query: str = "") -> list[str]:
         """The target types on show, while a link declaring several is being resolved."""
@@ -295,10 +366,13 @@ class FieldLevels(QtCore.QObject):
     # --- moving between levels -------------------------------------------------------------
 
     def read(self) -> None:
-        """Read the fields of the type the list stands on, off the GUI thread."""
+        """Read what the list draws, off the GUI thread: the caller's paths, or a type's fields."""
         schema = schema_of(self.context)
-        wanted = self.type
         self._failure = None
+        if self.flat:
+            self._read_fixed(schema)
+            return
+        wanted = self.type
         self._fields = None
         if schema is None or not wanted:
             self.changed.emit()
@@ -312,6 +386,37 @@ class FieldLevels(QtCore.QObject):
             on_error=self._failed,
             ticket=(self._ticket, number),
         )
+        self.changed.emit()
+
+    def _read_fixed(self, schema: Any) -> None:
+        """Resolve the caller's paths through every type they travel, once per list.
+
+        Upstream keys the read on the list it was given so a stale answer is dropped
+        (field-picker.tsx:236-249); here the ticket does that, as every other read.
+        """
+        self._fields = None
+        self._fixed = None
+        self._hops = []
+        self._choosing = None
+        wanted = list(self.options or [])
+        root = self.entity_type
+        if schema is None or not root:
+            self.changed.emit()
+            return
+        number = self._fixed_ticket.next()
+        default_pool().submit(
+            resolve_field_path_options,
+            schema,
+            root,
+            wanted,
+            on_result=self._fixed_landed,
+            on_error=self._failed,
+            ticket=(self._fixed_ticket, number),
+        )
+        self.changed.emit()
+
+    def _fixed_landed(self, rows: Any) -> None:
+        self._fixed = list(rows or [])
         self.changed.emit()
 
     def _landed(self, wanted: str, fields: Any) -> None:
@@ -465,12 +570,19 @@ class FieldOptionModel(QtCore.QAbstractListModel):
         if role == Roles.RUNS:
             return self._runs(option.display_name)
         if role == Roles.CODE:
-            return option.name if self._show_code and option.name != option.display_name else ""
+            code = option.name
+            if not self._show_code or code == "" or code == option.display_name:
+                return ""
+            return code
         if role == Roles.SUB_LABEL:
             # A checkable list is the column picker's dual pane, whose row upstream draws on
             # one line: the code stands in for the data type there (column-picker.tsx:542-549).
             if self._checkable:
                 return ""
+            # A row of a caller's fixed list carries its own sub-label, so a path the schema
+            # does not hold says so where a schema row names its data type.
+            if isinstance(option, FlatFieldRow):
+                return option.sub_label
             return "computed" if option.computed else option.data_type
         if role == Roles.GLYPH:
             return icon_name_for(option.data_type)
@@ -686,6 +798,9 @@ class FieldPicker(QtWidgets.QWidget):
     The value is the dotted path. A link declaring one target type descends at once, one
     declaring several replaces the list with its types and asks which. A type already on the
     path is never offered again, and the path stops at `max_depth`.
+
+    `options` replaces the schema list with a caller's own paths, flat: no links, no
+    descending, no breadcrumb, and the list restrictions do not apply.
     """
 
     #: The chosen path, or the empty string once it is cleared.
@@ -697,6 +812,7 @@ class FieldPicker(QtWidgets.QWidget):
         self,
         context: Any = None,
         entity_type: str = "",
+        options: Sequence[str] | None = None,
         value: str = "",
         deep_links: bool = False,
         show_code: bool = False,
@@ -731,6 +847,8 @@ class FieldPicker(QtWidgets.QWidget):
         self._search_placeholder = str(search_placeholder)
         self._label_parts: list[str] | None = None
         self._label_ticket = Ticket()
+        #: The path the control last read, so a fixed list rebuilds the chip only when it moves.
+        self._shown_label = ""
 
         #: The breadcrumb over the popup's search row, which comes with the popup.
         self._breadcrumb: Breadcrumb | None = None
@@ -739,6 +857,7 @@ class FieldPicker(QtWidgets.QWidget):
             self,
             context=context,
             entity_type=entity_type,
+            options=options,
             deep_links=deep_links,
             max_depth=max_depth,
             data_types=data_types,
@@ -839,13 +958,20 @@ class FieldPicker(QtWidgets.QWidget):
         return self._levels.hops
 
     @property
-    def options(self) -> list[FieldOption]:
-        """Every option of the type the picker stands on, before the search."""
-        return self._levels.options()
+    def derived(self) -> list[FieldOption]:
+        """Every schema option of the type the picker stands on, before the search.
+
+        Upstream's own name for this list, which `options` took when it became a prop
+        (field-picker.tsx:295). Empty while a fixed list is on show.
+        """
+        return self._levels.derived()
 
     @property
     def label(self) -> str:
         """The friendly path the closed control reads, or the raw one until it resolves."""
+        offered = self._offered_parts()
+        if offered is not None:
+            return CRUMB_SEPARATOR.join(offered)
         if self._label_parts is None:
             return self._value
         return CRUMB_SEPARATOR.join(self._label_parts)
@@ -853,7 +979,21 @@ class FieldPicker(QtWidgets.QWidget):
     @property
     def label_parts(self) -> list[str]:
         """The display name of every segment of the chosen path, root first."""
+        offered = self._offered_parts()
+        if offered is not None:
+            return offered
         return list(self._label_parts or [])
+
+    def _offered_parts(self) -> list[str] | None:
+        """The label a fixed list already carries for the chosen path, where it holds it.
+
+        A fixed row is labelled through `path_label`, which names the type a link could
+        have gone elsewhere from, so the closed control reads what the row read.
+        """
+        if not self._value:
+            return None
+        row = next((one for one in self._levels.fixed if one.path == self._value), None)
+        return row.label.split(CRUMB_SEPARATOR) if row is not None else None
 
     # --- props ----------------------------------------------------------------------------
 
@@ -892,6 +1032,21 @@ class FieldPicker(QtWidgets.QWidget):
         self._resolve_label()
         self._refresh()
         self.value_changed.emit(text)
+
+    @property
+    def options(self) -> list[str] | None:
+        """A fixed list of paths, offered flat. The list restrictions do not apply to it."""
+        return list(self._levels.options) if self._levels.options is not None else None
+
+    def set_options(self, value: Sequence[str] | None) -> None:
+        # The caller hands a fresh list on every pass, so the read is keyed on what it holds
+        # and an unchanged list costs nothing (field-picker.tsx:236-238).
+        wanted = list(value) if value is not None else None
+        if wanted == self._levels.options:
+            return
+        self._levels.options = wanted
+        self._levels.reset()
+        self._resolve_label()
 
     @property
     def deep_links(self) -> bool:
@@ -1132,6 +1287,14 @@ class FieldPicker(QtWidgets.QWidget):
         self._control.set_search_placeholder(
             CHOOSING_PLACEHOLDER if self._levels.choosing is not None else self._search_placeholder
         )
+        # A fixed list labels the chosen path off its own rows, which land after the chip was
+        # built, so the chip is rebuilt the once the label moves. A schema list is told by
+        # `_label_landed` instead, and is left exactly as it was.
+        if self._levels.flat:
+            text = self.label
+            if text != self._shown_label:
+                self._shown_label = text
+                self._control.rebuild_chips()
         self._sync_breadcrumb()
 
     def _wire_popup(self) -> None:
@@ -1166,11 +1329,14 @@ class FieldPicker(QtWidgets.QWidget):
     def _chip_for(self, index: int) -> QtWidgets.QWidget | None:
         if index != 0 or not self._value:
             return None
-        if self._label_parts is None:
-            return Skeleton(
-                width=LABEL_SKELETON_WIDTH, height=LABEL_SKELETON_HEIGHT, parent=self._control
-            )
-        return PathLabel(self._label_parts, size=self._size, parent=self._control)
+        parts = self._offered_parts()
+        if parts is None:
+            if self._label_parts is None:
+                return Skeleton(
+                    width=LABEL_SKELETON_WIDTH, height=LABEL_SKELETON_HEIGHT, parent=self._control
+                )
+            parts = self._label_parts
+        return PathLabel(parts, size=self._size, parent=self._control)
 
     # --- choosing -----------------------------------------------------------------------------
 
