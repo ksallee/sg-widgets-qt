@@ -14,6 +14,7 @@ from qtpy.QtWidgets import QHBoxLayout, QLineEdit, QSizePolicy, QWidget
 from .. import icons
 from ..theme import theme_of, watch_theme, with_alpha
 from .base import CONTROL_GLYPH, CONTROL_HEIGHT, DURATION, ThemedWidget, fill_round_rect
+from .input import apply_field_ink
 
 __all__ = [
     "ADDON_PAD",
@@ -49,10 +50,9 @@ class InputGroupInput(QLineEdit):
     def _apply_theme(self) -> None:
         theme = theme_of(self)
         self.setFont(theme.font(14 if self._size != "sm" else 12))
-        self.setStyleSheet(
-            f"QLineEdit {{ background: transparent; border: none; color: {theme.foreground}; "
-            f"selection-background-color: {theme.accent}; selection-color: {theme.accent_foreground}; }}"
-        )
+        # The ink goes in the palette, never in a stylesheet: a stylesheet beats every palette
+        # under it, and Qt 5 derives the placeholder from its `color`.
+        apply_field_ink(self, theme)
 
 
 class InputGroupText(ThemedWidget):

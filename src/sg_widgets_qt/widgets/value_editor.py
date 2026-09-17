@@ -85,14 +85,19 @@ def disabled_ink(theme: object) -> str:
 
 
 def fade_disabled(widget: QtWidgets.QWidget | None) -> None:
-    """Set the ink Qt draws itself, at full strength and at rule 5's inert step.
+    """Take rule 5's inert step on the ink Qt draws itself.
 
     A painted leaf fades with the painter's opacity, but the text inside a `QLineEdit` or a
-    `QPlainTextEdit` is Qt's own, and a stylesheet anywhere over the control is what sets it, ahead
-    of any palette. A stylesheet that named only the inert state would leave Qt to resolve the
-    other one from the default palette, which is a light page's black, so both are spelled here.
+    `QPlainTextEdit` is Qt's own and no painter opacity reaches it. The step is a colour, and it
+    lives in the `Disabled` group of the control's palette, which `Input` and `Textarea` write
+    with the rest of their tokens. A control of some other kind still gets the stylesheet rule,
+    which is the only handle there is on one.
     """
     if widget is None:
+        return
+    repaint = getattr(widget, "apply_theme_to_palette", None)
+    if callable(repaint):
+        repaint()
         return
     theme = theme_of(widget)
     rule = (

@@ -25,6 +25,15 @@ TWO = ["ip", "apr"]
 FIVE = ["ip", "apr", "rev", "fin", "vwd"]
 SIZES = ("sm", "md", "lg")
 
+#: Upstream's `max-w-80`: the narrow box the badge fit has to cut against.
+NARROW = 320
+
+
+def narrow(widget: QtWidgets.QWidget) -> QtWidgets.QWidget:
+    """A control held to the narrow box, rather than to what its badges ask for."""
+    widget.setMinimumWidth(NARROW)
+    return boxed(widget, NARROW)
+
 
 class StatusMultiPickerDemo(QtWidgets.QWidget):
     """Every example, one under the other."""
@@ -66,6 +75,7 @@ class StatusMultiPickerDemo(QtWidgets.QWidget):
 
         shared = self._picker(project_ids=[here, there])
         shared_line = readout(self)
+        shared_line.set_text("—")
         shared.value_changed.connect(
             lambda codes: shared_line.set_text(", ".join(codes) or "—")
         )
@@ -98,6 +108,7 @@ class StatusMultiPickerDemo(QtWidgets.QWidget):
 
         note = self._picker(entity_type="Note", value=["opn"])
         note_line = readout(self)
+        note_line.set_text("opn")
         note.value_changed.connect(lambda codes: note_line.set_text(", ".join(codes) or "—"))
         body.addWidget(
             section(
@@ -158,7 +169,7 @@ class StatusMultiPickerDemo(QtWidgets.QWidget):
             summaries.append(
                 field(
                     f"{mode}, at most 20rem",
-                    boxed(
+                    narrow(
                         self._picker(
                             project_id=here, value=list(FIVE), summary=mode, clearable=False
                         )

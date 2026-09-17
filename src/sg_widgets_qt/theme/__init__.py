@@ -453,7 +453,6 @@ QAbstractItemView {{
 }}
 QLineEdit {{
     background: transparent;
-    color: {foreground};
     border: none;
     selection-background-color: {accent};
     selection-color: {accent_foreground};

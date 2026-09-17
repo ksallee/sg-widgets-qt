@@ -26,6 +26,15 @@ OTHER_PROJECT = 71
 
 SIZES = ("sm", "md", "lg")
 
+#: Upstream holds each control in a `w-64` box, which is 256 wide whatever it carries.
+BOX_WIDTH = 256
+
+
+def pinned(widget: QtWidgets.QWidget) -> QtWidgets.QWidget:
+    """A control held to the upstream box width, rather than to what its content asks for."""
+    widget.setMinimumWidth(BOX_WIDTH)
+    return boxed(widget, BOX_WIDTH)
+
 
 def stage_of(option: Any) -> str:
     return STAGE.get(option.code, "")
@@ -53,10 +62,10 @@ class StatusPickerDemo(QtWidgets.QWidget):
         body.addWidget(
             section(
                 title,
-                field("", boxed(self._picker(project_id=here, value="ip")), name="p70", parent=self),
+                field("", pinned(self._picker(project_id=here, value="ip")), name="p70", parent=self),
                 field(
                     "",
-                    boxed(self._picker(project_id=there, value="pndad")),
+                    pinned(self._picker(project_id=there, value="pndad")),
                     name="p71",
                     parent=self,
                 ),
@@ -66,11 +75,12 @@ class StatusPickerDemo(QtWidgets.QWidget):
 
         shared = self._picker(project_ids=[here, there])
         shared_line = readout(self)
+        shared_line.set_text("—")
         shared.value_changed.connect(lambda code: shared_line.set_text(code or "—"))
         body.addWidget(
             section(
                 "The statuses both projects offer",
-                field("", boxed(shared), shared_line, name="both", parent=self),
+                field("", pinned(shared), shared_line, name="both", parent=self),
                 parent=self,
             )
         )
@@ -80,7 +90,7 @@ class StatusPickerDemo(QtWidgets.QWidget):
                 "Project, whose status field is a plain list with no icons",
                 field(
                     "",
-                    boxed(self._picker(entity_type="Project", value="Active")),
+                    pinned(self._picker(entity_type="Project", value="Active")),
                     name="project",
                     parent=self,
                 ),
@@ -90,11 +100,12 @@ class StatusPickerDemo(QtWidgets.QWidget):
 
         note = self._picker(entity_type="Note", value="opn")
         note_line = readout(self)
+        note_line.set_text("opn")
         note.value_changed.connect(lambda code: note_line.set_text(code or "—"))
         body.addWidget(
             section(
                 "A mandatory field, which offers no clear",
-                field("", boxed(note), note_line, name="mandatory", parent=self),
+                field("", pinned(note), note_line, name="mandatory", parent=self),
                 parent=self,
             )
         )
@@ -105,13 +116,13 @@ class StatusPickerDemo(QtWidgets.QWidget):
                 "the caller's own",
                 field(
                     "",
-                    boxed(self._picker(project_id=here, value="zz_retired")),
+                    pinned(self._picker(project_id=here, value="zz_retired")),
                     name="unknown",
                     parent=self,
                 ),
                 field(
                     "",
-                    boxed(
+                    pinned(
                         self._picker(
                             project_id=here, value="ip", show_code=False, clearable=False
                         )
@@ -121,7 +132,7 @@ class StatusPickerDemo(QtWidgets.QWidget):
                 ),
                 field(
                     "",
-                    boxed(
+                    pinned(
                         self._picker(
                             project_id=here, value="ip", secondary=stage_of, clearable=False
                         )
@@ -135,6 +146,7 @@ class StatusPickerDemo(QtWidgets.QWidget):
 
         switching = self._picker(project_id=there, value="part")
         switch_line = readout(self)
+        switch_line.set_text("part")
         switching.value_changed.connect(lambda code: switch_line.set_text(code or "—"))
         self._switch_to = there
         self._here, self._there = here, there
@@ -150,7 +162,7 @@ class StatusPickerDemo(QtWidgets.QWidget):
         body.addWidget(
             section(
                 "Switching project drops a status the new one hides",
-                field("", boxed(switching), self._switch, switch_line, name="switching", parent=self),
+                field("", pinned(switching), self._switch, switch_line, name="switching", parent=self),
                 case="switch",
                 parent=self,
             )
@@ -162,7 +174,7 @@ class StatusPickerDemo(QtWidgets.QWidget):
                 *[
                     field(
                         flag.capitalize(),
-                        boxed(self._picker(project_id=here, value="apr", **{flag: True})),
+                        pinned(self._picker(project_id=here, value="apr", **{flag: True})),
                         parent=self,
                     )
                     for flag in ("disabled", "readonly", "invalid")
@@ -176,7 +188,7 @@ class StatusPickerDemo(QtWidgets.QWidget):
                 *[
                     field(
                         size,
-                        boxed(
+                        pinned(
                             self._picker(
                                 project_id=here, value="rev", size=size, follow=False
                             )

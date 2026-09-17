@@ -532,8 +532,15 @@ class PickerRowModel(QAbstractListModel):
             field=self._field,
             statuses=self._statuses,
             site_url=self.site_url,
-            on_ready=self._redraw,
+            on_ready=self._status_ready,
         )
+
+    def _status_ready(self) -> None:
+        """A status sprite landed. The model may be gone by then, and a late answer is dropped."""
+        try:
+            self._redraw()
+        except RuntimeError:
+            return
 
     def _status_label(self, code: str) -> str:
         values = getattr(self._field, "display_values", None)

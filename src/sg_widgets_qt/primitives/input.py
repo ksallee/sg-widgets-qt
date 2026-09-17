@@ -23,7 +23,7 @@ from .base import (
     painter_for,
 )
 
-__all__ = ["GLYPH_GAP", "TEXTAREA_MIN_HEIGHT", "Input", "Textarea"]
+__all__ = ["GLYPH_GAP", "TEXTAREA_MIN_HEIGHT", "Input", "Textarea", "apply_field_ink"]
 
 #: Between an inline glyph and its text, `docs/design-rules.md` rule 2.
 GLYPH_GAP = 6
@@ -46,6 +46,41 @@ DISABLED_WASH_DARK = 0.8
 
 #: `disabled:opacity-50`, on the ink Qt draws itself, which no painter opacity reaches.
 DISABLED_INK = 0.5
+
+
+def apply_field_ink(widget: QtWidgets.QWidget, theme: object) -> None:
+    """Write the ink Qt draws itself into a field's palette: text, placeholder and selection.
+
+    The three groups are written, not one: the painter's opacity never reaches the text Qt draws
+    itself, so `disabled:opacity-50` is a colour here, and Qt picks it from the `Disabled` group
+    on its own. Nothing about the ink goes through a stylesheet, because a stylesheet anywhere
+    over a field beats every palette under it, and Qt 5 then derives the placeholder from it too.
+    """
+    palette = widget.palette()
+    role = QtGui.QPalette.ColorRole
+    group = QtGui.QPalette.ColorGroup
+    clear = QtGui.QColor(QtCore.Qt.GlobalColor.transparent)
+    ink = theme.color("foreground")
+    muted = theme.color("muted_foreground")
+    placeholder = getattr(role, "PlaceholderText", None)
+    for state in (group.Active, group.Inactive, group.Disabled):
+        inert = state == group.Disabled
+        palette.setColor(state, role.Base, clear)
+        palette.setColor(state, role.Window, clear)
+        for text_role in (role.Text, role.WindowText):
+            palette.setColor(state, text_role, with_alpha(ink, DISABLED_INK) if inert else ink)
+        palette.setColor(state, role.Highlight, theme.color("accent"))
+        palette.setColor(state, role.HighlightedText, theme.color("accent_foreground"))
+        if placeholder is not None:
+            palette.setColor(
+                state, placeholder, with_alpha(muted, DISABLED_INK) if inert else muted
+            )
+    widget.setPalette(palette)
+    # `QPlainTextEdit` draws its text from the viewport's palette, which is a widget of its own
+    # and does not always take the one set here.
+    viewport = getattr(widget, "viewport", None)
+    if callable(viewport):
+        viewport().setPalette(palette)
 
 
 class _Field(ThemedMixin):
@@ -121,22 +156,7 @@ class _Field(ThemedMixin):
     def apply_theme_to_palette(self) -> None:
         """The tokens Qt's own text drawing reads: the ink, the placeholder and the selection."""
         theme = self.theme
-        palette = self.palette()
-        role = QtGui.QPalette.ColorRole
-        palette.setColor(role.Base, QtGui.QColor(QtCore.Qt.GlobalColor.transparent))
-        palette.setColor(role.Window, QtGui.QColor(QtCore.Qt.GlobalColor.transparent))
-        palette.setColor(role.Text, theme.color("foreground"))
-        palette.setColor(role.WindowText, theme.color("foreground"))
-        palette.setColor(role.Highlight, theme.color("accent"))
-        palette.setColor(role.HighlightedText, theme.color("accent_foreground"))
-        placeholder = getattr(role, "PlaceholderText", None)
-        if placeholder is not None:
-            # The painter's opacity never reaches Qt's own text, so the inert step is on the ink.
-            ink = theme.color("muted_foreground")
-            palette.setColor(
-                placeholder, ink if self.isEnabled() else with_alpha(ink, DISABLED_INK)
-            )
-        self.setPalette(palette)
+        apply_field_ink(self, theme)
         self.setFont(theme.font(TEXT_SIZE))
 
     def _on_theme(self, theme: object) -> None:

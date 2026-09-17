@@ -105,6 +105,20 @@ def check_statuses(page, wait, find, note) -> dict:
     return seen
 
 
+def two_letters(picker, wait) -> str:
+    """Two letters the site can answer: the opening of a row the browse list already holds.
+
+    A fixed query is a guess about what a site is named, and a site with no `sh` on it would
+    fail a run that proves nothing. The browse list is read first and its first row lends its
+    own two letters, which are never printed.
+    """
+    if not wait_for(lambda: bool(picker.state.rows), wait, 12000):
+        return QUERY
+    name = str(getattr(picker.state.rows[0], "name", "") or "")
+    letters = "".join(ch for ch in name if ch.isalnum())[:2]
+    return letters if len(letters) == 2 else QUERY
+
+
 def check_search(page, wait, find, note) -> dict:
     """Type two letters into the page's first picker, wait for the site, and take one row."""
     pickers = [
@@ -118,11 +132,14 @@ def check_search(page, wait, find, note) -> dict:
     picker = pickers[0]
     control = picker.control
     control.set_open(True)
+    query = two_letters(picker, wait)
     caret = control.caret()
     caret.setFocus()
-    QTest.keyClicks(caret, QUERY)
-    if not wait_for(lambda: control.list_surface().row_count() > 0, wait):
-        note(f"the site answered no row for a {len(QUERY)}-letter query")
+    QTest.keyClicks(caret, query)
+    if not wait_for(
+        lambda: control.list_surface().row_count() > 0 and picker.state.query == query, wait
+    ):
+        note(f"the site answered no row for a {len(query)}-letter query")
         control.set_open(False)
         return {}
     wait(500)

@@ -47,7 +47,6 @@ from .value_editor import (
     EditorNote,
     ValueEditor,
     ValueSession,
-    disabled_ink,
     fade_disabled,
 )
 
@@ -95,13 +94,7 @@ class _NumberInput(InputGroupInput):
 
     def _apply_theme(self) -> None:
         super()._apply_theme()
-        theme = theme_of(self)
-        self.setFont(theme.font(14 if self._size != "sm" else 12, tabular=True))
-        # The group's own stylesheet is written from scratch on every theme, so the inert ink
-        # rule goes back on behind it.
-        self.setStyleSheet(
-            self.styleSheet() + f" QLineEdit:disabled {{ color: {disabled_ink(theme)}; }}"
-        )
+        self.setFont(theme_of(self).font(14 if self._size != "sm" else 12, tabular=True))
 
     def set_size(self, value: str) -> None:
         """Take a rung of the control ladder, which is what the type step follows."""
