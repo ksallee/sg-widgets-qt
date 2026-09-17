@@ -40,9 +40,9 @@ from ..workers import Job, JobPool, default_pool
 __all__ = [
     "COLLECTION_PAGING_VALUES",
     "Alive",
+    "Beacon",
     "CollectionSource",
     "SerialRunner",
-    "publisher",
 ]
 
 #: How long a `wait` sleeps on the pool between turns of the event loop.
@@ -56,46 +56,71 @@ class Alive:
     """A flag a store's listener reads before it touches the binding that made it.
 
     A core store keeps the listener it was handed, and a widget can be deleted while a read is
-    still running on a worker. The flag is held by the closure, not by the QObject, so it
-    outlives the deletion that turns it off.
+    still running on a worker. The flag is a plain object, not the QObject, so it outlives the
+    deletion that turns it off, and `stop` takes the argument `destroyed` carries so a binding
+    can wire the two together.
     """
 
-    __slots__ = ("on",)
+    # `__weakref__` because PyQt5 holds a receiver by weak reference, and a binding wires its
+    # own `destroyed` to `stop`. The beacon is what keeps the flag alive past the binding.
+    __slots__ = ("__weakref__", "on")
 
     def __init__(self) -> None:
         self.on = True
 
-    def stop(self) -> None:
+    def stop(self, *_args: object) -> None:
         self.on = False
 
 
-def publisher(emit: Any, alive: Alive) -> Any:
-    """The listener a store is handed: it emits while the binding is there and drops after.
+class Beacon(QObject):
+    """The object a store's listener emits on, held by the listener and not by the binding.
 
-    Nothing here holds the binding, only its `emit` and the flag. A binding torn down without
-    `close` leaves a deleted wrapper behind, which raises rather than delivering, and the
-    listener stops itself the first time it meets one.
+    A binding is a child of the widget it serves, so Qt frees it while a read is still running
+    on a worker; the store, which knows nothing of Qt, still holds the listener that read was
+    about to call. Emitting on the binding there is emitting on a freed C++ object: PyQt5 keeps
+    no guard on a bound signal it handed out and the process dies on the pool thread.
 
-    Teardown is never hung on `destroyed`: that signal is emitted from inside a parent's own
-    destruction, and the Python called from there runs while Qt is walking the children it is
-    freeing.
+    So nothing a worker touches belongs to the binding. The beacon is parentless and the store's
+    own listener keeps it alive, the binding only connects to it, and Qt drops that connection
+    and every event already posted under it when the binding goes.
+
+    `alive` is turned off by `close` and by the binding's `destroyed`, so a listener that has
+    outlived its binding stops the store from working for no one.
     """
 
-    def publish() -> None:
-        if not alive.on:
+    #: The store moved. Queued to the thread the binding draws on.
+    published = Signal()
+
+    def __init__(self, alive: Alive) -> None:
+        super().__init__()
+        self._alive = alive
+
+    @property
+    def alive(self) -> Alive:
+        """The flag this beacon publishes under."""
+        return self._alive
+
+    def publish(self) -> None:
+        """The listener a store is handed. Emits while the binding is there and drops after."""
+        if not self._alive.on:
             return
         try:
-            emit()
+            self.published.emit()
         except RuntimeError:
-            alive.stop()
-
-    return publish
+            self._alive.stop()
 
 
-def quietly(emit: Any) -> Any:
-    """A callback that drops its answer once the object it would reach has gone."""
+def quietly(emit: Any, alive: Alive | None = None) -> Any:
+    """A callback that drops its answer once the object it would reach has gone.
+
+    `alive` is the binding's flag: a bound signal of a freed wrapper is not something PyQt5
+    raises on, so the flag is what says the answer has nowhere to land, and the `RuntimeError`
+    behind it is only what PySide6 adds.
+    """
 
     def deliver(value: object) -> None:
+        if alive is not None and not alive.on:
+            return
         try:
             emit(value)
         except RuntimeError:
@@ -176,9 +201,6 @@ class CollectionSource(QObject):
     #: A write, a count or a re-read raised. Carries the exception.
     failed = Signal(object)
 
-    #: Private: the source's listener, emitted from the pool thread and delivered on this one.
-    _published = Signal()
-
     def __init__(
         self,
         source: EntitySource,
@@ -190,16 +212,20 @@ class CollectionSource(QObject):
         super().__init__(parent)
         self._source = source
         self._paging = paging if paging in COLLECTION_PAGING_VALUES else "pages"
+        self._alive = Alive()
+        # Qt frees this binding with the widget it serves, and a read on the pool answers after.
+        # The flag is what every callback the pool still holds reads before it emits.
+        self.destroyed.connect(self._alive.stop)
         # One call at a time, so the source is never mutated by two reads at once.
-        self._runner = SerialRunner(on_error=quietly(self.failed.emit))
+        self._runner = SerialRunner(on_error=quietly(self.failed.emit, self._alive))
         self._sort: list[SortSpec] | None = None if sort is None else list(sort)
         self._filters: SourceFilters = filters
         self._sort_seen = list(source.sort)
         self._filters_seen = source.filters
 
-        self._alive = Alive()
-        self._published.connect(self._on_published, Qt.ConnectionType.QueuedConnection)
-        self._unsubscribe = source.subscribe(publisher(self._published.emit, self._alive))
+        self._beacon = Beacon(self._alive)
+        self._beacon.published.connect(self._on_published, Qt.ConnectionType.QueuedConnection)
+        self._unsubscribe = source.subscribe(self._beacon.publish)
         self._apply_mode()
         if self._sort is not None and not same_sort(self._sort, source.sort):
             self.set_sort(self._sort)
@@ -349,10 +375,14 @@ class CollectionSource(QObject):
         """
 
         def done(row: object) -> None:
+            if not self._alive.on:
+                return
             if on_done is not None:
                 on_done(row)
 
         def failed(error: BaseException) -> None:
+            if not self._alive.on:
+                return
             self.failed.emit(error)
             if on_done is not None:
                 on_done(error)

@@ -63,7 +63,7 @@ from ..primitives.skeleton import Skeleton
 from ..theme import theme_of
 from ..workers import DEFAULT_DEBOUNCE_MS, Debounce
 from .collection_control import COLLECTION_GAP
-from .collection_source import Alive, SerialRunner, publisher, quietly
+from .collection_source import Alive, Beacon, SerialRunner, quietly
 from .entity_glyphs import entity_glyph
 from .entity_table import SkeletonBlock, fit_body
 from .picker_row import status_painter
@@ -129,19 +129,23 @@ class _TreeBinding(QObject):
 
     changed = Signal()
     failed = Signal(object)
-    _published = Signal()
 
     def __init__(self, engine: Any, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self.engine = engine
-        # One call at a time: a level, a seed walk and a search all mutate the same engine.
-        self._runner = SerialRunner(on_error=quietly(self.failed.emit))
         self._alive = Alive()
-        # A method of this object, never `changed.emit`: a queued call whose receiver is a
-        # signal proxy survives the deletion of the object it would emit on, and Qt only drops
-        # a posted event when the receiver itself is the object that went.
-        self._published.connect(self._republish, Qt.ConnectionType.QueuedConnection)
-        self._unsubscribe = engine.subscribe(publisher(self._published.emit, self._alive))
+        # Qt frees this binding with the tree, and a level still on the pool answers after.
+        # The flag is what every callback the pool still holds reads before it emits.
+        self.destroyed.connect(self._alive.stop)
+        # One call at a time: a level, a seed walk and a search all mutate the same engine.
+        self._runner = SerialRunner(on_error=quietly(self.failed.emit, self._alive))
+        # The beacon, never this object: the engine keeps the listener it was handed and a
+        # worker would otherwise emit on a wrapper Qt has already freed. A method of this
+        # object on the receiving end, never `changed.emit`, because Qt only drops a posted
+        # event when the receiver itself is the object that went.
+        self._beacon = Beacon(self._alive)
+        self._beacon.published.connect(self._republish, Qt.ConnectionType.QueuedConnection)
+        self._unsubscribe = engine.subscribe(self._beacon.publish)
 
     def _republish(self) -> None:
         """Tell the view the engine moved. Queued, so it runs on the thread that draws."""

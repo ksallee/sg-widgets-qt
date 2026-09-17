@@ -134,3 +134,40 @@ def test_the_view_and_the_bottom_name_what_the_body_shows(context, qtbot):
     assert control.view(len(control.rows)) == "empty"
     assert control.bottom() is None
     assert describe_paging(control.snapshot()).to == 0
+
+
+def test_a_sort_answering_after_the_widget_is_freed_lands_nowhere(qtbot):
+    """A sort still on the pool when Qt frees the widget publishes on nothing.
+
+    The store keeps the listener the binding handed it, so a `set_sort` that outlived its
+    widget went on re-reading and published straight onto a freed wrapper. PyQt5 puts no guard
+    on a bound signal it has handed out, so that emit took the whole run down on the pool
+    thread, several test files later. The binding's `destroyed` is what stops the listener now,
+    and the beacon it emits on is held by the listener rather than by the binding.
+    """
+    import gc
+
+    from qtpy import QtWidgets
+
+    from sg_widgets_qt.workers import default_pool
+
+    # Slow enough that the read is still on the pool when the widget goes.
+    source = source_for(mock_context(latency_ms=200))
+    holder = QtWidgets.QWidget()
+    control = CollectionControl(source, parent=holder)
+    settle(None, control.binding)
+
+    control.apply_sort([SortSpec(path="code", descending=True)])
+    alive = control.binding._alive
+    assert control.binding.busy, "the sort is still being read"
+
+    del control
+    del holder
+    gc.collect()
+    qtbot.wait(10)
+    assert alive.on is False, "the listener the source still holds has stopped itself"
+
+    # The read runs to its end and writes the store; nothing of it reaches Qt.
+    default_pool().wait(5000)
+    qtbot.wait(20)
+    assert source.snapshot().sort == [SortSpec(path="code", descending=True)]

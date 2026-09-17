@@ -76,6 +76,16 @@ class Ticket:
             return self._current
 
 
+def _freed(error: RuntimeError) -> bool:
+    """True when the error is Qt saying the object a callback would have touched is freed.
+
+    PyQt5 words it `wrapped C/C++ object of type X has been deleted` and PySide6 `Internal C++
+    object (X) already deleted`; neither carries a class of its own, so the wording is what
+    tells the two of them from a `RuntimeError` the callback itself meant to raise.
+    """
+    return "deleted" in str(error)
+
+
 class _JobState:
     """What the runner may read after the job is deleted: whether it is gone."""
 
@@ -155,31 +165,50 @@ class Job(QObject):
             try:
                 value = self._fn(*self._args)
             except Exception as error:
-                self._emit(state, self.failed, error)
+                self._emit(state, "failed", error)
             else:
-                self._emit(state, self.done, value)
+                self._emit(state, "done", value)
         finally:
-            self._emit(state, self.finished)
+            self._emit(state, "finished")
 
-    @staticmethod
-    def _emit(state: _JobState, signal: Any, *args: object) -> None:
-        """Emit unless the job was deleted under the runner; a deleted wrapper raises, and is dropped."""
+    def _emit(self, state: _JobState, signal: str, *args: object) -> None:
+        """Emit unless the job was deleted under the runner; a deleted wrapper raises, and is dropped.
+
+        The signal is looked up by name inside the guard, never handed in: reading `self.done`
+        off a wrapper Qt has already freed raises too, and out here that would leave the pool
+        thread with an exception rather than a dropped answer.
+        """
         if state.gone:
             return
         try:
-            signal.emit(*args)
+            getattr(self, signal).emit(*args)
         except RuntimeError:
             state.gone = True
 
     @Slot(object)
     def _deliver_result(self, value: object) -> None:
         if not self._state.gone and self.live and self._on_result is not None:
-            self._on_result(value)
+            self._deliver(self._on_result, value)
 
     @Slot(object)
     def _deliver_error(self, error: object) -> None:
         if not self._state.gone and self.live and self._on_error is not None:
-            self._on_error(error)
+            self._deliver(self._on_error, error)
+
+    def _deliver(self, callback: Callable[[Any], None], value: Any) -> None:
+        """Hand the answer over, and drop it when the widget it would have reached is freed.
+
+        A read outlives the widget that asked for it: the job is nobody's child, so it is still
+        here to deliver after Qt has freed what the callback writes to. The answer has nowhere
+        to land then. Raising here would carry it out of whichever event loop happened to be
+        turning, which in a test run is some later test and in an application is the window the
+        reader is looking at, so it is dropped where it was asked for instead.
+        """
+        try:
+            callback(value)
+        except RuntimeError as error:
+            if not _freed(error):
+                raise
 
     @Slot()
     def _retire(self) -> None:

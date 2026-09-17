@@ -259,3 +259,47 @@ def test_a_job_deleted_under_its_runner_drops_its_answer(qtbot):
     del owner
     qtbot.wait(400)
     assert landed == []
+
+
+def test_an_answer_landing_on_a_freed_widget_is_dropped_not_raised(qtbot, pool):
+    """A read outlives the widget that asked for it, and its answer then has nowhere to land.
+
+    The job is nobody's child, so it is still here to deliver after Qt has freed the widget the
+    callback writes to. Raising there carried the answer out of whichever event loop was
+    turning: in a run it aborted whatever test came next, several files away from the one that
+    left the read behind.
+    """
+    import gc
+
+    from qtpy import QtWidgets
+
+    holder = QtWidgets.QWidget()
+    label = QtWidgets.QLabel(holder)
+    landed = []
+
+    def on_result(value):
+        landed.append(value)
+        label.setText(str(value))  # The wrapper its parent freed: Qt raises here.
+
+    pool.submit(lambda: time.sleep(0.1) or "late", on_result=on_result)
+    del holder
+    gc.collect()
+
+    qtbot.waitUntil(idle(pool), timeout=5000)
+    qtbot.wait(50)
+    assert landed == ["late"], "the callback ran, and what it could not write was dropped"
+
+
+def test_an_answer_the_callback_itself_refuses_still_raises(qtbot, pool):
+    """Only Qt saying the object is freed is dropped; the callback's own error is not."""
+    seen = []
+
+    def on_result(_value):
+        raise RuntimeError("the crew list is not answering")
+
+    pool.submit(lambda: "value", on_result=on_result)
+    with qtbot.capture_exceptions() as caught:
+        qtbot.waitUntil(idle(pool), timeout=5000)
+        qtbot.wait(50)
+    seen.extend(caught)
+    assert [str(one[1]) for one in seen] == ["the crew list is not answering"]
