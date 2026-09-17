@@ -62,7 +62,7 @@ from .entity_card import (
     card_tile_size,
     paint_card_tile,
 )
-from .entity_table import EMPTY_ICON, ERROR_ICON, _BottomBlock, _px, fit_body
+from .entity_table import EMPTY_ICON, ERROR_ICON, SkeletonBlock, _BottomBlock, _px, fit_body
 from .state_line import StateLine
 
 __all__ = [
@@ -780,7 +780,7 @@ class EntityGrid(QtWidgets.QWidget):
         fit_body(self.view, lines * step + 2 * GRID_PAD, self._max_height)
 
 
-class _GridSkeleton(QtWidgets.QWidget):
+class _GridSkeleton(SkeletonBlock):
     """Tiles a first read stands behind: the same surface, the same inset, the same height."""
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:

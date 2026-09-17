@@ -1436,6 +1436,14 @@ class PickerControl(ThemedWidget):
             self._sync_timer.stop()
             self._popup.adjustSize()
             if self._open:
+                # A layout caches its minimum size and a top-level's `resize` is clamped by it,
+                # so a popup that has been tall once refuses to come back down until something
+                # else invalidates the cache. A query that narrows the list is exactly that
+                # case, so the cache is dropped here rather than waited for.
+                layout = self._popover.layout()
+                if layout is not None:
+                    layout.invalidate()
+                    layout.activate()
                 self._popover.reposition()
             return
         if not self._sync_timer.isActive():

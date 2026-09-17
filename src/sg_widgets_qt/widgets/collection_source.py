@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from qtpy import QtCore
-from qtpy.QtCore import QObject, Qt, Signal
+from qtpy.QtCore import QObject, Qt, QTimer, Signal
 
 from sg_widgets_core.collection import (
     EntitySource,
@@ -35,7 +35,18 @@ from sg_widgets_core.paging import PAGING_MODE_VALUES, source_mode_for
 
 from ..workers import JobPool
 
-__all__ = ["COLLECTION_PAGING_VALUES", "Alive", "CollectionSource", "publisher"]
+__all__ = [
+    "COLLECTION_PAGING_VALUES",
+    "Alive",
+    "CollectionSource",
+    "Retirement",
+    "publisher",
+    "retire_pool",
+    "stop_with",
+]
+
+#: How often a retiring pool is asked whether its thread has finished.
+POOL_SWEEP_MS = 50
 
 
 class Alive:
@@ -52,8 +63,70 @@ class Alive:
     def __init__(self) -> None:
         self.on = True
 
-    def stop(self, *_args: object) -> None:
+    def stop(self) -> None:
         self.on = False
+
+
+def stop_with(owner: QObject, alive: Alive) -> None:
+    """Turn `alive` off when `owner` is deleted.
+
+    A closure rather than the flag's own method: one binding keeps a weak reference to a
+    bound method's object and a slotted class cannot be weakly referenced, so the connection
+    would be refused.
+    """
+    owner.destroyed.connect(lambda *_args: alive.stop())
+
+
+#: Pools whose owner has gone and whose thread has not finished. Held until it has.
+_RETIRING: set[Any] = set()
+
+
+def retire_pool(pool: Any) -> None:
+    """Keep a pool alive until its thread is idle, then let it go.
+
+    A job is held by its pool and by nothing else, so a pool collected while a read is still
+    running frees the job under the thread that is running it. Cancelling marks the answer as
+    unwanted; this holds the pool until the call it cancelled has actually returned.
+    """
+    pool.cancel_all()
+    if pool.running == 0:
+        return
+    _RETIRING.add(pool)
+
+    def sweep() -> None:
+        if pool.running == 0:
+            _RETIRING.discard(pool)
+            return
+        QTimer.singleShot(POOL_SWEEP_MS, sweep)
+
+    QTimer.singleShot(POOL_SWEEP_MS, sweep)
+
+
+class Retirement:
+    """What a binding leaves behind so its reads die quietly after it does.
+
+    Nothing here holds the binding, so it runs from the binding's own `destroyed`: the flag
+    stops the store's listener, the subscription is dropped, and the pool is taken off the
+    object being deleted and held until its thread is idle.
+    """
+
+    __slots__ = ("alive", "pool", "unsubscribe")
+
+    def __init__(self, pool: Any, alive: Alive) -> None:
+        self.pool = pool
+        self.alive = alive
+        self.unsubscribe: Any = None
+
+    def run(self) -> None:
+        self.alive.stop()
+        if self.unsubscribe is not None:
+            self.unsubscribe()
+            self.unsubscribe = None
+        pool, self.pool = self.pool, None
+        if pool is None:
+            return
+        pool.setParent(None)
+        retire_pool(pool)
 
 #: How a collection walks a set. Core's `PagingMode`.
 COLLECTION_PAGING_VALUES: tuple[str, ...] = PAGING_MODE_VALUES
@@ -93,9 +166,13 @@ class CollectionSource(QObject):
         self._filters_seen = source.filters
 
         self._alive = Alive()
-        self.destroyed.connect(self._alive.stop)
+        self._retirement = Retirement(self._pool, self._alive)
+        retirement = self._retirement
+        self.destroyed.connect(lambda *_args: retirement.run())
         self._published.connect(self._on_published, Qt.ConnectionType.QueuedConnection)
-        self._unsubscribe = source.subscribe(publisher(self._published.emit, self._alive))
+        self._retirement.unsubscribe = source.subscribe(
+            publisher(self._published.emit, self._alive)
+        )
         self._apply_mode()
         if self._sort is not None and not same_sort(self._sort, source.sort):
             self.set_sort(self._sort)
@@ -297,11 +374,7 @@ class CollectionSource(QObject):
 
     def close(self) -> None:
         """Stop following the source and drop what is in flight."""
-        self._alive.stop()
-        if self._unsubscribe is not None:
-            self._unsubscribe()
-            self._unsubscribe = None
-        self._pool.cancel_all()
+        self._retirement.run()
 
 
 def publisher(emit: Any, alive: Alive) -> Any:

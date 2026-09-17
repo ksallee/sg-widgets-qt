@@ -16,6 +16,9 @@ from .test_picker_contract import PickerShape, check_contract, spin
 ALREADY_THERE = [EntityRef(type="Shot", id=862), EntityRef(type="Shot", id=863)]
 ASSETS = [EntityRef(type="Asset", id=1226), EntityRef(type="Asset", id=1227)]
 
+#: The asset the single-chip examples hold.
+ASSET = 1226
+
 
 def build(qtbot, latency_ms: int = 20, width: int = 500, **props):
     """One multi picker on a themed window. The rows draw no thumbnail, so nothing is read."""
@@ -171,3 +174,33 @@ def test_clearing_drops_every_chip(qtbot):
     spin(qtbot, 50)
     assert picker.value == []
     assert picker.control.labels == []
+
+
+def test_a_token_field_keeps_the_bases_own_placeholder_rule(qtbot):
+    # A token field says what it is for with its chips, so upstream passes no
+    # `inputPlaceholder` and the base's rule stands: the placeholder goes once it is filled.
+    picker = build(qtbot, entity_types=["Asset"], summary="chips", placeholder="Pick assets")
+    settled(qtbot, picker)
+    caret = picker.control.caret()
+    assert caret.placeholderText() == "Pick assets"
+
+    picker.set_value([EntityRef(type="Asset", id=ASSET, name="charAda")])
+    spin(qtbot, 60)
+    assert picker.control.labels
+    assert caret.placeholderText() == ""
+
+
+def test_the_contract_holds_on_a_token_field_of_one_chip(qtbot):
+    # Clause 4 on a row with nowhere to walk: Backspace reaches the only chip, ArrowRight
+    # steps off it back into the input, and Delete takes it.
+    picker = build(qtbot, entity_types=["Asset"], summary="chips")
+    picker.set_value([EntityRef(type="Asset", id=ASSET, name="charAda")])
+    settled(qtbot, picker)
+    spin(qtbot, 60)
+    assert len(picker.control.labels) == 1
+    checked = check_contract(
+        qtbot,
+        picker,
+        PickerShape(multiple=True, settle=lambda: spin(qtbot, 120)),
+    )
+    assert "value keys" in checked

@@ -202,7 +202,13 @@ class RowDelegate(QStyledItemDelegate):
         return max(1, pad // 2) if self._density == "compact" else pad
 
     def _lead_size(self) -> int:
-        return LEAD[self._size]
+        """The leading slot is as big as what it holds, rule 9.
+
+        A picture takes the thumbnail ladder; a row that draws its own glyph and never expected
+        a picture takes the glyph's own slot, so a list of types stands on the row pitch rather
+        than on the thumbnail one.
+        """
+        return LEAD_GLYPH[self._size] if self._bare_glyph else LEAD[self._size]
 
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:  # noqa: N802
         theme = self._theme(option)

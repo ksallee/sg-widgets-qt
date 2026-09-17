@@ -67,6 +67,11 @@ and from the bar's own Back and Reset alike — and the control is never remount
 where you are typing. The first row of the list is the cursor the moment the list opens, so `Right`
 or `Enter` on it acts without a `Down` first.
 
+A row is its display name, the data type under it and the field's glyph drawn on its own, with
+no picture box behind it; where the list stands is the breadcrumb bar's to say, so a row behind a
+hop never repeats the trail above it. `Down` past the last row comes back to the first, and a
+schema read stands behind three skeletons shaped like those two-line rows.
+
 A field list walks a path through links, so the popup carries a breadcrumb above the search row
 and a row that descends carries a chevron at its trailing edge, drawn in the row's own drill column
 and pressed there. `Left`, `Right` and `Enter` on a link belong to the

@@ -180,9 +180,17 @@ def check_contract(qtbot: Any, picker: QWidget, shape: PickerShape) -> list:  # 
         settle(shape, qtbot)
         if shape.multiple:
             assert control.armed == count - 1, "Backspace takes the caret to the last chip"
-            QTest.keyClick(target, Qt.Key.Key_Left)
-            assert control.armed == max(0, count - 2), "the arrows walk the row"
+            # A row of one has nowhere to walk, and `ArrowRight` off the last chip is the
+            # docs page's way back into the input rather than a step along the row.
+            if count > 1:
+                QTest.keyClick(target, Qt.Key.Key_Left)
+                assert control.armed == count - 2, "the arrows walk the row"
+                QTest.keyClick(target, Qt.Key.Key_Right)
+                assert control.armed == count - 1
             QTest.keyClick(target, Qt.Key.Key_Right)
+            assert control.armed is None, "ArrowRight off the last chip returns to the input"
+            QTest.keyClick(target, Qt.Key.Key_Backspace)
+            settle(shape, qtbot)
             assert control.armed == count - 1
             QTest.keyClick(target, Qt.Key.Key_Down)
             settle(shape, qtbot)

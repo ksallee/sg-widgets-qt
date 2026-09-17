@@ -67,6 +67,7 @@ from .field_value import FieldValueOptions, paint_field_value
 from .state_line import StateLine
 
 __all__ = [
+    "SkeletonBlock",
     "ENTITY_TABLE_DENSITY_VALUES",
     "ENTITY_TABLE_SIZE_VALUES",
     "ENTITY_TABLE_HEAD",
@@ -1361,7 +1362,30 @@ class EntityTable(QtWidgets.QWidget):
         fit_body(self.view, head + rows, self._max_height)
 
 
-class _TableSkeleton(QtWidgets.QWidget):
+class SkeletonBlock(QtWidgets.QWidget):
+    """A block of skeletons that only shimmers while it is on show.
+
+    Motion explains a change (`docs/design-rules.md` rule 4), and a block standing behind rows
+    that have already landed explains nothing: the shimmer stops with the block rather than
+    running on a widget nobody is looking at.
+    """
+
+    def blocks(self) -> list[Skeleton]:
+        """Every skeleton in this block."""
+        return self.findChildren(Skeleton)
+
+    def showEvent(self, event: QtGui.QShowEvent) -> None:  # noqa: N802
+        super().showEvent(event)
+        for block in self.blocks():
+            block.set_animated(True)
+
+    def hideEvent(self, event: QtGui.QHideEvent) -> None:  # noqa: N802
+        super().hideEvent(event)
+        for block in self.blocks():
+            block.set_animated(False)
+
+
+class _TableSkeleton(SkeletonBlock):
     """Eight rows of the shape they stand in for: the same inset, the same height, no gap."""
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
@@ -1387,10 +1411,12 @@ class _TableSkeleton(QtWidgets.QWidget):
                 made.deleteLater()
         for line in range(SKELETON_ROWS):
             for column in range(count):
-                self._grid.addWidget(Skeleton(height=SKELETON_HEIGHT, parent=self), line, column)
+                made = Skeleton(height=SKELETON_HEIGHT, parent=self)
+                made.set_animated(self.isVisible())
+                self._grid.addWidget(made, line, column)
 
 
-class _BottomBlock(QtWidgets.QWidget):
+class _BottomBlock(SkeletonBlock):
     """What sits under the last row: a failed page, a page on the way, a load-more row, a sentinel."""
 
     retry_requested = Signal()
@@ -1414,6 +1440,7 @@ class _BottomBlock(QtWidgets.QWidget):
         line.addWidget(self._retry)
         self._loading = Skeleton(height=16, parent=self)
         self._loading.setObjectName("entity-table-loading-more")
+        self._loading.set_animated(False)
         self._loading.hide()
         line.addWidget(self._loading, 1)
         self._more = Button("Load more", variant="outline", size="sm", parent=self)
@@ -1430,6 +1457,7 @@ class _BottomBlock(QtWidgets.QWidget):
         self._error.setVisible(bottom == "error")
         self._retry.setVisible(bottom == "error")
         self._loading.setVisible(bottom == "loading")
+        self._loading.set_animated(bottom == "loading")
         self._more.setVisible(bottom == "more")
         self._sentinel.setVisible(bottom == "sentinel")
         if bottom == "error":

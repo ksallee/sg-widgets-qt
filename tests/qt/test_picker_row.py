@@ -280,3 +280,28 @@ def test_the_sub_label_marks_its_matched_runs_too(host):
     # A row with no query marks nothing and keeps its line whole.
     plain = PickerRowModel([ADA], host, sub_label_field="email")
     assert [text for text, matched in plain.data(plain.index(0, 0), Roles.SUB_RUNS) if matched] == []
+
+
+def test_a_bare_glyph_row_takes_the_glyphs_own_slot(qtbot):
+    # Rule 9: the leading slot is as big as what it holds. A row that draws its own glyph and
+    # never expected a picture stands on the row pitch, not on the thumbnail one.
+    from sg_widgets_qt.primitives.list_view import ListSurface
+    from sg_widgets_qt.primitives.row_delegate import LEAD, LEAD_GLYPH, RowDelegate
+
+    root = QWidget()
+    apply_theme(root, theme_for("default"))
+    qtbot.addWidget(root)
+    view = ListSurface(root)
+    model = PickerRowModel([SHOT], loader=ImageLoader(timeout=0))
+    view.setModel(model)
+    delegate = RowDelegate(view, size="md")
+    option = QStyleOptionViewItem()
+    option.rect = QPixmap(320, 48).rect()
+    option.widget = view
+
+    picture = delegate.sizeHint(option, view.model().index(0, 0)).height()
+    delegate.set_bare_glyph(True)
+    glyph = delegate.sizeHint(option, view.model().index(0, 0)).height()
+    assert delegate._lead_size() == LEAD_GLYPH["md"]
+    assert glyph < picture
+    assert picture - glyph == LEAD["md"] - LEAD_GLYPH["md"]

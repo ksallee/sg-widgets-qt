@@ -451,6 +451,7 @@ class EntitySearchPicker(QtWidgets.QWidget):
 
     def set_placeholder(self, value: str) -> None:
         self._control.set_placeholder(value)
+        self._sync_input_placeholder()
 
     @property
     def search_placeholder(self) -> str:
@@ -458,6 +459,7 @@ class EntitySearchPicker(QtWidgets.QWidget):
 
     def set_search_placeholder(self, value: str) -> None:
         self._control.set_search_placeholder(value)
+        self._sync_input_placeholder()
 
     @property
     def empty_label(self) -> str:
@@ -593,6 +595,22 @@ class EntitySearchPicker(QtWidgets.QWidget):
 
     def _refresh_chips(self) -> None:
         self._control.set_labels([self._row_of(ref).name for ref in self._refs()])
+        self._sync_input_placeholder()
+
+    def _sync_input_placeholder(self) -> None:
+        """The caret beside a chosen chip invites the next query.
+
+        Upstream's single picker passes `inputPlaceholder={chipEntity ? searchPlaceholder :
+        placeholder}`, so a filled control reads "Search…" beside its chip rather than nothing.
+        A token field passes none and keeps the base's rule, which is the empty string once it
+        holds chips: there the chips already say what the field is for.
+        """
+        if self.MULTIPLE:
+            return
+        filled = bool(self._control.labels)
+        self._control.set_input_placeholder(
+            self._control.search_placeholder if filled else self._control.placeholder
+        )
 
     def _secondary_of(self, row: PickerRow) -> str:
         """The caller's own secondary, and the type on a polymorphic list that names none."""

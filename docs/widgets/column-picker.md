@@ -32,7 +32,8 @@ Picking a field appends its path to the end of the list and clears the picker, w
 back for the next one. A path already chosen is off the list, so a column is never added twice.
 
 Each row carries a grip, the friendly path with the raw path in its tooltip, and a remove control.
-A read-only list is the labels alone: no grip, none of its inset, and no cross.
+A read-only list is the labels alone: no grip, none of its inset, and no cross. A disabled one
+keeps both, drawn inert.
 
 A row is reordered by dragging its grip, which moves the row under the pointer as it crosses each
 neighbour's midpoint, or from the keyboard: Space on the list picks the row under the cursor up,
@@ -50,7 +51,9 @@ types asks which one first. `data_types` and `valid_types` bind what may be chos
 walked through, so a picker restricted to dates still reaches a date behind a link.
 
 `layout='dual'` puts the fields of the type in a checked list beside the chosen paths. Checking a
-row appends its path; unchecking removes it. The two lists sit side by side from a width of 512
+row appends its path; unchecking removes it. A row there is one line — a checkbox, the field's
+glyph, its display name and its programmatic name where the two differ — rather than the field
+picker's two. The two lists sit side by side from a width of 512
 pixels and stack under it, measured on the widget rather than on the window, so a column picker in
 a narrow panel stacks on a wide page.
 

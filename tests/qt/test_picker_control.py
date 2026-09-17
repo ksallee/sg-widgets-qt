@@ -314,3 +314,27 @@ def test_a_fixed_set_keeps_the_keyboard_only_ring(qtbot):
     control.setFocus(Qt.FocusReason.TabFocusReason)
     spin(qtbot, 10)
     assert control._ring_shown()
+
+
+def test_the_popup_follows_the_row_count_down_as_well_as_up(qtbot):
+    # A layout caches its minimum and a top-level's resize is clamped by it, so a popup that
+    # had been tall once used to refuse to come back down when a query narrowed the list.
+    control = build_static(qtbot)
+    control.set_open(True)
+    spin(qtbot, 60)
+    tall = control.list_surface().height()
+    assert tall == control.list_surface().content_height()
+
+    control.set_items(["layout"])
+    control.row_model().set_codes(["layout"])
+    spin(qtbot, 80)
+    short = control.list_surface().height()
+    assert short < tall
+    assert short == control.list_surface().content_height()
+    assert control.popover().height() <= tall
+
+    control.set_items([code for code, _ in DEPARTMENTS])
+    control.row_model().set_codes([code for code, _ in DEPARTMENTS])
+    spin(qtbot, 80)
+    assert control.list_surface().height() == tall
+    control.set_open(False)

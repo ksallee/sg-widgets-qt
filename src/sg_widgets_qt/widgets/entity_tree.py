@@ -63,9 +63,9 @@ from ..primitives.skeleton import Skeleton
 from ..theme import theme_of
 from ..workers import DEFAULT_DEBOUNCE_MS, Debounce, JobPool
 from .collection_control import COLLECTION_GAP
-from .collection_source import Alive, publisher
+from .collection_source import Alive, Retirement, publisher
 from .entity_glyphs import entity_glyph
-from .entity_table import fit_body
+from .entity_table import SkeletonBlock, fit_body
 from .picker_row import status_painter
 from .state_line import StateLine
 
@@ -136,9 +136,13 @@ class _TreeBinding(QObject):
         self.engine = engine
         self._pool = JobPool(1, self)
         self._alive = Alive()
-        self.destroyed.connect(self._alive.stop)
+        self._retirement = Retirement(self._pool, self._alive)
+        retirement = self._retirement
+        self.destroyed.connect(lambda *_args: retirement.run())
         self._published.connect(self.changed.emit, Qt.ConnectionType.QueuedConnection)
-        self._unsubscribe = engine.subscribe(publisher(self._published.emit, self._alive))
+        self._retirement.unsubscribe = engine.subscribe(
+            publisher(self._published.emit, self._alive)
+        )
 
     def snapshot(self) -> TreeState:
         return self.engine.snapshot()
@@ -165,25 +169,7 @@ class _TreeBinding(QObject):
 
     def close(self) -> None:
         """Stop following the engine and drop what is in flight."""
-        self._alive.stop()
-        if self._unsubscribe is not None:
-            self._unsubscribe()
-            self._unsubscribe = None
-        self._pool.cancel_all()
-
-
-class _Handle:
-    """What an index points at: one path, held by the model so the pointer stays alive.
-
-    A `QModelIndex` carries a pointer, and a Python object handed to `createIndex` is only
-    valid while something else holds a reference to it. Handles are therefore kept for every
-    path the tree has ever shown, so an index made before a reset never dangles.
-    """
-
-    __slots__ = ("path",)
-
-    def __init__(self, path: str) -> None:
-        self.path = path
+        self._retirement.run()
 
 
 class TreeModel(QAbstractItemModel):
@@ -199,7 +185,11 @@ class TreeModel(QAbstractItemModel):
         self._rows: dict[str, TreeRow] = {}
         self._children: dict[str, list[str]] = {}
         self._roots: list[str] = []
-        self._handles: dict[str, _Handle] = {}
+        #: Every path the tree has shown, in the order it first appeared. An index carries its
+        #: position here as a plain id, never a pointer, so an index made before a reset can
+        #: still be read and never points at something freed.
+        self._ids: dict[str, int] = {}
+        self._paths: list[str] = []
 
     # --- what it holds --------------------------------------------------------------------
 
@@ -211,8 +201,9 @@ class TreeModel(QAbstractItemModel):
         self._roots = []
         held = set(paths)
         for path in paths:
-            if path not in self._handles:
-                self._handles[path] = _Handle(path)
+            if path not in self._ids:
+                self._ids[path] = len(self._paths)
+                self._paths.append(path)
         for row in rows:
             parent = row.node.parent_path
             if parent is not None and parent in held:
@@ -225,13 +216,13 @@ class TreeModel(QAbstractItemModel):
         return self._rows.get(path)
 
     def path_of(self, index: QModelIndex) -> str:
-        handle = index.internalPointer()
-        return handle.path if isinstance(handle, _Handle) else ""
+        at = int(index.internalId())
+        return self._paths[at] if 0 <= at < len(self._paths) else ""
 
     def index_of(self, path: str) -> QModelIndex:
         row = self._rows.get(path)
-        handle = self._handles.get(path)
-        if row is None or handle is None:
+        at = self._ids.get(path)
+        if row is None or at is None:
             return QModelIndex()
         parent = row.node.parent_path
         siblings = self._children.get(parent, []) if parent is not None else self._roots
@@ -239,7 +230,7 @@ class TreeModel(QAbstractItemModel):
             siblings = self._roots
         if path not in siblings:
             return QModelIndex()
-        return self.createIndex(siblings.index(path), 0, handle)
+        return self.createIndex(siblings.index(path), 0, at)
 
     # --- the model ------------------------------------------------------------------------
 
@@ -247,10 +238,10 @@ class TreeModel(QAbstractItemModel):
         siblings = self._children.get(self.path_of(parent), []) if parent.isValid() else self._roots
         if row < 0 or row >= len(siblings) or column != 0:
             return QModelIndex()
-        handle = self._handles.get(siblings[row])
-        if handle is None:
+        at = self._ids.get(siblings[row])
+        if at is None:
             return QModelIndex()
-        return self.createIndex(row, column, handle)
+        return self.createIndex(row, column, at)
 
     def parent(self, child: QModelIndex = _ROOT) -> QModelIndex:  # noqa: A003
         if not child.isValid():
@@ -1169,7 +1160,7 @@ class EntityTree(QtWidgets.QWidget):
         return self.engine.checked_refs()
 
 
-class _TreeSkeleton(QtWidgets.QWidget):
+class _TreeSkeleton(SkeletonBlock):
     """Rows a first read stands behind: the same inset, the same height, the same zero gap."""
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:

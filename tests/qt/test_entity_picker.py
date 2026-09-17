@@ -218,3 +218,24 @@ def test_the_deliver_step_writes_only_a_ticket_that_still_holds(qtbot):
         stale, "x", 1, PageResult(rows=[PickerRow(type="Shot", id=1, name="never")], has_more=False)
     )
     assert [row.id for row in picker.state.rows] == [row.id for row in rows]
+
+
+def test_the_caret_beside_a_chip_invites_the_next_query(qtbot):
+    # Upstream passes `inputPlaceholder={chipEntity ? searchPlaceholder : placeholder}`, so a
+    # filled single picker reads "Search…" beside its chip rather than nothing.
+    picker = build(qtbot, entity_types=["Shot"], placeholder="Pick a shot")
+    settled(qtbot, picker)
+    caret = picker.control.caret()
+    assert caret.placeholderText() == "Pick a shot"
+
+    picker.set_value(EntityRef(type="Shot", id=SHOT, name="sh010_0050"))
+    spin(qtbot, 60)
+    assert picker.control.labels
+    assert caret.placeholderText() == picker.search_placeholder
+
+    picker.set_search_placeholder("Search shots…")
+    assert caret.placeholderText() == "Search shots…"
+
+    picker.set_value(None)
+    spin(qtbot, 60)
+    assert caret.placeholderText() == "Pick a shot"

@@ -63,7 +63,7 @@ from ..primitives.skeleton import Skeleton
 from ..theme import theme_of, with_alpha
 from .collection_control import COLLECTION_GAP, CollectionControl, CollectionModel
 from .collection_footer import DEFAULT_PAGE_SIZES, CollectionFooter
-from .entity_table import EMPTY_ICON, ERROR_ICON, _BottomBlock, _px, fit_body, rows_height
+from .entity_table import EMPTY_ICON, ERROR_ICON, SkeletonBlock, _BottomBlock, _px, fit_body, rows_height
 from .field_value import FieldValueOptions, paint_field_value
 from .state_line import StateLine
 
@@ -946,7 +946,7 @@ class GroupedList(QtWidgets.QWidget):
         )
 
 
-class _ListSkeleton(QtWidgets.QWidget):
+class _ListSkeleton(SkeletonBlock):
     """Rows a first read stands behind: the same inset, the same height, the same zero gap."""
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
