@@ -154,3 +154,22 @@ def test_an_untouched_facet_reads_quiet(qtbot):
     active = ticked.pill("sg_status_list")
     named = [run for run in active.findChildren(_PillText) if run.objectName() == "filter-pill-field"]
     assert named and not named[0].muted
+
+
+def test_the_bar_asks_for_one_line_when_it_stands_beside_other_controls(qtbot):
+    """A toolbar hands the bar its hint, so the hint is the whole row: every pill on one line.
+
+    Upstream's bar is a `flex-wrap` row, which wraps only when the width runs out; a hint of the
+    widest pill alone had the bar wrap with room to spare and the controls beside it centred
+    against two lines.
+    """
+    bar = build(qtbot)
+    shown = [child for child in bar.findChildren(QWidget) if child.parent() is bar and not child.isHidden()]
+    assert len(shown) >= 3, "two facet pills and the More filters button stand in the bar"
+    one_line = sum(child.sizeHint().width() for child in shown) + bar._flow.spacing() * (len(shown) - 1)
+    assert bar.sizeHint().width() == one_line
+    assert bar.sizeHint().height() == max(child.sizeHint().height() for child in shown)
+    # Given that width it lays every pill on one row.
+    assert bar.heightForWidth(one_line) == bar.sizeHint().height()
+    # Short of it, the row wraps.
+    assert bar.heightForWidth(one_line - 1) > bar.sizeHint().height()

@@ -638,7 +638,22 @@ class _FlowLayout(QtWidgets.QLayout):
         self._lay(rect, measure=False)
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
-        return self.minimumSize()
+        """Every pill on one line, which is what a `flex-wrap` row asks for when it fits.
+
+        The hint is what a toolbar beside other controls hands the bar, so it has to be the
+        whole row; a hint of the widest pill alone had the bar wrap with room to spare.
+        """
+        width, height, shown = 0, 0, 0
+        for item in self._items:
+            widget = item.widget()
+            if widget is not None and widget.isHidden():
+                continue
+            hint = item.sizeHint()
+            width += hint.width()
+            height = max(height, hint.height())
+            shown += 1
+        width += self.spacing() * max(0, shown - 1)
+        return QtCore.QSize(width, height)
 
     def minimumSize(self) -> QtCore.QSize:  # noqa: N802
         size = QtCore.QSize(0, 0)
