@@ -682,6 +682,8 @@ class PickerControl(ThemedWidget):
         self._list: ListSurface | None = None
         self._search_row: _SearchRow | None = None
         self._search_caret: _Caret | None = None
+        #: True while a key is on its way from the anchor to the popup's search box.
+        self._forwarding = False
         self._state_line: StateLine | None = None
         self._skeletons: QtWidgets.QWidget | None = None
         self._row_model = row_model
@@ -1432,9 +1434,33 @@ class PickerControl(ThemedWidget):
             return True
         if kind == "follow":
             return self._list is not None and self._list.handle_key(event)
-        if self._open and self._list is not None:
-            return self._list.handle_key(event)
-        return False
+        if self._open and self._list is not None and self._list.handle_key(event):
+            return True
+        return self._type_into_search(event)
+
+    def _type_into_search(self, event: QtGui.QKeyEvent) -> bool:
+        """A key the open list did not want edits the popup's search box.
+
+        The popup never takes the window's focus, so the keyboard delivers to the anchor in the
+        window while the search box stands in the popup; the anchor hands it the text keys, the
+        backspace and the caret moves, and the box's own edit answers rows. The box's own
+        handler comes through here too, so the hand-off runs once.
+        """
+        if (
+            not self._open
+            or self._inline
+            or not self._searchable
+            or self._search_caret is None
+            or self._forwarding
+            or event.type() != QtCore.QEvent.Type.KeyPress
+        ):
+            return False
+        self._forwarding = True
+        try:
+            QtWidgets.QApplication.sendEvent(self._search_caret, event)
+        finally:
+            self._forwarding = False
+        return event.isAccepted()
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:  # noqa: N802
         if self._on_key(event):

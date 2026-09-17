@@ -526,3 +526,28 @@ def test_levels_taken_down_under_a_read_drop_the_answer(qtbot):
         QApplication.processEvents()
         qtbot.wait(10)
     assert True, "the schema landed on levels that had gone"
+
+
+def test_keys_on_the_anchor_type_into_the_open_popup_search(qtbot):
+    """The popup never takes the window's focus, so the keyboard delivers to the anchor.
+
+    With the list open the anchor hands the text keys to the popup's search box: the query
+    narrows the rows, Backspace widens them, and a key typed in the box itself lands once.
+    """
+    picker = build(qtbot)
+    settled(qtbot, picker)
+    picker.control.set_open(True)
+    spin(qtbot, 60)
+    before = len(picker.levels.rows(""))
+    QTest.keyClicks(picker.control, "stat")
+    spin(qtbot, 60)
+    assert picker.control.query == "stat"
+    narrowed = picker.levels.rows(picker.control.query)
+    assert 0 < len(narrowed) < before
+    assert all("stat" in (one.display_name + one.name).lower() for one in narrowed)
+    QTest.keyClick(picker.control, Qt.Key.Key_Backspace)
+    spin(qtbot, 30)
+    assert picker.control.query == "sta"
+    QTest.keyClicks(picker.control.caret(), "t")
+    spin(qtbot, 30)
+    assert picker.control.query == "stat", "a key typed in the box itself lands once"

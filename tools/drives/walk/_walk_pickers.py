@@ -195,13 +195,23 @@ def key(
 
 
 def type_into(widget: QtWidgets.QWidget, text: str, wait: Callable | None = None) -> None:
-    """Put the caret in a field and type `text`, key by key, over whatever it held."""
+    """Put the caret in a field and type `text`, key by key, over whatever it held.
+
+    The keys go where a keyboard sends them: to the focus widget of the active window. A field
+    in a popup that never takes the window's focus is not that widget, so the keys reach the
+    anchor in the window and have to be handed on; typing into the field directly would have
+    passed a picker whose anchor drops them.
+    """
     widget.setFocus(QtCore.Qt.FocusReason.MouseFocusReason)
     select = getattr(widget, "selectAll", None)
     if callable(select):
         select()
         QTest.keyClick(widget, QtCore.Qt.Key.Key_Delete)
-    QTest.keyClicks(widget, text)
+    target = widget
+    window = QtWidgets.QApplication.activeWindow()
+    if window is not None and widget.window() is not window and window.focusWidget() is not None:
+        target = window.focusWidget()
+    QTest.keyClicks(target, text)
     if wait is not None:
         wait(50)
 
