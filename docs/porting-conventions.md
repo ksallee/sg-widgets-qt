@@ -18,7 +18,7 @@ Python counterpart here. One rule per difference. Where the rule is silent, port
 | class `MockClient` | `MockClient` |
 | constant `NEGATING_OPERATORS` | `NEGATING_OPERATORS` |
 | prop `labelField` | keyword `label_field` |
-| event `onValueChange` | signal `value_changed` |
+| event `onValueChange`, `onSelect` | signal `value_changed`, `selected` (a verb takes the past tense, a noun such as `onError` stays `error`) |
 | slot / snippet `row` | a callable keyword `row_renderer`, or a subclass hook, as the widget's docs page says |
 | React component `EntityPicker` | class `EntityPicker(QWidget)` |
 | item name `entity-picker` | stays `entity-picker` in the manifest, the docs and the showcase |

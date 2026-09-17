@@ -219,7 +219,7 @@
   ],
   "events": [
     {
-      "name": "select",
+      "name": "selected",
       "payload": "`EntityRow`",
       "when": "A row was activated, when `selectable` is off."
     },

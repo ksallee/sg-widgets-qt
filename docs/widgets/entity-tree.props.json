@@ -202,7 +202,7 @@
   ],
   "events": [
     {
-      "name": "select",
+      "name": "selected",
       "payload": "`TreeNode`",
       "when": "A node with nothing under it was chosen."
     },

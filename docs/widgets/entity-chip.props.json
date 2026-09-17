@@ -83,12 +83,12 @@
   ],
   "events": [
     {
-      "name": "click",
+      "name": "clicked",
       "payload": "`MouseEvent`",
       "when": "The content was pressed. It renders as a button. Ignored when a link is set. Svelte spells it `onclick`, as it does every DOM event."
     },
     {
-      "name": "remove",
+      "name": "removed",
       "payload": "`EntityRef`",
       "when": "The remove control was pressed."
     }

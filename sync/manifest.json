@@ -148,6 +148,485 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "generated; Qt notes pending"
     },
+    "docs/collection-control": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/collection-control.mdx": "9bb63403a24c29efc3b82b52f118be6782bded883ff1239ac7040e3a504437b9",
+        "apps/site/src/props/collection-control.ts": "9143ce928610ab0ee3ee58821dd8808665dff69373375225a01b13139e56bf15",
+        "apps/site/src/props/collection-footer.ts": "fa48e456d862deae8883949098b968f83c4baf7cb088daa63620ca586cf54d6b",
+        "apps/site/src/props/collection-source.ts": "c5fdc183308419b5ddb76fdf6d877e257f1c2edc8e680b38d90d6df6c54591d9"
+      },
+      "ported": [
+        "docs/widgets/collection-control.md",
+        "docs/widgets/collection-control.props.json",
+        "docs/widgets/collection-footer.props.json",
+        "docs/widgets/collection-source.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/color-editor": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/color-editor.mdx": "5241b9bc6a8f0aaa3e6c0cb36a3e97e528bd049192d78b3b97754894c69f467a",
+        "apps/site/src/props/color-editor.ts": "18a30ce9c57ae61496d57f8816fdb93793308b78c5b01200103631230e894cf9"
+      },
+      "ported": [
+        "docs/widgets/color-editor.md",
+        "docs/widgets/color-editor.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/column-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/column-picker.mdx": "937a979725df14acb5f53e1a3e6078095b2e98ac3bad902bcd5e41362d88f180",
+        "apps/site/src/props/column-picker.ts": "c2c5ba3a42448ac3056dd8b8b36dee07c453e991315e1b6b1f7045942aa303a0"
+      },
+      "ported": [
+        "docs/widgets/column-picker.md",
+        "docs/widgets/column-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/context-selector": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/context-selector.mdx": "9c37b912df8c3c96207bc64748b83b6b2bbc6380a3f82ecbfffb6f12e2199051",
+        "apps/site/src/props/context-selector.ts": "ad50c3093dc5dcd7b8e74c143bd4a0f8a7fc528772da312f06ca4921c437d52d"
+      },
+      "ported": [
+        "docs/widgets/context-selector.md",
+        "docs/widgets/context-selector.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/core-client": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/core/client.mdx": "3c0d23a8b029b5499231fd84864ded27fe4777c3fe1d02ac1b99d75b87819254"
+      },
+      "ported": [
+        "docs/core/client.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt rewrite pending"
+    },
+    "docs/core-context": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/core/context.mdx": "998fc99a41173186eb16971af50b223792267667684efc3c31da7a0f56c76db2"
+      },
+      "ported": [
+        "docs/core/context.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt rewrite pending"
+    },
+    "docs/core-index": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/core/index.mdx": "dd43cd29c2b67917e03d7e91559171ce07d302b747703fc784fe304d848ed2f1"
+      },
+      "ported": [
+        "docs/core/index.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt rewrite pending"
+    },
+    "docs/date-editor": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/date-editor.mdx": "b60e85b9f8ccc0d85d999b296aea8cb60e810f60bfbdc619d7f66160fdd55968",
+        "apps/site/src/props/date-editor.ts": "0f901a12da24490221e5166fe7e3e069f236a3c0d2bc170ddac10948353de7a9"
+      },
+      "ported": [
+        "docs/widgets/date-editor.md",
+        "docs/widgets/date-editor.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/date-time-editor": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/date-time-editor.mdx": "6314e7a6a370b3787722f4dcd3ae5ded92538ddbace661076e63a9701d134ab6",
+        "apps/site/src/props/date-time-editor.ts": "85d0b98f1dc6b268b9ff423d1a91d444b7f172b7463dbe36ecd3a2cca1f16d87"
+      },
+      "ported": [
+        "docs/widgets/date-time-editor.md",
+        "docs/widgets/date-time-editor.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/entity-card": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/entity-card.mdx": "c8e790180979e9137adc31726ec1af196a39fb3bfbd47670b9fce8922425bd30",
+        "apps/site/src/props/entity-card.ts": "6b144dcaf1cedda1f1746e72c0bbdf63dafd7a185d1a266b037be00ebf262199"
+      },
+      "ported": [
+        "docs/widgets/entity-card.md",
+        "docs/widgets/entity-card.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/entity-chip": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/entity-chip.mdx": "fd48af377920aa40f5e3088951cbcaef5a78007a08a49111e5ef5d1591ceef4c",
+        "apps/site/src/props/entity-chip.ts": "5bc5f9d1f7e5b7a43df62bee2db66c476677483fa83e57566d222a7f077aafbe",
+        "apps/site/src/props/entity-glyphs.ts": "444624bd56a13864e22c6237919feda97174eed6c289b889746250d55a5571a5"
+      },
+      "ported": [
+        "docs/widgets/entity-chip.md",
+        "docs/widgets/entity-chip.props.json",
+        "docs/widgets/entity-glyphs.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/entity-grid": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/entity-grid.mdx": "c340163abc726f971f3f54540e32e43f1cf4fba89dc84ec40d92899577482d07",
+        "apps/site/src/props/entity-grid.ts": "ae762efeb2efc94960a89e35ea95137504a8fa2362c19e37929fc9a9d76e5432"
+      },
+      "ported": [
+        "docs/widgets/entity-grid.md",
+        "docs/widgets/entity-grid.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/entity-multi-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/entity-multi-picker.mdx": "8feb41cb3a6000ec1c66de6734d07cf65d05b5c0b022bae8256243cf3dc0082d",
+        "apps/site/src/props/entity-multi-picker.ts": "e4bd832b1820121a10bca6308ec050bd863a0b7f2c4f11db2ccad750ddd35a61"
+      },
+      "ported": [
+        "docs/widgets/entity-multi-picker.md",
+        "docs/widgets/entity-multi-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/entity-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/entity-picker.mdx": "9a4472c13724d6650a3c8cdfef814d5e042d3db55c20e9916b5465deedaab48c",
+        "apps/site/src/props/entity-picker.ts": "ae709ed04a52d053dd7b064a732ba83fe70cfbfeb6eb6fac050666ecb0d5546a"
+      },
+      "ported": [
+        "docs/widgets/entity-picker.md",
+        "docs/widgets/entity-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/entity-table": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/entity-table.mdx": "c8e64a0d11326ec7835a0097336d6587e702195ec75cef179866652521e8cd2e",
+        "apps/site/src/props/entity-table.ts": "4a11101870693d94bc64e0d746f34bb384af91ac9b58a2845b21298c8192b2d0"
+      },
+      "ported": [
+        "docs/widgets/entity-table.md",
+        "docs/widgets/entity-table.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/entity-tree": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/entity-tree.mdx": "6b582201ac1812ccae6138d63a1c18d87642948436dd554ff77f7f761bdd2997",
+        "apps/site/src/props/entity-tree.ts": "c5c76f689bf05f70b6adefe4479a9f5be84b0a17d9b4b3ea6611e7e5d2fcb383"
+      },
+      "ported": [
+        "docs/widgets/entity-tree.md",
+        "docs/widgets/entity-tree.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/entity-type-multi-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/entity-type-multi-picker.mdx": "200794cff873c832f08a5c2734ad8a733a727627968cd264f99558262932acea",
+        "apps/site/src/props/entity-type-multi-picker.ts": "6748230e87050663288a20904e138a793acef87bfd2929b84c3e3c12de137cec"
+      },
+      "ported": [
+        "docs/widgets/entity-type-multi-picker.md",
+        "docs/widgets/entity-type-multi-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/entity-type-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/entity-type-picker.mdx": "4ae44aa701f761585196a2133f4131f5225df4b86904b85d7921b8f9444a8d16",
+        "apps/site/src/props/entity-type-picker.ts": "e707e3d9facc479a80c55b72edb80028b2ccaa6092ce5b908e9909b99f849c79"
+      },
+      "ported": [
+        "docs/widgets/entity-type-picker.md",
+        "docs/widgets/entity-type-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/field-editor": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/field-editor.mdx": "e497bec9136f99889b571c75fc534c5f15a837d250eebc9b13c9ff126595a1a6",
+        "apps/site/src/props/field-editor.ts": "201ebf604c3970c6b6e1fd6d8a8d8db743178a3db96b97f8e737ddd7726f13be"
+      },
+      "ported": [
+        "docs/widgets/field-editor.md",
+        "docs/widgets/field-editor.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/field-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/field-picker.mdx": "d5feb511b6a101d295ce13b5c2558b1b38c5f8cd76dc27ff728cc3bb74464731",
+        "apps/site/src/props/field-picker.ts": "9207ef7fccabf03435f29f23ebdae9684029e583e48246f76e33d9c9bfc88ee6"
+      },
+      "ported": [
+        "docs/widgets/field-picker.md",
+        "docs/widgets/field-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/field-value": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/field-value.mdx": "ebeae19851728c584e51e71469bc963a6742a52be3721793e576e65a8278a044",
+        "apps/site/src/props/field-value.ts": "f8e7c3b06d41ce89a3f780f4008fb26497a6c06f32aada4f104b5ac827d9b86b"
+      },
+      "ported": [
+        "docs/widgets/field-value.md",
+        "docs/widgets/field-value.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/filter-bar": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/filter-bar.mdx": "9d2bd3cf24bdad132681b0f3388c268ec259968fb75c25a6b3e59322fb773634",
+        "apps/site/src/props/filter-bar.ts": "9811a5a0e1912e4d840522bface0b6610520d7ca2f7080ca5dd35bc4d7b2ee18"
+      },
+      "ported": [
+        "docs/widgets/filter-bar.md",
+        "docs/widgets/filter-bar.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/filter-dialog": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/filter-dialog.mdx": "910f338d81b90abfac6a0fb07181430a160c1a5eed746b6bc7c5a2ffa5ec0782",
+        "apps/site/src/props/filter-dialog.ts": "63afcc89b2e56fc946f94190ae4c76f37e092d88ce845b01d121008bc24a96f7"
+      },
+      "ported": [
+        "docs/widgets/filter-dialog.md",
+        "docs/widgets/filter-dialog.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/filter-editor": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/filter-editor.mdx": "7fb3256e4b646cb3cf8e801d2a096844a6aa1530eb2f4eebaaea2697e4b2d5c1",
+        "apps/site/src/props/entity-fields.ts": "e51b567fbbbb376e88a918778ea86c2364fe609c9299c191843224f491cf75d8",
+        "apps/site/src/props/filter-editor.ts": "5283e4840678080fb7717c7ed5b4382e1102fbeef042ceb483d54bbbe1915f31"
+      },
+      "ported": [
+        "docs/widgets/filter-editor.md",
+        "docs/widgets/entity-fields.props.json",
+        "docs/widgets/filter-editor.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/global-search": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/global-search.mdx": "05bf4e2168d8eb60f89d845a4e724abed8628c2e5c30e3d867b8db33f4496f70",
+        "apps/site/src/props/global-search.ts": "c096a6d6cce7d82773044da5654418c02d4fd4920913a52752f78448477171d9"
+      },
+      "ported": [
+        "docs/widgets/global-search.md",
+        "docs/widgets/global-search.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/grouped-list": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/grouped-list.mdx": "10aa979de56e8764b7863043ea60fe1e12a1854e29856c5b515e07aa817d6986",
+        "apps/site/src/props/grouped-list.ts": "adf9ae2e5acde0a9e9794c327c14432d4b82cc548b545fb0fb6abd5cffbb34b9"
+      },
+      "ported": [
+        "docs/widgets/grouped-list.md",
+        "docs/widgets/grouped-list.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/hierarchical-search": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/hierarchical-search.mdx": "ff157b059048ad2970a2cb5d6f04c4a2b52ee02fbade0f29ab228a7ba64e378d",
+        "apps/site/src/props/hierarchical-search.ts": "1e65710e5859d5a83f11086848b937d735034a5976ee555ea5e1ecf16520d902"
+      },
+      "ported": [
+        "docs/widgets/hierarchical-search.md",
+        "docs/widgets/hierarchical-search.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/index": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/index.mdx": "4b0021fe7c312d9e8b2826465c7ee3c2012a9f7b31ab9b93a3cb39245e8ee4c8"
+      },
+      "ported": [
+        "docs/widgets/index.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/list-multi-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/list-multi-picker.mdx": "b2ff9df1a3bc8c22cadac5560e9ff08730e84bff14fa1e6c380e2da569f5b2f6",
+        "apps/site/src/props/list-multi-picker.ts": "805c41c314536ab44f4138fda2524024c003819ea69eed0f0d77abafb0e7eb68"
+      },
+      "ported": [
+        "docs/widgets/list-multi-picker.md",
+        "docs/widgets/list-multi-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/list-multi-select": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/list-multi-select.mdx": "c97ed7a73c3a4db6081c617aa3226fda405cd2b734286e0789acb9e3e8515835"
+      },
+      "ported": [
+        "docs/widgets/list-multi-select.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/list-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/list-picker.mdx": "cb6df1c45f6abd51ba3355f5cb1613123cf012349a3c3d3a40649f5bff57c4e9",
+        "apps/site/src/props/list-picker.ts": "1695950e94e2c6456976adb66472ac816528164d392c4a5fc4ca163318d08fa4"
+      },
+      "ported": [
+        "docs/widgets/list-picker.md",
+        "docs/widgets/list-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/list-select": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/list-select.mdx": "f7393b1c3577554f36d94d59048595b932a9799983439aa536bc1b3e4fcf1970"
+      },
+      "ported": [
+        "docs/widgets/list-select.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/match-text": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/match-text.mdx": "46dcfe36a0efc37fe03cf992d12dd4eea6f59783f93fe98628a5f9a3aa529e8d",
+        "apps/site/src/props/match-text.ts": "8345c99add78a6a02b82a385faae0fb08678e69df3b0ca072cb9fc819677bc2c"
+      },
+      "ported": [
+        "docs/widgets/match-text.md",
+        "docs/widgets/match-text.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/number-editor": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/number-editor.mdx": "493fc3871dfece38b8890985da0a4e15e04310035d7e9bc928cf5da59c13cd13",
+        "apps/site/src/props/number-editor.ts": "cf371fa644ac4102dc7c31fd3958b495494a9759aa456c8ddfe0c8cce7b3805c"
+      },
+      "ported": [
+        "docs/widgets/number-editor.md",
+        "docs/widgets/number-editor.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/picker-control": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/picker-control.mdx": "a219e3aabaefb7e560b4bb568844a0812d672b8984be55e8f290b7c22489fc71",
+        "apps/site/src/props/picker-control.ts": "de0de3e87b7cdbff3e95e0118418b86b9d5e4eb1c98353324be29f79f58c3afa",
+        "apps/site/src/props/picker-row.ts": "97c802c44f5437b48d75147d2998eda5a64be09b1754d1f896990db4683f7472"
+      },
+      "ported": [
+        "docs/widgets/picker-control.md",
+        "docs/widgets/picker-control.props.json",
+        "docs/widgets/picker-row.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/project-multi-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/project-multi-picker.mdx": "9182945f808299a5fea9ebecd26f88012a6ec179dd78f43d48734ab2bf2634a2",
+        "apps/site/src/props/project-multi-picker.ts": "b25d962be434352349008db74b1575a94ad2d0f8c75d887820ab7b5fab87123f"
+      },
+      "ported": [
+        "docs/widgets/project-multi-picker.md",
+        "docs/widgets/project-multi-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/project-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/project-picker.mdx": "e7cd4994a007cdb89df5d85998cf1e8abf330ddd3d2c638ffb52e95910dce0e1",
+        "apps/site/src/props/project-picker.ts": "3d38605a199f90f384cc62c05f210172269c6d1cf5f538d821d0753468e25234"
+      },
+      "ported": [
+        "docs/widgets/project-picker.md",
+        "docs/widgets/project-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
     "docs/props-export": {
       "status": "complete",
       "upstream": {
@@ -162,6 +641,205 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
+    },
+    "docs/search-control": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/search-control.mdx": "4a22341121377743700486affbd2e209180bf3d542d99fb4d2e0b0ddaac439c9",
+        "apps/site/src/props/search-control.ts": "2c07376fdd1ba41bd442415a672a57a1df75d79e80f657f63bce1e850916ab3f",
+        "apps/site/src/props/search-skeleton.ts": "71385114bbb454ade03cecd2f870fd391e54d6b45ab72e4d41a24e7f3dcb1abe"
+      },
+      "ported": [
+        "docs/widgets/search-control.md",
+        "docs/widgets/search-control.props.json",
+        "docs/widgets/search-skeleton.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/sort-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/sort-picker.mdx": "b76da2101eaf35d64b740e97f3784540b9de9b49433d38d0ff249af04033d6f3",
+        "apps/site/src/props/sort-picker.ts": "3b5d9f193c73de324810d767435a4ce1973515ae008330bfc1a398e950fbae06"
+      },
+      "ported": [
+        "docs/widgets/sort-picker.md",
+        "docs/widgets/sort-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/start-install": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/start/install.mdx": "b1aa330214bdb3355ab1c13f2792fada2867d9fb41d39e195d1d9d9c78bd506a"
+      },
+      "ported": [
+        "docs/start/install.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt rewrite pending"
+    },
+    "docs/start-introduction": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/start/introduction.mdx": "ed84830a6736e9ae17a3eef20dcca4696c724f7bc67b7537b8b7098666be6aa2"
+      },
+      "ported": [
+        "docs/start/introduction.md"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt rewrite pending"
+    },
+    "docs/state-line": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/state-line.mdx": "6d5451acdc320547603356c1fcf76a3fb1f008fc8f8fa833f6969ecf0995c001",
+        "apps/site/src/props/state-line.ts": "2fab6e4ecb9a85adc30c4be6b2949cbbbdd37343b5ce5467f37e04d04fe71eeb"
+      },
+      "ported": [
+        "docs/widgets/state-line.md",
+        "docs/widgets/state-line.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/status-badge": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/status-badge.mdx": "22e3e1fca383f8f79a0c9e47286ef208e3269bb742bcf1106bf3ace931bda85b",
+        "apps/site/src/props/status-badge.ts": "8663563c87f1cd9d33afd33b735d2aed11acf971a65d4a0d4a22828edaeb34fc",
+        "apps/site/src/props/status-glyph.ts": "7979554f3a0d260f802fbeadd4a0316a9278f0fca26af72842775feb62fa072a"
+      },
+      "ported": [
+        "docs/widgets/status-badge.md",
+        "docs/widgets/status-badge.props.json",
+        "docs/widgets/status-glyph.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/status-multi-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/status-multi-picker.mdx": "86c01fdde9ade1968fa9019d249b4285154b0b4b3b8dae0f8d783317a98b6651",
+        "apps/site/src/props/status-multi-picker.ts": "33d9b9672d22232f64a5044c8ff60c1f1a98e01ae79bbad2f09b47d34c147636"
+      },
+      "ported": [
+        "docs/widgets/status-multi-picker.md",
+        "docs/widgets/status-multi-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/status-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/status-picker.mdx": "6275af0d05d566b323f56462d4e3eb90dac22b5e670a5dd11fce13f495e4ba63",
+        "apps/site/src/props/status-picker.ts": "bdd28faf591d6afd53a232dc1260a9d070a12770fbc4e2732513c307e5fd2276"
+      },
+      "ported": [
+        "docs/widgets/status-picker.md",
+        "docs/widgets/status-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/text-editor": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/text-editor.mdx": "a43dc8dc7a6836e68f8d2969ba48aafeb1f1f9ac24c057a109bab93b7507b659",
+        "apps/site/src/props/text-editor.ts": "4074854976e93d1dba9cbdce334e1522627d884a1f87182c3d7cb4b777bc191f"
+      },
+      "ported": [
+        "docs/widgets/text-editor.md",
+        "docs/widgets/text-editor.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/thumbnail": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/thumbnail.mdx": "b8ad4731865152d9ed5ac0b2edcd0e064aacdf1ea3bd1e81a93c8d124b98b29b",
+        "apps/site/src/props/thumbnail.ts": "da1e5b6f58724642690ac89d3827319ad07bb8ae7da17b831503b11ef106ac54"
+      },
+      "ported": [
+        "docs/widgets/thumbnail.md",
+        "docs/widgets/thumbnail.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/url-editor": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/url-editor.mdx": "87f7976fcf967aefe99f8ecb3a2eb971152aa93ea7c2b55215f50e9353f559e6",
+        "apps/site/src/props/url-editor.ts": "916e85480c7b9219e6f2a218919d09d5da07bb21fd874571bbebc5e71ba0da16"
+      },
+      "ported": [
+        "docs/widgets/url-editor.md",
+        "docs/widgets/url-editor.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/user-avatar": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/user-avatar.mdx": "c575de7d59a338b11c1b9a1ccaa4f322419eac6af38b9f51c146ce1afd337eeb",
+        "apps/site/src/props/user-avatar.ts": "7e80ccaa0c565bc2ed8fe279e73d17ad762db8cd1c94d85eeb7fc4aa8a54240a"
+      },
+      "ported": [
+        "docs/widgets/user-avatar.md",
+        "docs/widgets/user-avatar.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/user-multi-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/user-multi-picker.mdx": "8cd7567dfcf9c63d2797c5632453d2ace009b54a76295555cd5e531221b148e2",
+        "apps/site/src/props/user-multi-picker.ts": "a74140c77e6bfc2bc5a6caa5a3cf290e0d4ecfae2adc37c2cb9691a640145af3"
+      },
+      "ported": [
+        "docs/widgets/user-multi-picker.md",
+        "docs/widgets/user-multi-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/user-picker": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/user-picker.mdx": "51b1b83a043d4685df5a5e10b4c3cf2abc04f4102a55e66378271ed96085c790",
+        "apps/site/src/props/user-picker.ts": "569cced9bcf9c7c107e6d57ba34a0968bf0f57dca1c3bb59bb8de6d0e543cd62"
+      },
+      "ported": [
+        "docs/widgets/user-picker.md",
+        "docs/widgets/user-picker.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
+    },
+    "docs/value-editor": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/content/docs/widgets/value-editor.mdx": "e6550fee6a486fec24e369fd32a38f83c983210e201fe23eca33cf8ff0aaff48",
+        "apps/site/src/props/editor-calendar.ts": "b780b613796b25c82ac3cb84db5551c803114983924802aa60416ca8e49ed1fd",
+        "apps/site/src/props/field-error.ts": "ac00468a4d4015171ea5058dd1df3f428f60c7a9b81b5d39693ff107d3f1a3d3",
+        "apps/site/src/props/value-editor.ts": "6d7babbe47e676a9f6d0234ac874c192ebdbf5c03c780cc4f409fdd118727062"
+      },
+      "ported": [
+        "docs/widgets/value-editor.md",
+        "docs/widgets/editor-calendar.props.json",
+        "docs/widgets/field-error.props.json",
+        "docs/widgets/value-editor.props.json"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "generated; Qt notes pending"
     },
     "primitives/icons": {
       "status": "complete",

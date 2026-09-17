@@ -167,7 +167,7 @@
   ],
   "events": [
     {
-      "name": "select",
+      "name": "selected",
       "payload": "`EntityRef`",
       "when": "A row was picked."
     },

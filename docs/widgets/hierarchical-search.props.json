@@ -125,7 +125,7 @@
   ],
   "events": [
     {
-      "name": "select",
+      "name": "selected",
       "payload": "`EntityRef`, `EntityRef[]`",
       "when": "A row was picked. The second argument is every row its path runs through, root first."
     }

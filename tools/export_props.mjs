@@ -83,6 +83,9 @@ function signalName(name) {
   const bare = name.replace(/^on/, '');
   if (bare === 'Change') return 'changed';
   if (bare.endsWith('Change')) return `${snakeCase(bare.slice(0, -'Change'.length))}_changed`;
+  // A verb is a Qt signal in the past tense; a noun (`onError`) stays as it is.
+  const verbs = { Click: 'clicked', Select: 'selected', Remove: 'removed', Pick: 'picked', Open: 'opened', Close: 'closed', Submit: 'submitted', Load: 'loaded', LoadMore: 'load_more_requested', Commit: 'committed', Cancel: 'cancelled', Clear: 'cleared', Activate: 'activated', Toggle: 'toggled', Reorder: 'reordered', Expand: 'expanded', Collapse: 'collapsed', Focus: 'focused', Blur: 'blurred' };
+  if (verbs[bare]) return verbs[bare];
   return snakeCase(bare);
 }
 

@@ -184,7 +184,7 @@
   ],
   "events": [
     {
-      "name": "select",
+      "name": "selected",
       "payload": "`EntityRow`",
       "when": "A tile was activated, by click or by Enter."
     },
