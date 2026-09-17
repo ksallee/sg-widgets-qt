@@ -101,7 +101,16 @@ class SortableRows(QtCore.QObject):
             self._end(commit=False)
 
     def set_rows(self, ids: Sequence[str], widgets: Sequence[QtWidgets.QWidget]) -> None:
-        """Take the order and the widget each id is drawn in. Clears every grip."""
+        """Take the order and the widget each id is drawn in. Clears every grip.
+
+        A grip a redraw kept stands under a new model, so the filter this one put on it goes
+        before the next one is attached: a kept grip is never watched twice.
+        """
+        for grip in list(self._grips):
+            try:
+                grip.removeEventFilter(self)
+            except RuntimeError:
+                pass
         self._ids = [str(one) for one in ids]
         self._widgets = list(widgets)
         self._grips = {}

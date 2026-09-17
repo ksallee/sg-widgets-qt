@@ -136,3 +136,21 @@ def test_more_filters_shares_the_bars_tree(qtbot):
     bar.more_filters().changed.emit(empty_filter())
     counted(qtbot, bar)
     assert bar.value.conditions == []
+
+
+def test_an_untouched_facet_reads_quiet(qtbot):
+    """`text-muted-foreground border-dashed`: a pill nobody ticked is the quiet one."""
+    from sg_widgets_qt.widgets.filter_bar import _PillText
+
+    bar = build(qtbot, value=empty_filter())
+    pill = bar.pill("sg_status_list")
+    runs = pill.findChildren(_PillText)
+    assert runs and all(run.muted for run in runs)
+
+    ticked = build(
+        qtbot,
+        value=group("and", [condition("sg_status_list", "in", ["rev"])]),
+    )
+    active = ticked.pill("sg_status_list")
+    named = [run for run in active.findChildren(_PillText) if run.objectName() == "filter-pill-field"]
+    assert named and not named[0].muted

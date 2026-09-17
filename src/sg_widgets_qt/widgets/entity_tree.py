@@ -137,8 +137,15 @@ class _TreeBinding(QObject):
         # One call at a time: a level, a seed walk and a search all mutate the same engine.
         self._runner = SerialRunner(on_error=quietly(self.failed.emit))
         self._alive = Alive()
-        self._published.connect(self.changed.emit, Qt.ConnectionType.QueuedConnection)
+        # A method of this object, never `changed.emit`: a queued call whose receiver is a
+        # signal proxy survives the deletion of the object it would emit on, and Qt only drops
+        # a posted event when the receiver itself is the object that went.
+        self._published.connect(self._republish, Qt.ConnectionType.QueuedConnection)
         self._unsubscribe = engine.subscribe(publisher(self._published.emit, self._alive))
+
+    def _republish(self) -> None:
+        """Tell the view the engine moved. Queued, so it runs on the thread that draws."""
+        self.changed.emit()
 
     def snapshot(self) -> TreeState:
         return self.engine.snapshot()

@@ -23,7 +23,7 @@ from ..primitives.button import Button
 from ..primitives.dialog import Dialog
 from .filter_editor import CONTROL_BUTTON, FILTER_EDITOR_SIZE_VALUES, FilterEditor
 
-__all__ = ["COUNT_CHIP_SIZE", "DIALOG_WIDTH", "FilterDialog"]
+__all__ = ["COUNT_CHIP_SIZE", "DIALOG_WIDTH", "VIEWPORT_SHARE", "FilterDialog"]
 
 #: The count beside the label is a chip, so it takes the step under the control.
 COUNT_CHIP_SIZE: dict[str, str] = {"sm": "xs", "md": "sm", "lg": "md"}
@@ -31,8 +31,13 @@ COUNT_CHIP_SIZE: dict[str, str] = {"sm": "xs", "md": "sm", "lg": "md"}
 #: The icon-button step beside a control of each height.
 ICON_BUTTON: dict[str, str] = {"sm": "icon-sm", "md": "icon", "lg": "icon-lg"}
 
-#: `w-[min(96vw,64rem)]`: a condition row wants room, so the dialog takes 1024 where it fits.
+#: `w-[min(96vw,64rem)]`: a condition row wants room, so the dialog takes 1024 where it fits
+#: and the window's own 96% where it does not.
 DIALOG_WIDTH = 1024
+VIEWPORT_SHARE = 0.96
+
+#: The narrowest the dialog is ever asked for, whatever the window it opens over.
+DIALOG_FLOOR = 320
 
 #: Between the launcher and the control that clears the filters beside it.
 LAUNCH_GAP = 8
@@ -249,6 +254,12 @@ class FilterDialog(QtWidgets.QWidget):
         """The editor inside the dialog, once it has been opened at least once."""
         return self._editor
 
+    def dialog_width(self) -> int:
+        """What the panel asks for: 64rem, or the window's own 96% where that is narrower."""
+        window = self.window()
+        room = window.width() if window is not None else DIALOG_WIDTH
+        return max(DIALOG_FLOOR, min(DIALOG_WIDTH, int(room * VIEWPORT_SHARE)))
+
     # --- the staging ----------------------------------------------------------------------
 
     def apply(self) -> None:
@@ -281,6 +292,9 @@ class FilterDialog(QtWidgets.QWidget):
             self._editor.set_value(self._value)
         dialog = self._dialog
         if dialog is not None:
+            # `w-[min(96vw,64rem)]` is read at the moment it opens, so a window resized
+            # between two openings gets the width it has now.
+            dialog.setMinimumWidth(self.dialog_width())
             dialog.set_description(
                 f"Rows match on {self._entity_type}. Nothing applies until you press Apply."
             )
@@ -289,7 +303,6 @@ class FilterDialog(QtWidgets.QWidget):
     def _build_dialog(self) -> None:
         dialog = Dialog(self, title=self._title)
         dialog.setObjectName("filter-dialog-panel")
-        dialog.setMinimumWidth(min(DIALOG_WIDTH, 960))
         self._editor = FilterEditor(
             entity_type=self._entity_type,
             context=self._context,

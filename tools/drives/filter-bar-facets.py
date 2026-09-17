@@ -212,7 +212,7 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901, PLR0912, PLR0915
             failures.append(f"the Kind facet sums to {summed}, the status filter matches {want}")
         if want >= total_of(main, None):
             failures.append("the status filter did not narrow the Kind facet")
-        main.clear_all_button().click()
+        main.clear_all_button().clicked.emit()
         settled(main, wait)
         wait(200)
         if any(find_facet(main.value, name, main.field_of(name)) for name in main.facets):

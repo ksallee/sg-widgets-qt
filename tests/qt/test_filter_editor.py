@@ -62,12 +62,16 @@ def build(qtbot, **props) -> FilterEditor:
     return editor
 
 
-def settled(qtbot, editor: FilterEditor, ms: int = 2000) -> None:
-    """Spin until the root fields and every dotted leaf have answered."""
+def settled(qtbot, editor: FilterEditor, ms: int = 4000) -> None:
+    """Spin until the fields, every dotted leaf and every row's own cells have landed.
+
+    The rows past the first build one to a turn of the loop, so a tree of ten is ready a few
+    turns after the schema is.
+    """
     end = time.time() + ms / 1000.0
     while time.time() < end:
         QApplication.processEvents()
-        if editor.fields() and not editor.unresolved("code"):
+        if editor.fields() and not editor.unresolved("code") and editor.pending_rows() == 0:
             break
         qtbot.wait(5)
     spin(qtbot, 60)

@@ -121,6 +121,10 @@ ROW_GAP = 8
 #: Between the two controls of the foot, which read as one run.
 FOOT_GAP = 4
 
+#: How many rows build their cells in the turn of the loop that draws the tree. The rest are
+#: filled one to a turn, so a tall tree never holds the GUI thread.
+EAGER_ROWS = 1
+
 #: A cross sits one step under the row's own control on the chip ladder.
 CROSS_SIZE: dict[str, str] = {"sm": "xs", "md": "xs", "lg": "sm"}
 
@@ -245,10 +249,25 @@ class FilterEditor(QtWidgets.QWidget):
         self._error: str | None = None
         self._focus_at: tuple[tuple[int, ...], str] | None = None
         self._root_node: _GroupNode | None = None
+        # What was drawn where, so a redraw builds only the rows whose node moved. A row is a
+        # field picker, an operator menu and a value control, each with a popup window of its
+        # own, so rebuilding ten of them costs a third of a second on the GUI thread; the tree
+        # is rebuilt on every keystroke, so a row that did not change is kept where it stands.
+        self._built: dict[tuple[int, ...], tuple[FilterNode, QtWidgets.QWidget]] = {}
+        self._building: dict[tuple[int, ...], tuple[FilterNode, QtWidgets.QWidget]] = {}
+        self._stamp: tuple | None = None
+        self._row_budget = 0
+        self._to_fill: list[_ConditionRow] = []
         # Reads answer one at a time, so the redraws they ask for are coalesced into one.
         self._redraw = QtCore.QTimer(self)
         self._redraw.setSingleShot(True)
         self._redraw.timeout.connect(self._rebuild)
+        # A row costs about 25ms to build, so the rows past the first are filled one to a
+        # turn of the loop rather than all at once (`docs/design-rules.md`: nothing blocks it).
+        self._filler = QtCore.QTimer(self)
+        self._filler.setSingleShot(True)
+        self._filler.setInterval(0)
+        self._filler.timeout.connect(self._fill_next)
 
         column = QtWidgets.QVBoxLayout(self)
         column.setContentsMargins(0, 0, 0, 0)
@@ -260,8 +279,7 @@ class FilterEditor(QtWidgets.QWidget):
         self.setMinimumWidth(0)
 
         self._read_fields()
-        for path in _dotted_paths(self._value):
-            self._resolve_leaf(path)
+        self._resolve_leaves(_dotted_paths(self._value))
         self._rebuild()
 
     # --- props ----------------------------------------------------------------------------
@@ -431,18 +449,51 @@ class FilterEditor(QtWidgets.QWidget):
             self._redraw.start(0)
 
     def _resolve_leaf(self, path: str) -> None:
+        """Walk one dotted path to its leaf."""
+        self._resolve_leaves([path])
+
+    def _resolve_leaves(self, paths: Sequence[str]) -> None:
+        """Walk every dotted path a tree holds, on one job rather than one each.
+
+        A job per path is a pool thread per path, and a schema walk is Python work that holds
+        the interpreter while it runs, so four of them at once stall the GUI thread that the
+        one they answer never would (`docs/design-rules.md` rule on the GUI thread).
+        """
         schema = schema_of(self._context) if self._context is not None else None
-        if schema is None or not path or path in self._leaves or path in self._resolving:
+        if schema is None:
             return
-        self._resolving.add(path)
+        wanted = [
+            path
+            for path in dict.fromkeys(paths)
+            if path and path not in self._leaves and path not in self._resolving
+        ]
+        if not wanted:
+            return
+        self._resolving.update(wanted)
+        entity_type = self._entity_type
+
+        def walk() -> dict[str, Any]:
+            found: dict[str, Any] = {}
+            for path in wanted:
+                try:
+                    found[path] = schema.resolve_path(entity_type, path)
+                except Exception:  # noqa: BLE001
+                    # A path the schema no longer holds still has to be editable, so the row
+                    # keeps it.
+                    found[path] = None
+            return found
+
         default_pool().submit(
-            schema.resolve_path,
-            self._entity_type,
-            path,
-            on_result=lambda segments, at=path: self._leaf_read(at, segments),
-            # A path the schema no longer holds still has to be editable, so the row keeps it.
-            on_error=lambda _error, at=path: self._leaf_read(at, None),
+            walk,
+            on_result=self._leaves_read,
+            on_error=lambda _error, at=tuple(wanted): self._leaves_read(
+                dict.fromkeys(at, None)
+            ),
         )
+
+    def _leaves_read(self, found: Any) -> None:
+        for path, segments in (found or {}).items():
+            self._leaf_read(path, segments)
 
     def _leaf_read(self, path: str, segments: Any) -> None:
         self._resolving.discard(path)
@@ -548,25 +599,119 @@ class FilterEditor(QtWidgets.QWidget):
             row.refresh_issue()
         self._refresh_error()
 
+    def _stamp_now(self) -> tuple:
+        """What makes every row stale, whatever its own node says.
+
+        A row is built against the props of the editor and the schema behind its path, so a
+        change to any of them throws the whole cache away; anything else leaves a row that
+        holds the same node exactly as it was drawn.
+        """
+        return (
+            self._entity_type,
+            self._size,
+            self._disabled,
+            self._project_id,
+            tuple(self._hide_paths),
+            self._fields_loaded,
+            len(self._fields),
+            tuple(
+                sorted(
+                    (path, None if leaf is None else leaf.data_type)
+                    for path, leaf in self._leaves.items()
+                )
+            ),
+            self._field_chooser,
+            self._value_editor,
+            self._entity_editor,
+        )
+
+    def reuse(self, path: Sequence[int], node: FilterNode) -> QtWidgets.QWidget | None:
+        """The widget the last build drew for this path, if it holds the same node."""
+        found = self._built.get(tuple(path))
+        if found is None:
+            return None
+        was, widget = found
+        if was != node:
+            return None
+        try:
+            widget.objectName()
+        except RuntimeError:
+            # Qt deleted the widget under the wrapper; the row is built afresh.
+            return None
+        # A group kept whole keeps every row under it, and this build never walks them, so
+        # what the last one drew there is carried over for the next one to keep too.
+        at = tuple(path)
+        for other, held in self._built.items():
+            if len(other) > len(at) and other[: len(at)] == at:
+                self._building[other] = held
+        return widget
+
+    def remember(self, path: Sequence[int], node: FilterNode, widget: QtWidgets.QWidget) -> None:
+        """Record what this build drew at a path, for the next one to reuse."""
+        self._building[tuple(path)] = (node, widget)
+
     def _rebuild(self) -> None:
         self._redraw.stop()
-        for path in _dotted_paths(self._value):
-            self._resolve_leaf(path)
+        self._resolve_leaves(_dotted_paths(self._value))
         pending = getattr(self, "_pending_field", None)
         if pending is not None and pending[2] in self._leaves:
             self._pending_field = None
             self._apply_field(list(pending[0]), pending[1], pending[2], pending[3])
             return
         self._focus_at = self._focused_slot()
-        if self._root_node is not None:
-            self._column.removeWidget(self._root_node)
-            self._root_node.setParent(None)
-            self._root_node.deleteLater()
+        stamp = self._stamp_now()
+        if stamp != self._stamp:
+            self._built = {}
+            self._stamp = stamp
+        # The new tree is built first, so a row it keeps is reparented out of the old one
+        # before that one goes.
+        previous = self._root_node
+        self._building = {}
+        self._row_budget = EAGER_ROWS
         self._root_node = _GroupNode(self, [], self._value, self)
         self._column.addWidget(self._root_node)
+        self._built = self._building
+        self._building = {}
+        if previous is not None:
+            self._column.removeWidget(previous)
+            previous.setParent(None)
+            previous.deleteLater()
         self.setEnabled(not self._disabled)
         self._refresh_error()
         self._restore_focus()
+        self._queue_fills()
+
+    def take_row(self) -> bool:
+        """Whether the row a group is about to draw may build its cells now."""
+        if self._row_budget <= 0:
+            return False
+        self._row_budget -= 1
+        return True
+
+    def _queue_fills(self) -> None:
+        self._to_fill = [row for row in self.findChildren(_ConditionRow) if not row.filled]
+        if self._to_fill:
+            self._filler.start()
+
+    def _fill_next(self) -> None:
+        while self._to_fill:
+            row = self._to_fill.pop(0)
+            try:
+                done = row.filled
+            except RuntimeError:
+                # The row went with a redraw between two turns.
+                continue
+            if done:
+                continue
+            row.fill()
+            self._refresh_error()
+            break
+        if self._to_fill:
+            self._filler.start()
+
+    def pending_rows(self) -> int:
+        """How many rows are still waiting for their turn to build."""
+        return len(self._to_fill)
 
     def _focused_slot(self) -> tuple[tuple[int, ...], str] | None:
         widget = QtWidgets.QApplication.focusWidget()
@@ -655,6 +800,7 @@ class _GroupNode(ThemedWidget):
             items=(("and", "All"), ("or", "Any")),
             value=self._node.logical_operator,
             size=owner.size,
+            variant="outline",
             parent=holder,
         )
         logic.setObjectName("filter-logic")
@@ -765,13 +911,21 @@ class _GroupBody(ThemedWidget):
         grips: list[QtWidgets.QWidget | None] = []
         for i, child in enumerate(node.conditions):
             at = [*self._path, i]
-            if child.kind == "group":
-                made: QtWidgets.QWidget = _GroupNode(owner, at, child, self)
-                grips.append(made.grip())
+            kept = owner.reuse(at, child)
+            wanted = _GroupNode if child.kind == "group" else _ConditionRow
+            if isinstance(kept, wanted):
+                made: QtWidgets.QWidget = kept
+                # The schema behind the row may have landed since it was drawn.
+                refresh = getattr(made, "refresh_issue", None)
+                if callable(refresh):
+                    refresh()
+            elif child.kind == "group":
+                made = _GroupNode(owner, at, child, self)
             else:
-                made = _ConditionRow(owner, at, child, self)
-                grips.append(made.grip())
+                made = _ConditionRow(owner, at, child, self, deferred=not owner.take_row())
+            grips.append(made.grip())
             column.addWidget(made)
+            owner.remember(at, child, made)
             ids.append(str(i))
             widgets.append(made)
         if not node.conditions:
@@ -823,11 +977,13 @@ class _ConditionRow(ThemedWidget):
         path: Sequence[int],
         node: FilterCondition,
         parent: QtWidgets.QWidget | None = None,
+        deferred: bool = False,
     ) -> None:
         super().__init__(parent)
         self._owner = owner
         self._path = list(path)
         self._node = node
+        self._filled = False
         self.setObjectName("filter-row")
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred
@@ -850,21 +1006,11 @@ class _ConditionRow(ThemedWidget):
         stack = QtWidgets.QVBoxLayout(content)
         stack.setContentsMargins(0, 0, 0, 0)
         stack.setSpacing(FOOT_GAP)
+        self._content = content
+        self._stack = stack
 
-        controls = QtWidgets.QHBoxLayout()
-        controls.setContentsMargins(0, 0, 0, 0)
-        controls.setSpacing(ROW_GAP)
-        field = self._field_slot(content)
-        operator = self._operator_slot(content)
-        values = self._value_slot(content)
-        controls.addWidget(field, 1)
-        controls.addWidget(operator)
-        controls.addWidget(values, 2)
-        # The three cells keep their own height, so a value that grows onto several lines
-        # never stretches the field and the operator beside it.
-        for cell in (field, operator, values):
-            controls.setAlignment(cell, Qt.AlignmentFlag.AlignTop)
-        stack.addLayout(controls)
+        self._band: QtWidgets.QWidget = self._skeleton_band(content)
+        stack.addWidget(self._band)
 
         self._issue = FieldError(self._issue_message(), None, content)
         self._issue.setObjectName("filter-issue")
@@ -876,6 +1022,57 @@ class _ConditionRow(ThemedWidget):
         cross.setEnabled(not owner.disabled)
         cross.clicked.connect(lambda: owner.remove(self._path))
         line.addWidget(cross, 0, Qt.AlignmentFlag.AlignTop)
+
+        if not deferred:
+            self.fill()
+
+    def _skeleton_band(self, parent: QtWidgets.QWidget) -> QtWidgets.QWidget:
+        """What stands where the three cells will, at the row's own height."""
+        made = Skeleton(parent=parent)
+        made.setObjectName("filter-row-skeleton")
+        made.setFixedHeight(CONTROL_HEIGHT[self._owner.size])
+        return made
+
+    @property
+    def filled(self) -> bool:
+        """True once the three cells stand where the skeleton was."""
+        return self._filled
+
+    def fill(self) -> None:
+        """Build the three cells, which is the whole cost of a row.
+
+        A row holds a field picker, an operator menu and a value control, each with a popup
+        window of its own, so ten of them are a third of a second of GUI work. The editor
+        fills them a row to a turn of the loop and the rest stand on their skeleton until
+        then, which is what a row does while its own field is still being read.
+        """
+        if self._filled:
+            return
+        self._filled = True
+        content = self._content
+        band = QtWidgets.QWidget(content)
+        band.setObjectName("filter-row-controls")
+        band.setMinimumWidth(0)
+        controls = QtWidgets.QHBoxLayout(band)
+        controls.setContentsMargins(0, 0, 0, 0)
+        controls.setSpacing(ROW_GAP)
+        field = self._field_slot(band)
+        operator = self._operator_slot(band)
+        values = self._value_slot(band)
+        controls.addWidget(field, 1)
+        controls.addWidget(operator)
+        controls.addWidget(values, 2)
+        # The three cells keep their own height and centre on the band, which is `items-center`
+        # on the row upstream: a value that grows onto several lines never stretches the field
+        # and the operator beside it, and they read level with the middle of it.
+        for cell in (field, operator, values):
+            controls.setAlignment(cell, Qt.AlignmentFlag.AlignVCenter)
+
+        self._stack.replaceWidget(self._band, band)
+        self._band.setParent(None)
+        self._band.deleteLater()
+        self._band = band
+        self.refresh_issue()
 
     def grip(self) -> QtWidgets.QWidget:
         """The handle the row is dragged by."""

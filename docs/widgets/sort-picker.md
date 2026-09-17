@@ -19,6 +19,9 @@ from sg_widgets_qt.widgets.sort_picker import SortPicker
 
 ::demo{name="sort-picker" title="SortPicker: two keys over Shot, with the rows they order, and the three sizes beside a button"}
 
+The trigger names the keys it holds, comma-joined, and from two keys up carries their count as a
+chip inside its own border.
+
 ## Props
 
 ::props{name="sort-picker" kind="props"}
@@ -70,5 +73,4 @@ pointer behaviour, a four-pixel activation distance with midpoint hit-testing an
 follows dnd-kit 6.3.1.
 
 In Qt the grip, the drag and the arrow keys run on `sg_widgets_core.sortable`, which answers where a
-drop lands and what the live region is told. The count past one key is a chip beside the trigger
-rather than inside it, because the button primitive draws one label.
+drop lands and what the live region is told.

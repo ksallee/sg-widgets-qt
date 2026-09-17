@@ -125,3 +125,35 @@ def test_a_disabled_launcher_never_opens(qtbot):
     spin(qtbot, 200)
     assert launcher.open is False
     assert not launcher.launcher().isEnabled()
+
+
+def test_the_count_is_a_chip_inside_the_trigger(qtbot):
+    """Upstream draws the count inside the trigger's own border, and so does this."""
+    from sg_widgets_qt.primitives.badge import Badge
+
+    launcher = build(qtbot, value=applied())
+    trigger = launcher.launcher()
+    assert trigger.count == "2"
+    assert trigger.count_size == "sm"
+    # Nothing stands beside the trigger carrying it.
+    assert launcher.findChildren(Badge) == []
+    wide = trigger.sizeHint().width()
+    trigger.set_count("")
+    assert trigger.sizeHint().width() < wide
+
+    empty = build(qtbot, value=empty_filter())
+    assert empty.launcher().count == ""
+
+
+def test_the_dialog_takes_the_window_up_to_sixty_four_rem(qtbot):
+    """`w-[min(96vw,64rem)]`: a condition row wants room (filter-dialog-stress)."""
+    from sg_widgets_qt.widgets.filter_dialog import DIALOG_WIDTH, VIEWPORT_SHARE
+
+    launcher = build(qtbot, value=applied())
+    root = launcher.test_root
+    root.resize(1600, 900)
+    spin(qtbot, 60)
+    assert launcher.dialog_width() == DIALOG_WIDTH
+    root.resize(700, 600)
+    spin(qtbot, 60)
+    assert launcher.dialog_width() == int(launcher.window().width() * VIEWPORT_SHARE)

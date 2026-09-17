@@ -119,3 +119,17 @@ def test_open_changed_follows_the_popover(qtbot):
     picker.set_open(False)
     spin(qtbot, 200)
     assert seen == [True, False]
+
+
+def test_the_count_is_a_chip_inside_the_trigger(qtbot):
+    """Upstream draws the count inside the trigger's own border from two keys up."""
+    from sg_widgets_qt.primitives.badge import Badge
+
+    picker = build(qtbot, value=list(KEYS))
+    trigger = picker.trigger()
+    assert trigger.count == "2"
+    assert picker.findChildren(Badge) == []
+    picker.remove(1)
+    spin(qtbot, 120)
+    # One key names itself and carries no count, as upstream does.
+    assert picker.trigger().count == ""

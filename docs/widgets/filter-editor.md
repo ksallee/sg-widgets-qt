@@ -67,9 +67,12 @@ sent.
 A duration is typed as `1h 30m`, `1:30` or `90` and stored as the 90 minutes all three mean.
 
 A row stands on a skeleton while the type's fields, or the leaf of a dotted path, are still being
-read, so a control is never built on a guess and replaced a moment later. Under each row the editor
-draws what is still wrong with it: no field yet, an operator the field does not take, or a value
-left blank.
+read, so a control is never built on a guess and replaced a moment later, and again while it waits
+its turn to be built: a row is a field picker, an operator menu and a value control, each with a
+popup of its own, so the rows past the first build one to a turn of the event loop rather than all
+at once. A redraw keeps every row whose condition did not change exactly where it stands, so typing
+into one row never rebuilds its neighbours. Under each row the editor draws what is still wrong with
+it: no field yet, an operator the field does not take, or a value left blank.
 
 ## Slots
 

@@ -397,6 +397,72 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "Synchronous: the loader and the searcher are called, and sg_widgets_qt.workers runs them on a thread. A search holds a RequestGate ticket in place of the upstream cancellation token. select() takes an additive keyword rather than an options record."
     },
+    "demos/collection-control": {
+      "status": "complete",
+      "upstream": {
+        "apps/site/src/demos/collection-control/Demo.tsx": "5f02b19525966c8749e28839573422c37de78b571891e62936e5ca5bb35b79c8"
+      },
+      "ported": [
+        "src/sg_widgets_qt/showcase/demos/collection_control.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "demos/entity-grid": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/demos/entity-grid/Demo.tsx": "9b7db3b9837b23992bbb5d68d81477086ff111cb442c3db18cecbfe521626c55"
+      },
+      "ported": [
+        "src/sg_widgets_qt/showcase/demos/entity_grid.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The caller's own card section is out: the tile is a delegate, which the docs page says how to replace."
+    },
+    "demos/entity-table": {
+      "status": "complete",
+      "upstream": {
+        "apps/site/src/demos/entity-table/Demo.tsx": "de81bca821741e5b3341bb489076b07178a846dc917edee0e510018b1622c67d"
+      },
+      "ported": [
+        "src/sg_widgets_qt/showcase/demos/entity_table.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "demos/entity-table-infinite": {
+      "status": "complete",
+      "upstream": {
+        "apps/site/src/demos/entity-table-infinite/Demo.tsx": "5b05ce0ca032ce41c1a635fd0cb30d191c6efa273738996035b26e7a5c3dcfd2"
+      },
+      "ported": [
+        "src/sg_widgets_qt/showcase/demos/entity_table_infinite.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "demos/entity-tree": {
+      "status": "complete",
+      "upstream": {
+        "apps/site/src/demos/entity-tree/Demo.tsx": "df7ac1e2cea749535e650f3467b2302204a73295bc3bd9a9a5bbb47ef53a4625"
+      },
+      "ported": [
+        "src/sg_widgets_qt/showcase/demos/entity_tree.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
+    },
+    "demos/grouped-list": {
+      "status": "partial",
+      "upstream": {
+        "apps/site/src/demos/grouped-list/Demo.tsx": "21bbbccf073a481efaf1deaca2f488b4cbc1c603c81a6e5240428fa08be88b7e"
+      },
+      "ported": [
+        "src/sg_widgets_qt/showcase/demos/grouped_list.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The armed-failure section is out: the demo client here has no failNext."
+    },
     "demos/hello": {
       "status": "complete",
       "upstream": {
@@ -458,21 +524,15 @@
       "note": "generated; Qt notes pending"
     },
     "docs/collection-control": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
-        "apps/site/src/content/docs/widgets/collection-control.mdx": "9bb63403a24c29efc3b82b52f118be6782bded883ff1239ac7040e3a504437b9",
-        "apps/site/src/props/collection-control.ts": "9143ce928610ab0ee3ee58821dd8808665dff69373375225a01b13139e56bf15",
-        "apps/site/src/props/collection-footer.ts": "fa48e456d862deae8883949098b968f83c4baf7cb088daa63620ca586cf54d6b",
-        "apps/site/src/props/collection-source.ts": "c5fdc183308419b5ddb76fdf6d877e257f1c2edc8e680b38d90d6df6c54591d9"
+        "apps/site/src/content/docs/widgets/collection-control.mdx": "9bb63403a24c29efc3b82b52f118be6782bded883ff1239ac7040e3a504437b9"
       },
       "ported": [
-        "docs/widgets/collection-control.md",
-        "docs/widgets/collection-control.props.json",
-        "docs/widgets/collection-footer.props.json",
-        "docs/widgets/collection-source.props.json"
+        "docs/widgets/collection-control.md"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "generated; Qt notes pending"
+      "note": "Every ::qt-note answered."
     },
     "docs/color-editor": {
       "status": "partial",
@@ -599,17 +659,15 @@
       "note": "generated; Qt notes pending"
     },
     "docs/entity-grid": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
-        "apps/site/src/content/docs/widgets/entity-grid.mdx": "c340163abc726f971f3f54540e32e43f1cf4fba89dc84ec40d92899577482d07",
-        "apps/site/src/props/entity-grid.ts": "ae762efeb2efc94960a89e35ea95137504a8fa2362c19e37929fc9a9d76e5432"
+        "apps/site/src/content/docs/widgets/entity-grid.mdx": "c340163abc726f971f3f54540e32e43f1cf4fba89dc84ec40d92899577482d07"
       },
       "ported": [
-        "docs/widgets/entity-grid.md",
-        "docs/widgets/entity-grid.props.json"
+        "docs/widgets/entity-grid.md"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "generated; Qt notes pending"
+      "note": "Every ::qt-note answered."
     },
     "docs/entity-multi-picker": {
       "status": "partial",
@@ -638,30 +696,26 @@
       "note": "generated; Qt notes pending"
     },
     "docs/entity-table": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
-        "apps/site/src/content/docs/widgets/entity-table.mdx": "c8e64a0d11326ec7835a0097336d6587e702195ec75cef179866652521e8cd2e",
-        "apps/site/src/props/entity-table.ts": "4a11101870693d94bc64e0d746f34bb384af91ac9b58a2845b21298c8192b2d0"
+        "apps/site/src/content/docs/widgets/entity-table.mdx": "c8e64a0d11326ec7835a0097336d6587e702195ec75cef179866652521e8cd2e"
       },
       "ported": [
-        "docs/widgets/entity-table.md",
-        "docs/widgets/entity-table.props.json"
+        "docs/widgets/entity-table.md"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "generated; Qt notes pending"
+      "note": "Every ::qt-note answered."
     },
     "docs/entity-tree": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
-        "apps/site/src/content/docs/widgets/entity-tree.mdx": "6b582201ac1812ccae6138d63a1c18d87642948436dd554ff77f7f761bdd2997",
-        "apps/site/src/props/entity-tree.ts": "c5c76f689bf05f70b6adefe4479a9f5be84b0a17d9b4b3ea6611e7e5d2fcb383"
+        "apps/site/src/content/docs/widgets/entity-tree.mdx": "6b582201ac1812ccae6138d63a1c18d87642948436dd554ff77f7f761bdd2997"
       },
       "ported": [
-        "docs/widgets/entity-tree.md",
-        "docs/widgets/entity-tree.props.json"
+        "docs/widgets/entity-tree.md"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "generated; Qt notes pending"
+      "note": "Every ::qt-note answered."
     },
     "docs/entity-type-multi-picker": {
       "status": "partial",
@@ -781,17 +835,15 @@
       "note": ""
     },
     "docs/grouped-list": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
-        "apps/site/src/content/docs/widgets/grouped-list.mdx": "10aa979de56e8764b7863043ea60fe1e12a1854e29856c5b515e07aa817d6986",
-        "apps/site/src/props/grouped-list.ts": "adf9ae2e5acde0a9e9794c327c14432d4b82cc548b545fb0fb6abd5cffbb34b9"
+        "apps/site/src/content/docs/widgets/grouped-list.mdx": "10aa979de56e8764b7863043ea60fe1e12a1854e29856c5b515e07aa817d6986"
       },
       "ported": [
-        "docs/widgets/grouped-list.md",
-        "docs/widgets/grouped-list.props.json"
+        "docs/widgets/grouped-list.md"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "generated; Qt notes pending"
+      "note": "Every ::qt-note answered."
     },
     "docs/hierarchical-search": {
       "status": "complete",
@@ -1456,6 +1508,28 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
     },
+    "widgets/collection-control": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/collection-control.ts": "aff8c6aee5a96b792867594528453501f876c816dbd2e222d318a8df090a9b74",
+        "packages/react/src/registry/sg/components/collection-source.ts": "04d6a40bb81c440fe32451cd56dfee9f21c0144b79315f9b6d944b622718e37e",
+        "packages/react/src/registry/sg/components/collection-footer.tsx": "33871d77aec5563cb10372f692f88f9564da5ec996a6ad7e97b90f755e91e225",
+        "apps/site/src/props/collection-control.ts": "9143ce928610ab0ee3ee58821dd8808665dff69373375225a01b13139e56bf15",
+        "apps/site/src/props/collection-source.ts": "c5fdc183308419b5ddb76fdf6d877e257f1c2edc8e680b38d90d6df6c54591d9",
+        "apps/site/src/props/collection-footer.ts": "fa48e456d862deae8883949098b968f83c4baf7cb088daa63620ca586cf54d6b"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/collection_control.py",
+        "src/sg_widgets_qt/widgets/collection_source.py",
+        "src/sg_widgets_qt/widgets/collection_footer.py",
+        "docs/widgets/collection-control.props.json",
+        "docs/widgets/collection-source.props.json",
+        "docs/widgets/collection-footer.props.json",
+        "tests/qt/test_collection_control.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "React derives its lines in the component; here they are one QAbstractTableModel the three layouts share. The source is read through a serial runner on the shared pool and publishes on a queued signal."
+    },
     "widgets/color-editor": {
       "status": "complete",
       "upstream": {
@@ -1600,6 +1674,20 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "A map, not a widget: it has no demo and is drawn on the entity-chip page."
     },
+    "widgets/entity-grid": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/entity-grid.tsx": "95a2cfcb15a21d5cbba12999ee24166b9050c6842e1c258f4ea823ac9dffa2f7",
+        "apps/site/src/props/entity-grid.ts": "ae762efeb2efc94960a89e35ea95137504a8fa2362c19e37929fc9a9d76e5432"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/entity_grid.py",
+        "docs/widgets/entity-grid.props.json",
+        "tests/qt/test_entity_grid.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The tile is drawn by a delegate through EntityCard's own tile face. The card slot is that delegate, or an override of tile_of."
+    },
     "widgets/entity-multi-picker": {
       "status": "complete",
       "upstream": {
@@ -1635,6 +1723,34 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
+    },
+    "widgets/entity-table": {
+      "status": "partial",
+      "upstream": {
+        "packages/react/src/registry/sg/components/entity-table.tsx": "aed7fe4195e547d31d9c8db0aab498e27813668467d1dae1dffc6a6c462289f5",
+        "apps/site/src/props/entity-table.ts": "4a11101870693d94bc64e0d746f34bb384af91ac9b58a2845b21298c8192b2d0"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/entity_table.py",
+        "docs/widgets/entity-table.props.json",
+        "tests/qt/test_entity_table.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Pin left and header drag-to-reorder are out: a frozen column needs a second view over the same model, and the column picker orders the columns. The row, cell and groupHeader slots are the delegate."
+    },
+    "widgets/entity-tree": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/entity-tree.tsx": "6ce3d3197d1acdbed7ff0fffe4f769d0ae76fdecb66794ee38818bc7cb003613",
+        "apps/site/src/props/entity-tree.ts": "c5c76f689bf05f70b6adefe4479a9f5be84b0a17d9b4b3ea6611e7e5d2fcb383"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/entity_tree.py",
+        "docs/widgets/entity-tree.props.json",
+        "tests/qt/test_entity_tree.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "A QTreeView over the rows the engine says are visible, drawn by picker_row's delegate with the chevron in front. The row slot is that delegate."
     },
     "widgets/entity-type-multi-picker": {
       "status": "complete",
@@ -1814,6 +1930,20 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
+    },
+    "widgets/grouped-list": {
+      "status": "complete",
+      "upstream": {
+        "packages/react/src/registry/sg/components/grouped-list.tsx": "6698c0aaf8802ea56592538a06f66406bda6d32f93988b6a919848baae256935",
+        "apps/site/src/props/grouped-list.ts": "adf9ae2e5acde0a9e9794c327c14432d4b82cc548b545fb0fb6abd5cffbb34b9"
+      },
+      "ported": [
+        "src/sg_widgets_qt/widgets/grouped_list.py",
+        "docs/widgets/grouped-list.props.json",
+        "tests/qt/test_grouped_list.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Rows are picker_row's delegate. leading answers a glyph name or a colour rather than a widget, and details are drawn on the sub-label line."
     },
     "widgets/hierarchical-search": {
       "status": "complete",

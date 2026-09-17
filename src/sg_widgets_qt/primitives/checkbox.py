@@ -27,7 +27,10 @@ from .base import (
     text_width,
 )
 
-__all__ = ["Checkbox", "Switch", "Toggle", "ToggleGroup"]
+__all__ = ["TOGGLE_VARIANT_VALUES", "Checkbox", "Switch", "Toggle", "ToggleGroup"]
+
+#: The two looks of `toggleVariants`: transparent, or a bordered box of its own.
+TOGGLE_VARIANT_VALUES: tuple[str, ...] = ("default", "outline")
 
 #: `size-4` of `checkbox.tsx`, and the 24px hit box rule 3 gives it, which is also the ring's room.
 CHECKBOX_SIZE = 16
@@ -298,7 +301,12 @@ class Switch(ThemedWidget):
 
 
 class Toggle(ThemedWidget):
-    """A button that stays down: ghost until it is on, `accent` once it is."""
+    """A button that stays down: ghost until it is on, `accent` once it is.
+
+    `variant='outline'` is `toggleVariants`' second look: a `border-input` box of its own, which
+    is what a pair standing as one control wears — the filter editor's All and Any, the sort
+    picker's ascending and descending.
+    """
 
     toggled = QtCore.Signal(bool)
 
@@ -308,11 +316,13 @@ class Toggle(ThemedWidget):
         icon: str | None = None,
         pressed: bool = False,
         size: str = "md",
+        variant: str = "default",
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._text = text
         self._icon = icon
+        self._variant = variant if variant in TOGGLE_VARIANT_VALUES else "default"
         self._checked = bool(pressed)
         self._hover = self.animated(DURATION["hover"])
         self._fill = self.animated(DURATION["hover"], value=1.0 if pressed else 0.0)
@@ -339,6 +349,15 @@ class Toggle(ThemedWidget):
     def set_icon(self, name: str | None) -> None:
         self._icon = name
         self.updateGeometry()
+        self.update()
+
+    @property
+    def variant(self) -> str:
+        """`default` or `outline`, which draws the toggle its own border."""
+        return self._variant
+
+    def set_variant(self, value: str) -> None:
+        self._variant = value if value in TOGGLE_VARIANT_VALUES else "default"
         self.update()
 
     @property
@@ -394,7 +413,8 @@ class Toggle(ThemedWidget):
         surface = mix(with_alpha(theme.muted, 0.0), hover, self._hover.value)
         surface = mix(surface, theme.accent, self._fill.value)
         ink = mix(theme.color("foreground"), theme.color("accent_foreground"), self._fill.value)
-        fill_round_rect(painter, box, radius, surface)
+        border = theme.color("input") if self._variant == "outline" else None
+        fill_round_rect(painter, box, radius, surface, border)
 
         font = self._font()
         painter.setFont(font)
@@ -468,10 +488,12 @@ class ToggleGroup(ThemedWidget):
         value: object = None,
         multiple: bool = False,
         size: str = "md",
+        variant: str = "default",
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._multiple = bool(multiple)
+        self._variant = variant if variant in TOGGLE_VARIANT_VALUES else "default"
         self._toggles: list[Toggle] = []
         self._values: list[str] = []
         self.set_size_step(size if size in CONTROL_HEIGHT else "md")
@@ -500,7 +522,9 @@ class ToggleGroup(ThemedWidget):
         self._values = []
         for item in items:
             value, label, icon = self._split(item)
-            toggle = Toggle(label, icon=icon, size=self.size_step, parent=self)
+            toggle = Toggle(
+                label, icon=icon, size=self.size_step, variant=self._variant, parent=self
+            )
             toggle.toggled.connect(self._on_toggled)
             self._row.addWidget(toggle)
             self._toggles.append(toggle)
@@ -516,6 +540,11 @@ class ToggleGroup(ThemedWidget):
         label = str(parts[1]) if len(parts) > 1 else value
         icon = str(parts[2]) if len(parts) > 2 and parts[2] else None
         return value, label, icon
+
+    @property
+    def variant(self) -> str:
+        """The look every toggle in the row wears."""
+        return self._variant
 
     @property
     def multiple(self) -> bool:

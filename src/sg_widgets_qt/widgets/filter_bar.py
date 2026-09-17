@@ -954,6 +954,11 @@ class _PillText(ThemedWidget):
     def text(self) -> str:
         return self._text
 
+    @property
+    def muted(self) -> bool:
+        """True where the run is drawn in `muted_foreground`, as a quiet pill's is."""
+        return self._muted
+
     def _font(self) -> QtGui.QFont:
         weight = QtGui.QFont.Weight.Medium if self._weight == "medium" else QtGui.QFont.Weight.Normal
         return theme_of(self).font(self._step, weight)

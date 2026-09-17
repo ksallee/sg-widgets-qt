@@ -491,6 +491,7 @@ class _SortKeyRow(ThemedWidget):
             items=(("asc", "", "arrow-up"), ("desc", "", "arrow-down")),
             value=key.direction,
             size="sm",
+            variant="outline",
             parent=self,
         )
         self._direction.setObjectName("sort-direction")

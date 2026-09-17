@@ -21,15 +21,19 @@ from __future__ import annotations
 
 import time
 
-from sg_widgets_core.filter import condition, empty_filter
+from sg_widgets_core.filter import condition, group
 from sg_widgets_core.filter_ux import field_operators, operator_menu
 from sg_widgets_qt.widgets.filter_editor import FilterEditor
 
 #: The widths the stage is pinned to.
 WIDTHS: tuple[int, ...] = (800, 1000, 1200)
 
-#: Combinations allowed to take a second line at the narrowest width. None are.
-ALLOWED_TO_WRAP: tuple[str, ...] = ()
+#: Combinations allowed to stand one step over the baseline, at any width.
+#:
+#: A colour's swatch is the square of the control beside it, `size-9` at md upstream as here,
+#: so a colour row is a step taller than every other one on the web too. Upstream's own list
+#: leaves `color` out rather than allowing it; this one measures it and says so.
+ALLOWED_TO_WRAP: tuple[str, ...] = ("color|is", "color|is_not")
 
 #: The preset each type is left on for the screenshot, the widest one it offers.
 WIDEST: tuple[str, ...] = ("between", "in_last", "in", "name_contains", "is", "is_empty")
@@ -51,6 +55,7 @@ FIELDS: tuple[tuple[str, str], ...] = (
     ("percent", "entity.Shot.sg_complexity"),
     ("duration", "entity.Shot.sg_working_duration"),
     ("date", "entity.Shot.sg_turnover_date"),
+    ("timecode", "entity.Shot.sg_sequence.Sequence.sg_timecode"),
 )
 
 #: A field of a type the API refuses to filter on, which the list must not offer.
@@ -98,18 +103,28 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901, PLR0912, PLR0915
     if url_offered:
         failures.append({"type": "url", "preset": "-", "why": "the field list offers a url field"})
 
-    # One row per type, built on an empty tree.
-    editor.set_value(empty_filter())
-    wait(200)
-    built: list[tuple[str, str, int]] = []
+    # The tree the matrix stands on is two rows: the `Version Name is` baseline and the row
+    # under test. A rebuild costs one row rather than fourteen, so the run is a minute and not
+    # an hour, and the result set under the editor is left out of it.
+    editor.blockSignals(True)
+    editor.set_value(group("and", [condition("code", "is", ""), condition("", "is", "")]))
+    wait(300)
+    baseline: dict[int, int] = {}
+    for width in WIDTHS:
+        set_width(editor, width, wait)
+        baseline[width] = rows_of(editor)[0].height()
+
+    measured: list[dict] = []
+    widest_of: dict[str, str] = {}
     for data_type, path in FIELDS:
-        at = len(editor.value.conditions)
-        editor.append([], condition("", "is", ""))
+        editor.set_value(
+            group("and", [condition("code", "is", ""), condition("", "is", "")])
+        )
         wait(80)
-        node = editor.node_at([at])
-        editor.pick_field([at], node, path)
+        node = editor.node_at([1])
+        editor.pick_field([1], node, path)
         landed = wait_for(
-            lambda a=at, p=path, n=node: (editor.node_at([a]) or n).path == p, wait, 8000
+            lambda p=path, n=node: (editor.node_at([1]) or n).path == p, wait, 8000
         )
         if not landed:
             failures.append({"type": data_type, "preset": "-", "why": f"{path} never landed"})
@@ -122,21 +137,6 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901, PLR0912, PLR0915
                     "why": f"{path} reads as {editor.data_type_of(path)!r}",
                 }
             )
-        built.append((data_type, path, at))
-
-    # The one-line baseline: `Version Name is`, a plain text editor, at each width.
-    text_at = next((at for kind, _p, at in built if kind == "text"), None)
-    if text_at is None:
-        return {"verdict": "FAIL no text row to measure the baseline on", "failures": failures}
-    editor.pick_preset([text_at], editor.node_at([text_at]), "is")
-    wait(200)
-    baseline: dict[int, int] = {}
-    for width in WIDTHS:
-        set_width(editor, width, wait)
-        baseline[width] = rows_of(editor)[text_at].height()
-
-    measured: list[dict] = []
-    for data_type, path, at in built:
         field = editor.field_of(path)
         presets = [
             preset.id
@@ -146,14 +146,15 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901, PLR0912, PLR0915
         if not presets:
             failures.append({"type": data_type, "preset": "-", "why": "the menu offers nothing"})
             continue
+        widest_of[path] = next((one for one in WIDEST if one in presets), presets[-1])
         for preset_id in presets:
-            editor.pick_preset([at], editor.node_at([at]), preset_id)
-            wait(80)
+            editor.pick_preset([1], editor.node_at([1]), preset_id)
+            wait(60)
             heights: dict[int, int] = {}
             for width in WIDTHS:
                 set_width(editor, width, wait)
                 rows = rows_of(editor)
-                heights[width] = rows[at].height() if at < len(rows) else -1
+                heights[width] = rows[1].height() if len(rows) > 1 else -1
             measured.append({"type": data_type, "preset": preset_id, "heights": heights})
             marks = [
                 f"{w}:{'wrapped' if heights[w] > baseline[w] + 1 else 'one'}" for w in WIDTHS
@@ -162,7 +163,7 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901, PLR0912, PLR0915
             for width in WIDTHS:
                 if heights[width] <= baseline[width] + 1:
                     continue
-                if width == WIDTHS[0] and f"{data_type}|{preset_id}" in ALLOWED_TO_WRAP:
+                if f"{data_type}|{preset_id}" in ALLOWED_TO_WRAP:
                     continue
                 failures.append(
                     {
@@ -173,13 +174,27 @@ def drive(page, wait, find, prefs) -> dict:  # noqa: C901, PLR0912, PLR0915
                         "baseline": baseline[width],
                     }
                 )
-        widest = next((one for one in WIDEST if one in presets), presets[-1])
-        editor.pick_preset([at], editor.node_at([at]), widest)
-        wait(60)
 
-    # The screenshot takes the widest row of every type at 1000px.
-    set_width(editor, 1000, wait)
+    # The screenshot takes the widest row of every type, on one tree, at 1000px.
+    editor.set_value(
+        group(
+            "and",
+            [
+                condition(path, "is", "")
+                for _kind, path in FIELDS
+                if path in widest_of
+            ],
+        )
+    )
     wait(400)
+    for i, (_kind, path) in enumerate(
+        [one for one in FIELDS if one[1] in widest_of]
+    ):
+        editor.pick_preset([i], editor.node_at([i]), widest_of[path])
+        wait(40)
+    editor.blockSignals(False)
+    set_width(editor, 1000, wait)
+    wait(600)
 
     wrapped = len([one for one in failures if "width" in one])
     per = ", ".join(

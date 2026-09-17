@@ -14,8 +14,11 @@ from sg_widgets_qt.widgets.filter_dialog import FilterDialog
 ::demo{name="filter-dialog" title="FilterDialog: empty, two filters applied, a Note read-state row, and sizes"}
 
 With no filters it is one Add filters button. With filters applied it becomes Edit filters, carries
-the count of conditions that would be sent, and gains a control that clears them without opening
-anything.
+the count of conditions that would be sent as a chip inside its own border, and gains a control that
+clears them without opening anything.
+
+A condition row wants room, so the dialog takes 1024 where the window has it and the window's own
+96% where it does not.
 
 ## Props
 
@@ -29,8 +32,7 @@ Every other attribute is spread onto the root: `id`, `aria-*`, `data-*`, key han
 ::props{name="filter-dialog" kind="events"}
 
 `filters_changed` carries the same tree as `changed`, for a page wiring several query widgets to one
-handler. In Qt the count is a chip beside the trigger rather than inside it, because the button
-primitive draws one label.
+handler.
 
 ## Slots
 
