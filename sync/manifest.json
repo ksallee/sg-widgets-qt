@@ -2,7 +2,7 @@
   "upstream": {
     "path": "~/dev/sg-widgets",
     "branch": "dev",
-    "commit": "8cf8f61c5aba25c3f33b0d557a705e3df334d330"
+    "commit": "356391d7354acffb816a24d6a56cb668d5658dd4"
   },
   "items": {
     "core/client": {
@@ -210,8 +210,8 @@
         "src/sg_widgets_core/pickers.py",
         "tests/core/test_pickers.py"
       ],
-      "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6",
-      "note": "Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. FieldOptionsInput carries root_type, hops and the FieldPickerRestrictions fields in one dataclass, because a dataclass cannot add a required field to one with defaults. Options are ordered case-insensitively by display name, the way localeCompare collates them upstream. move_field_path takes from_index and to_index. resolve_field_path_options is synchronous and takes the SchemaService itself where upstream takes Pick<SchemaService, 'resolvePath'>; FieldPathOption.data_type and .sub_label are the snake_case of dataType and subLabel."
+      "commit": "356391d7354acffb816a24d6a56cb668d5658dd4",
+      "note": "FieldOptionsInput carries root_type, hops and the FieldPickerRestrictions fields in one dataclass, because a dataclass cannot add a required field to one with defaults. Options are ordered case-insensitively by display name, the way localeCompare collates them upstream. move_field_path takes from_index and to_index. resolve_field_path_options is synchronous and takes the SchemaService itself where upstream takes Pick<SchemaService, 'resolvePath'>; FieldPathOption.data_type and .sub_label are the snake_case of dataType and subLabel."
     },
     "core/presentation": {
       "status": "complete",
@@ -474,8 +474,8 @@
       "ported": [
         "src/sg_widgets_qt/showcase/demos/entity_table.py"
       ],
-      "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6",
-      "note": "Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. The toolbar's sort control takes the shown columns through options, so it sorts on the linked column too."
+      "commit": "356391d7354acffb816a24d6a56cb668d5658dd4",
+      "note": "The toolbar's sort control takes the shown columns through options, so it sorts on the linked column too."
     },
     "demos/entity-table-infinite": {
       "status": "complete",
@@ -507,8 +507,8 @@
       "ported": [
         "src/sg_widgets_qt/showcase/demos/filter_editor.py"
       ],
-      "commit": "8cf8f61c5aba25c3f33b0d557a705e3df334d330",
-      "note": "Recorded from the feature branch feat/filter-editor-demo-catalogue (8cf8f61), not from dev. The catalogue tree is seeded row for row: six groups, forty rows, the same field paths, operators and value shapes. A link on many values draws EntityMultiPicker, which is the Qt widget behind the web's multiple entity picker; a range and a list of values are the editor's own filter-range and filter-list. The live branch is the status row alone, as upstream."
+      "commit": "356391d7354acffb816a24d6a56cb668d5658dd4",
+      "note": "The catalogue tree is seeded row for row: six groups, forty rows, the same field paths, operators and value shapes. A link on many values draws EntityMultiPicker, which is the Qt widget behind the web's multiple entity picker; a range and a list of values are the editor's own filter-range and filter-list. The live branch is the status row alone, as upstream."
     },
     "demos/grouped-list": {
       "status": "partial",
@@ -835,8 +835,8 @@
         "docs/widgets/field-picker.md",
         "docs/widgets/field-picker.props.json"
       ],
-      "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6",
-      "note": "Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. Qt notes written by the widget pass."
+      "commit": "356391d7354acffb816a24d6a56cb668d5658dd4",
+      "note": "Qt notes written by the widget pass."
     },
     "docs/field-value": {
       "status": "complete",
@@ -889,8 +889,8 @@
         "docs/widgets/entity-fields.props.json",
         "docs/widgets/filter-editor.props.json"
       ],
-      "commit": "8cf8f61c5aba25c3f33b0d557a705e3df334d330",
-      "note": "Recorded from the feature branch feat/filter-editor-demo-catalogue (8cf8f61), not from dev. Qt notes written by the widget pass. The demo caption and the catalogue paragraph come from that branch."
+      "commit": "356391d7354acffb816a24d6a56cb668d5658dd4",
+      "note": "Qt notes written by the widget pass. The demo caption and the catalogue paragraph come from that branch."
     },
     "docs/global-search": {
       "status": "complete",
@@ -1087,8 +1087,8 @@
         "docs/widgets/sort-picker.md",
         "docs/widgets/sort-picker.props.json"
       ],
-      "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6",
-      "note": "Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. Qt notes written by the widget pass."
+      "commit": "356391d7354acffb816a24d6a56cb668d5658dd4",
+      "note": "Qt notes written by the widget pass."
     },
     "docs/start-install": {
       "status": "complete",
@@ -1486,13 +1486,13 @@
     "primitives/select": {
       "status": "complete",
       "upstream": {
-        "packages/react/src/components/ui/select.tsx": "cbc52a4859b7c29d9fea157d4224844efee99eadb1a4cd922190cc80d5decd6e"
+        "packages/react/src/components/ui/select.tsx": "c75a98dd0dbb4e57dff2d9c8388009cd9a899eb36a0929ff3ff40914fc4f9cfb"
       },
       "ported": [
         "src/sg_widgets_qt/primitives/select.py",
         "tests/qt/test_primitives_floating.py"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "commit": "356391d7354acffb816a24d6a56cb668d5658dd4",
       "note": "The trigger carries chevrons-up-down rather than upstream's chevron-down, and the list is the menu list of primitives/dropdown_menu.py."
     },
     "primitives/skeleton": {
@@ -1521,7 +1521,7 @@
     "primitives/theme": {
       "status": "complete",
       "upstream": {
-        "apps/site/src/styles/themes.css": "cefb501d8ffc9f6671ac3b9015a311fa8d5fdb8050888161b0d1a4777aecff67",
+        "apps/site/src/styles/themes.css": "7903ff27ce1f7893394d2fed42c54351f1cb1fb1fd8602b8107176f8223ae925",
         "apps/site/src/styles/global.css": "14bf6629d90421db449ca8c73a499708d60be1dfc967fd62b1ca8227586748fc",
         "apps/site/src/components/demo-prefs.ts": "894f5130f7bc337985fe218c39d086f7e2091fae3d94374a1892f88a90758ce8"
       },
@@ -1531,7 +1531,7 @@
         "tools/export_palettes.py",
         "tests/qt/test_theme.py"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "commit": "356391d7354acffb816a24d6a56cb668d5658dd4",
       "note": ""
     },
     "primitives/tooltip": {
@@ -1910,8 +1910,8 @@
         "shots/field-picker-options-light.png",
         "shots/field-picker-options-dark.png"
       ],
-      "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6",
-      "note": "Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. Built on picker_control with text_value and a breadcrumb over the search row, rather than upstream's Popover over a Command list. Left, Right and Enter on a link belong to the levels, so a descend never closes the popup. The options prop takes the name the Qt picker used for its derived schema rows, which are now picker.derived, upstream's own name for that list. A fixed row is a FlatFieldRow, a FieldOption carrying its own sub_label, so both lists draw through one delegate."
+      "commit": "356391d7354acffb816a24d6a56cb668d5658dd4",
+      "note": "Built on picker_control with text_value and a breadcrumb over the search row, rather than upstream's Popover over a Command list. Left, Right and Enter on a link belong to the levels, so a descend never closes the popup. The options prop takes the name the Qt picker used for its derived schema rows, which are now picker.derived, upstream's own name for that list. A fixed row is a FlatFieldRow, a FieldOption carrying its own sub_label, so both lists draw through one delegate."
     },
     "widgets/field-value": {
       "status": "complete",
@@ -1976,11 +1976,11 @@
     "widgets/filter-editor": {
       "status": "complete",
       "upstream": {
-        "packages/react/src/registry/sg/components/filter-editor.tsx": "58fc5d7f3973b9df987d4ea81ed0dee52c66a0acf2049722d6f546651b256612",
-        "packages/svelte/src/lib/registry/components/filter-editor.svelte": "0da5a19680511da0aa54e78222f1d43a800de32c1d0040f574938054a5a515a0",
+        "packages/react/src/registry/sg/components/filter-editor.tsx": "1d5b366ec485c2689b254f9027a7dd2a5d89df5ef6e99ecbe3932b54fe22636c",
+        "packages/svelte/src/lib/registry/components/filter-editor.svelte": "670ee7f5667551f29115713bfc6bfdebb65c6267f8b527639c668d4dcf4820cd",
         "apps/site/src/props/filter-editor.ts": "5283e4840678080fb7717c7ed5b4382e1102fbeef042ceb483d54bbbe1915f31",
-        "apps/site/src/content/docs/widgets/filter-editor.mdx": "7fb3256e4b646cb3cf8e801d2a096844a6aa1530eb2f4eebaaea2697e4b2d5c1",
-        "apps/site/src/demos/filter-editor/Demo.tsx": "738e4a959df6e077d9359df287dbe8b8af7498bd9340315f06a7621f7a886543",
+        "apps/site/src/content/docs/widgets/filter-editor.mdx": "8b628cdf9eed10660b061dc73a1e7923ef6ca9f21828c3ee1486068d51983019",
+        "apps/site/src/demos/filter-editor/Demo.tsx": "c2f6092138401a29d883c57c2820b1027a0b6f094596d0413de32706be8e6b0b",
         "packages/react/src/registry/sg/components/sortable.tsx": "7ab06e259fb8ed1d37d3cb86307d654e72daa16c9f08ae3850475a4cb6c746cb"
       },
       "ported": [
@@ -1993,7 +1993,7 @@
         "shots/filter-editor-light.png",
         "shots/filter-editor-dark.png"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "commit": "356391d7354acffb816a24d6a56cb668d5658dd4",
       "note": "Drag and Alt with an arrow reorder a row through core's sortable model, which the upstream editor has no equal of; a line under each row names what is still wrong with it. A row past the first builds its controls on its own turn of the loop and stands on a skeleton until then. filters_changed and error_changed sit beside the documented changed."
     },
     "widgets/global-search": {
@@ -2271,8 +2271,8 @@
         "shots/sort-picker-light.png",
         "shots/sort-picker-dark.png"
       ],
-      "commit": "a3e515188ab19a9d126df68a94be4625d8484bd6",
-      "note": "Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. The rows in that order are entity-table, as upstream draws them. options hands the field picker a flat list and drops the chosen keys from it itself, as upstream's flat does; paths keeps its meaning and still nests."
+      "commit": "356391d7354acffb816a24d6a56cb668d5658dd4",
+      "note": "The rows in that order are entity-table, as upstream draws them. options hands the field picker a flat list and drops the chosen keys from it itself, as upstream's flat does; paths keeps its meaning and still nests."
     },
     "widgets/state-line": {
       "status": "complete",
