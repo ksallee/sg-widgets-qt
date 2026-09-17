@@ -73,6 +73,6 @@ step in `muted_foreground`, today wears `muted`, and the chosen day is filled in
 select in place of the label, for a caller who jumps further than a month at a time. The two step
 buttons stay either side of them.
 
-One thing differs from upstream by choice. The grid always draws six weeks, so the popover keeps
-one height whatever month is on show; upstream draws the month's own week count and the popover
-grows and shrinks by a row as you step through the year.
+The grid draws the month's own number of weeks, four to six, as react-day-picker does, so the
+popover grows and shrinks by a row as you step through the year. `fixed_weeks=True` draws six
+whatever the month, for a caller who would rather the surface never changed height.

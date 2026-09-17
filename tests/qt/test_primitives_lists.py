@@ -11,6 +11,7 @@ from qtpy.QtWidgets import QStyle, QStyleOptionViewItem
 from sg_widgets_qt.primitives.calendar import (
     CELL,
     HEADING_HEIGHT,
+    MAX_WEEKS,
     WEEK_GAP,
     WEEK_PITCH,
     Calendar,
@@ -467,6 +468,35 @@ def test_the_grid_stands_on_the_upstream_cell_ladder(themed):
     assert grid.cell_rect(0, 1).top() - first.top() == WEEK_PITCH
     assert grid.sizeHint().width() == 7 * CELL
     assert grid.cell_rect(6, 0).right() + 1 == grid.sizeHint().width()
+
+
+def test_the_grid_draws_the_month_s_own_number_of_weeks(themed):
+    """react-day-picker draws four to six rows, and `calendar.tsx` leaves it to."""
+    # February 2027 begins on a Monday and is not a leap year, so it is exactly four rows.
+    calendar = themed(Calendar(value="2027-02-10", locale="fr-FR"))
+    grid = calendar.grid()
+    assert grid.weeks == 4
+    four = grid.sizeHint().height()
+    assert four == HEADING_HEIGHT + 4 * WEEK_PITCH
+
+    # August 2026 begins on a Saturday and runs 31 days, which spills onto a sixth row.
+    calendar.set_month(2026, 8)
+    assert grid.weeks == 6
+    assert grid.sizeHint().height() == HEADING_HEIGHT + 6 * WEEK_PITCH
+    assert grid.sizeHint().height() > four
+
+
+def test_fixed_weeks_keeps_the_six_row_grid(themed):
+    """A caller who wants one height whatever the month says so."""
+    calendar = themed(Calendar(value="2027-02-10", locale="fr-FR", fixed_weeks=True))
+    grid = calendar.grid()
+    assert grid.weeks == MAX_WEEKS
+    calendar.set_month(2026, 8)
+    assert grid.weeks == MAX_WEEKS
+
+    grid.set_fixed_weeks(False)
+    calendar.set_month(2027, 2)
+    assert grid.weeks == 4
 
 
 def test_the_week_starts_on_monday_outside_en_us(themed):

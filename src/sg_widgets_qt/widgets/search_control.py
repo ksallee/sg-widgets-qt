@@ -285,7 +285,10 @@ class SearchControl(ThemedWidget):
         )
 
         body = QVBoxLayout()
-        body.setContentsMargins(BOX_PAD, 0, BOX_PAD, BOX_PAD)
+        # The bare shell is the list alone: `search-control.tsx` hands back the blocks with no
+        # box around them, so the section it sits in owns the room and this layout takes none.
+        inset = 0 if self._shell == "bare" else BOX_PAD
+        body.setContentsMargins(inset, 0, inset, inset)
         body.setSpacing(0)
         for block in (self._error, self._skeleton, self._empty, self._list):
             body.addWidget(block)

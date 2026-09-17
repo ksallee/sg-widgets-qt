@@ -31,6 +31,7 @@ __all__ = [
     "CAPTION_GAP",
     "CAPTION_LAYOUT_VALUES",
     "CELL",
+    "MAX_WEEKS",
     "MONTH_NAMES",
     "WEEK_PITCH",
     "WEEKDAY_LETTERS",
@@ -52,8 +53,10 @@ HEADING_TEXT = 13
 WEEK_GAP = 8
 WEEK_PITCH = CELL + WEEK_GAP
 
-#: Six weeks, so the grid keeps one height whatever month it shows.
-WEEKS = 6
+#: A month takes as many weeks as it needs, four to six, which is what react-day-picker draws
+#: and what `calendar.tsx` leaves it to draw: the popover grows and shrinks by a row through the
+#: year. `fixed_weeks` asks for `MAX_WEEKS` instead, for a caller who wants one height.
+MAX_WEEKS = 6
 COLUMNS = 7
 
 #: The step buttons beside the caption, which are the square of a cell, and the caption's own
@@ -130,10 +133,12 @@ class MonthGrid(ThemedWidget):
         self,
         parent: QWidget | None = None,
         locale: str = "en-US",
+        fixed_weeks: bool = False,
     ) -> None:
         super().__init__(parent)
         today = datetime.date.today()
         self._locale = locale
+        self._fixed_weeks = bool(fixed_weeks)
         self._year = today.year
         self._month = today.month
         self._cursor = today
@@ -152,9 +157,33 @@ class MonthGrid(ThemedWidget):
     # --- what it shows -------------------------------------------------------------------
 
     def set_month(self, year: int, month: int) -> None:
-        """Show that month."""
+        """Show that month. The grid regrows where the new month takes another row."""
         self._year, self._month = int(year), int(month)
+        self.updateGeometry()
         self.update()
+
+    @property
+    def fixed_weeks(self) -> bool:
+        """True while the grid always draws six weeks rather than the month's own count."""
+        return self._fixed_weeks
+
+    def set_fixed_weeks(self, value: bool) -> None:
+        self._fixed_weeks = bool(value)
+        self.updateGeometry()
+        self.update()
+
+    @property
+    def weeks(self) -> int:
+        """How many rows this month takes, from its first cell to its last day.
+
+        A month spans four rows only when February starts on the first day of the week and is
+        not a leap year, and six when it starts late enough to push its last days over.
+        """
+        if self._fixed_weeks:
+            return MAX_WEEKS
+        first = self.first_cell()
+        last = datetime.date(self._year, self._month, _days_in(self._year, self._month))
+        return ((last - first).days // COLUMNS) + 1
 
     @property
     def year(self) -> int:
@@ -223,7 +252,7 @@ class MonthGrid(ThemedWidget):
             return None
         column = point.x() // CELL
         week = (point.y() - top) // WEEK_PITCH
-        if not (0 <= column < COLUMNS and 0 <= week < WEEKS):
+        if not (0 <= column < COLUMNS and 0 <= week < self.weeks):
             return None
         return self.first_cell() + datetime.timedelta(days=int(week * COLUMNS + column))
 
@@ -234,7 +263,7 @@ class MonthGrid(ThemedWidget):
         return not (self._max is not None and day > self._max)
 
     def sizeHint(self) -> QSize:  # noqa: N802
-        return QSize(COLUMNS * CELL, HEADING_HEIGHT + WEEKS * WEEK_PITCH)
+        return QSize(COLUMNS * CELL, HEADING_HEIGHT + self.weeks * WEEK_PITCH)
 
     # --- painting ------------------------------------------------------------------------
 
@@ -253,7 +282,7 @@ class MonthGrid(ThemedWidget):
         radius = float(theme.radius_px("md"))
         today = datetime.date.today()
         first = self.first_cell()
-        for slot in range(WEEKS * COLUMNS):
+        for slot in range(self.weeks * COLUMNS):
             day = first + datetime.timedelta(days=slot)
             box = self.cell_rect(slot % COLUMNS, slot // COLUMNS)
             self._paint_day(painter, box, day, today, radius)
@@ -429,6 +458,7 @@ class Calendar(ThemedWidget):
         surface: str = "background",
         caption_layout: str = "label",
         padding: int = CALENDAR_PAD,
+        fixed_weeks: bool = False,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -462,7 +492,7 @@ class Calendar(ThemedWidget):
         picks.addWidget(self._year_select)
         picks.addStretch(1)
         self._apply_caption_layout()
-        self._grid = MonthGrid(self, locale=locale)
+        self._grid = MonthGrid(self, locale=locale, fixed_weeks=fixed_weeks)
         self._grid.set_mode(self._mode)
         self._grid.set_bounds(self._min, self._max)
 

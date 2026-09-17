@@ -257,6 +257,7 @@ class Popover(ThemedWidget):
         self._anchor_rect: Callable[[], QRect] | None = None
         self._key_handler: Callable[[QtGui.QKeyEvent], bool] | None = None
         self._watched: list[QtWidgets.QWidget] = []
+        self._repositioning = False
         self._pass_through: list[QtWidgets.QWidget] = []
 
         self.setWindowFlags(popup_flags(self._takes_focus))
@@ -376,7 +377,20 @@ class Popover(ThemedWidget):
         return QSize(width, max(1, height))
 
     def reposition(self) -> None:
-        """Size the surface, place it against the anchor and move the window under it."""
+        """Size the surface, place it against the anchor and move the window under it.
+
+        Resizing the window lays the content out again, which asks for another placement, so
+        the walk is guarded: one pass settles the size the content asked for.
+        """
+        if self._repositioning:
+            return
+        self._repositioning = True
+        try:
+            self._reposition()
+        finally:
+            self._repositioning = False
+
+    def _reposition(self) -> None:
         size = self.surface_size()
         self.resize(size.width() + 2 * SHADOW_MARGIN, size.height() + 2 * SHADOW_MARGIN)
         rect, placed = place(
@@ -569,6 +583,17 @@ class Popover(ThemedWidget):
         if active is None:
             return False
         return active is self or any(active is widget for widget in self._pass_through)
+
+    def event(self, event: QtCore.QEvent) -> bool:
+        """A layout request means the content asked for another size, so place the surface again.
+
+        The window of a frameless top level grows to its content on its own but never shrinks to
+        it, so a calendar turning to a month of fewer weeks would leave a band of empty surface
+        under the grid.
+        """
+        if event.type() == QEvent.Type.LayoutRequest and self._open:
+            self.reposition()
+        return super().event(event)
 
     def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:
         kind = event.type()
