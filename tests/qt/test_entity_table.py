@@ -359,3 +359,32 @@ def test_a_group_heading_reads_its_count_beside_its_value(context, qtbot):
         for y in range(2, rect.height() - 2, 3)
     }
     assert len(ink) == 1
+
+
+def test_a_cell_holding_an_editor_paints_no_value_of_its_own(context, qtbot):
+    """The editor mounted on the cell draws the value; the delegate leaves the cell bare underneath."""
+    table = _table(context, qtbot, editable=True, editor_placement="popover")
+    row = table.control.rows[0]
+    index = table._index_of(table.model.key_of(row), "code")
+    assert index.isValid()
+    delegate = table.view.itemDelegate()
+    option = QtWidgets.QStyleOptionViewItem()
+    option.rect = QtCore.QRect(0, 0, 220, 40)
+
+    def painted() -> QImage:
+        image = QImage(220, 40, QImage.Format.Format_ARGB32)
+        image.fill(0)
+        painter = QPainter(image)
+        delegate.paint(painter, option, index)
+        painter.end()
+        return image
+
+    plain = painted()
+    table.open_editor(index)
+    assert table.is_editing(table.model.key_of(row), "code")
+    bare = painted()
+    assert plain != bare
+    ink = {bare.pixelColor(x, 20).name() for x in range(12, 200)}
+    assert len(ink) <= 2, "only the ground and the rule are left under the editor"
+    table.close_editor()
+    assert painted() == plain

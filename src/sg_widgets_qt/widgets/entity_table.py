@@ -327,6 +327,10 @@ class _Cells(CellDelegate):
             painter.restore()
             return
 
+        if self._table.is_editing(model.key_of(row), column.path):
+            # The editor mounted on this cell draws the value; painting it here too doubles it.
+            painter.restore()
+            return
         pad = _pad_y(self._table.density)
         box = rect.adjusted(CELL_PAD_X, pad, -CELL_PAD_X, -pad - 1)
         message = self._table.cell_error(model.key_of(row), column.path)
@@ -1275,6 +1279,7 @@ class EntityTable(QtWidgets.QWidget):
         editor.mode_changed.connect(lambda mode: self._on_editor_mode(mode, key, column))
         editor.installEventFilter(self)
         self.view.setIndexWidget(index, editor)
+        self.view.viewport().update()
         editor.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def _on_draft(self, value: object) -> None:
@@ -1300,6 +1305,10 @@ class EntityTable(QtWidgets.QWidget):
                 return True
         return super().eventFilter(watched, event)
 
+    def is_editing(self, key: str, path: str) -> bool:
+        """True while an editor is mounted on that cell."""
+        return self._editing == (key, path)
+
     def close_editor(self) -> None:
         """Take the editor off the cell without writing."""
         held = self._editing
@@ -1312,6 +1321,7 @@ class EntityTable(QtWidgets.QWidget):
             self.view.setIndexWidget(index, None)
             if editor is not None:
                 editor.deleteLater()
+        self.view.viewport().update()
         self.view.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def commit(self, key: str, column: CollectionColumn, value: Any) -> None:

@@ -71,9 +71,8 @@ SHIFT_STEPS = 10
 PAGE_STEPS = 100
 
 #: `STEPPER` of `number-editor.tsx`: `size-8` / `size-9` / `size-10`, one step over the control
-#: the pair steps, drawn as the square icon button of the same height. The ladder of `button.py`
-#: stops at 36, so `lg` shares `md`'s box until a 40px icon step is added beside it.
-STEPPER_SIZE: dict[str, str] = {"sm": "icon", "md": "icon-lg", "lg": "icon-lg"}
+#: the pair steps, drawn as the square icon button of the same height.
+STEPPER_SIZE: dict[str, str] = {"sm": "icon", "md": "icon-lg", "lg": "icon-xl"}
 
 #: The comfortable width of each numeric type in the row form: eight characters of number,
 #: eleven of timecode.

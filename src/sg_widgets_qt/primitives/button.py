@@ -38,7 +38,9 @@ BUTTON_VARIANT_VALUES: tuple[str, ...] = (
     "link",
 )
 
-ButtonSize = Literal["default", "xs", "sm", "lg", "icon", "icon-xs", "icon-sm", "icon-lg"]
+ButtonSize = Literal[
+    "default", "xs", "sm", "lg", "icon", "icon-xs", "icon-sm", "icon-lg", "icon-xl"
+]
 BUTTON_SIZE_VALUES: tuple[str, ...] = (
     "default",
     "xs",
@@ -48,6 +50,7 @@ BUTTON_SIZE_VALUES: tuple[str, ...] = (
     "icon-xs",
     "icon-sm",
     "icon-lg",
+    "icon-xl",
 )
 
 
@@ -88,6 +91,10 @@ BUTTON_SIZES: dict[str, ButtonSpec] = {
     "icon-xs": ButtonSpec(24, 0, 0, 0, 12, 12, "md", square=True),
     "icon-sm": ButtonSpec(28, 0, 0, 0, 14, 16, "md", square=True),
     "icon-lg": ButtonSpec(36, 0, 0, 0, 14, 16, "lg", square=True),
+    # `size-10` of `number-editor.tsx`'s stepper at `lg`, with that step's own 20px glyph.
+    # `button.tsx` has no such step of its own: a stepper is the square of the control it
+    # steps, and the tallest control is 36 while its stepper is 40.
+    "icon-xl": ButtonSpec(40, 0, 0, 0, 14, 20, "lg", square=True),
 }
 
 #: `rounded-[min(var(--radius-md),10px)]` and its 12px sibling, which cap the small steps.
