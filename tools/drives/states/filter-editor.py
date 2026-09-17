@@ -30,7 +30,6 @@ from qtpy import QtCore, QtWidgets
 from qtpy.QtTest import QTest
 
 from sg_widgets_core.filter import condition as make_condition
-
 from sg_widgets_qt.widgets.filter_editor import FilterEditor
 
 #: The states this drive can leave the page in.

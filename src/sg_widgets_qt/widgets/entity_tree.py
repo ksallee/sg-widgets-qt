@@ -63,6 +63,7 @@ from ..primitives.skeleton import Skeleton
 from ..theme import theme_of
 from ..workers import DEFAULT_DEBOUNCE_MS, Debounce, JobPool
 from .collection_control import COLLECTION_GAP
+from .collection_source import Alive, publisher
 from .entity_glyphs import entity_glyph
 from .entity_table import fit_body
 from .picker_row import status_painter
@@ -134,8 +135,10 @@ class _TreeBinding(QObject):
         super().__init__(parent)
         self.engine = engine
         self._pool = JobPool(1, self)
+        self._alive = Alive()
+        self.destroyed.connect(self._alive.stop)
         self._published.connect(self.changed.emit, Qt.ConnectionType.QueuedConnection)
-        self._unsubscribe = engine.subscribe(self._published.emit)
+        self._unsubscribe = engine.subscribe(publisher(self._published.emit, self._alive))
 
     def snapshot(self) -> TreeState:
         return self.engine.snapshot()
@@ -161,6 +164,8 @@ class _TreeBinding(QObject):
         return done
 
     def close(self) -> None:
+        """Stop following the engine and drop what is in flight."""
+        self._alive.stop()
         if self._unsubscribe is not None:
             self._unsubscribe()
             self._unsubscribe = None

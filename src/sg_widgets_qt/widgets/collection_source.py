@@ -35,7 +35,25 @@ from sg_widgets_core.paging import PAGING_MODE_VALUES, source_mode_for
 
 from ..workers import JobPool
 
-__all__ = ["COLLECTION_PAGING_VALUES", "CollectionSource"]
+__all__ = ["COLLECTION_PAGING_VALUES", "Alive", "CollectionSource", "publisher"]
+
+
+class Alive:
+    """A flag a listener reads before it touches the object that made it.
+
+    A core store keeps the listener it was handed, and a widget can be deleted while a read is
+    still running on a worker: the listener then fires into a wrapper Qt has already freed,
+    which is a crash rather than an exception. The flag is held by the closure, not by the
+    QObject, so it survives the deletion that turns it off.
+    """
+
+    __slots__ = ("on",)
+
+    def __init__(self) -> None:
+        self.on = True
+
+    def stop(self, *_args: object) -> None:
+        self.on = False
 
 #: How a collection walks a set. Core's `PagingMode`.
 COLLECTION_PAGING_VALUES: tuple[str, ...] = PAGING_MODE_VALUES
@@ -74,8 +92,10 @@ class CollectionSource(QObject):
         self._sort_seen = list(source.sort)
         self._filters_seen = source.filters
 
+        self._alive = Alive()
+        self.destroyed.connect(self._alive.stop)
         self._published.connect(self._on_published, Qt.ConnectionType.QueuedConnection)
-        self._unsubscribe = source.subscribe(self._published.emit)
+        self._unsubscribe = source.subscribe(publisher(self._published.emit, self._alive))
         self._apply_mode()
         if self._sort is not None and not same_sort(self._sort, source.sort):
             self.set_sort(self._sort)
@@ -277,7 +297,22 @@ class CollectionSource(QObject):
 
     def close(self) -> None:
         """Stop following the source and drop what is in flight."""
+        self._alive.stop()
         if self._unsubscribe is not None:
             self._unsubscribe()
             self._unsubscribe = None
         self._pool.cancel_all()
+
+
+def publisher(emit: Any, alive: Alive) -> Any:
+    """The listener a source is handed: it emits while the binding is there, and drops after.
+
+    The read runs on a worker, so the source can publish after the widget has gone. Nothing
+    here holds the binding, only its `emit` and the flag its deletion turns off.
+    """
+
+    def publish() -> None:
+        if alive.on:
+            emit()
+
+    return publish

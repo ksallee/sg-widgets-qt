@@ -127,9 +127,8 @@ class _TileDelegate(QtWidgets.QStyledItemDelegate):
                 on_ready=self._grid.view.viewport().update,
             ),
         )
-        if option.state & QtWidgets.QStyle.StateFlag.State_HasFocus or (
-            self._grid.view.currentIndex() == index and self._grid.view.hasFocus()
-        ):
+        # The ring is the keyboard cursor's, so it is drawn only while the view holds focus.
+        if self._grid.view.hasFocus() and self._grid.view.currentIndex() == index:
             theme = theme_of(self._grid.view)
             painter.save()
             painter.setBrush(Qt.BrushStyle.NoBrush)

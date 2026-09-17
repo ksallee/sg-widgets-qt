@@ -721,7 +721,8 @@ class _FacetPill(ThemedWidget):
         if self._found is None or self._parts is None:
             self._glyph: QtWidgets.QWidget | None = _Glyph("plus", size, self)
             line.addWidget(self._glyph)
-            line.addWidget(_PillText(bar.label_of(self._name), size, self))
+            # An untouched facet is quiet: the whole pill, its name with its mark, is muted.
+            line.addWidget(_PillText(bar.label_of(self._name), size, self, muted=True))
             self._cross: Button | None = None
             return
         self._glyph = None

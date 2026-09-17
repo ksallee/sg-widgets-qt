@@ -17,6 +17,7 @@ from sg_widgets_core.collection import (
 )
 from sg_widgets_core.filter import condition
 
+from ...images import image_loader
 from ...widgets.entity_table import EntityTable
 from ...workers import default_pool
 from ..context import DemoContext
@@ -77,7 +78,12 @@ class EntityTableInfiniteDemo(QtWidgets.QWidget):
     @property
     def demo_ready(self) -> bool:
         """True once the columns are resolved and the first page has settled."""
-        return self._ready and self.table.control.snapshot().status in ("ready", "error")
+        return (
+            self._ready
+            and self.table.control.snapshot().status in ("ready", "error")
+            # A cell's picture lands after the rows do, and a screenshot wants both.
+            and image_loader().pending == 0
+        )
 
     def set_size(self, size: str) -> None:
         self.table.set_size(size if size in ("sm", "md", "lg") else "md")

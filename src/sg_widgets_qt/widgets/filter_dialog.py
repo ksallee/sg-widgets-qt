@@ -19,7 +19,6 @@ from qtpy.QtCore import Signal
 from sg_widgets_core.filter import FilterGroup, empty_filter, is_empty_filter
 from sg_widgets_core.filter_ux import count_active_conditions
 
-from ..primitives.badge import Badge
 from ..primitives.button import Button
 from ..primitives.dialog import Dialog
 from .filter_editor import CONTROL_BUTTON, FILTER_EDITOR_SIZE_VALUES, FilterEditor
@@ -37,9 +36,6 @@ DIALOG_WIDTH = 1024
 
 #: Between the launcher and the control that clears the filters beside it.
 LAUNCH_GAP = 8
-
-#: Between the trigger's label and the count it carries, which reads as one control.
-COUNT_GAP = 6
 
 
 class FilterDialog(QtWidgets.QWidget):
@@ -341,9 +337,8 @@ class FilterDialog(QtWidgets.QWidget):
         self._launch.set_icon("pencil" if active else "list-filter")
         self._launch.set_text(self._label or ("Edit filters" if active else "Add filters"))
         self._launch.setEnabled(not self._disabled)
-        self._count.set_size(COUNT_CHIP_SIZE[self._size])
-        self._count.set_text(str(active))
-        self._count.setVisible(active > 0)
+        self._launch.set_count_size(COUNT_CHIP_SIZE[self._size])
+        self._launch.set_count(str(active) if active else "")
         self._clear.set_size(ICON_BUTTON[self._size])
         self._clear.setVisible(active > 0)
         self._clear.setEnabled(not self._disabled)

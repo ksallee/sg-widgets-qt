@@ -66,7 +66,13 @@ from .entity_glyphs import entity_glyph
 from .field_value import FieldValueOptions, field_value_size_hint, paint_field_value
 from .state_line import StateLine
 from .status_badge import StatusBadge
-from .thumbnail import THUMBNAIL_GLYPH, Thumbnail
+from .thumbnail import (
+    PLAY_GROUND,
+    THUMBNAIL_GLYPH,
+    THUMBNAIL_PLAY_BADGE,
+    THUMBNAIL_PLAY_GLYPH,
+    Thumbnail,
+)
 
 __all__ = [
     "ENTITY_CARD_SIZE_VALUES",
@@ -1578,10 +1584,43 @@ def _paint_tile_media(
         name = "hourglass" if image_state(tile.thumbnail) == "pending" else entity_glyph(tile.entity_type)
         paint_icon(painter, slot, name, theme.color("muted_foreground"))
 
+    if tile.playable:
+        _paint_tile_play(painter, media, o, theme)
     if o.selectable:
         _paint_tile_checkbox(painter, card_tile_checkbox_rect(media), o.selected, theme)
     if tile.status_code:
         _paint_tile_status(painter, media, tile, o, theme)
+
+
+def _paint_tile_play(
+    painter: QtGui.QPainter, media: QtCore.QRect, o: CardTileOptions, theme: Theme
+) -> None:
+    """The mark a Version with media carries, centred on the picture.
+
+    Lucide's play is an outline and the badge wants it solid, so the triangle is drawn here,
+    which is what `Thumbnail` does for the same mark.
+    """
+    step = CARD_THUMB[o.size if o.size in CARD_THUMB else "md"]
+    side = min(THUMBNAIL_PLAY_BADGE[step], media.width(), media.height())
+    badge = QtCore.QRectF(0, 0, side, side)
+    badge.moveCenter(QtCore.QRectF(media).center())
+    painter.save()
+    painter.setPen(QtGui.QPen(theme.color("border"), 1.0))
+    painter.setBrush(with_alpha(theme.background, PLAY_GROUND))
+    painter.drawEllipse(badge.adjusted(0.5, 0.5, -0.5, -0.5))
+    glyph = float(THUMBNAIL_PLAY_GLYPH[step])
+    centre = badge.center()
+    left = centre.x() - glyph * 0.28
+    top = centre.y() - glyph * 0.44
+    triangle = QtGui.QPainterPath()
+    triangle.moveTo(left, top)
+    triangle.lineTo(left + glyph * 0.7, centre.y())
+    triangle.lineTo(left, top + glyph * 0.88)
+    triangle.closeSubpath()
+    painter.setPen(QtCore.Qt.PenStyle.NoPen)
+    painter.setBrush(theme.color("foreground"))
+    painter.drawPath(triangle)
+    painter.restore()
 
 
 def _paint_tile_checkbox(

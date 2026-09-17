@@ -57,7 +57,7 @@ from ..images import ImageLoader, image_loader
 from ..primitives.base import THUMB_SIZE, elide
 from ..primitives.list_view import GUTTER
 from ..primitives.roles import Roles
-from ..primitives.row_delegate import CODE_TEXT, ROW_PAD_X, ROW_PAD_Y, RowDelegate
+from ..primitives.row_delegate import CODE_TEXT, ROW_PAD_X, ROW_PAD_Y, ROW_TEXT, RowDelegate
 from ..primitives.scrollbar import install_overlay_scrollbars
 from ..primitives.skeleton import Skeleton
 from ..theme import theme_of, with_alpha
@@ -176,7 +176,8 @@ class _GroupDelegate(RowDelegate):
     def sizeHint(self, option: QtWidgets.QStyleOptionViewItem, index: QModelIndex) -> QSize:  # noqa: N802
         if index.data(Roles.KIND) == "heading":
             theme = theme_of(self._listing.view)
-            metrics = QtGui.QFontMetrics(theme.font(CODE_TEXT, QtGui.QFont.Weight.Medium))
+            step = ROW_TEXT[self._listing.size]
+            metrics = QtGui.QFontMetrics(theme.font(step, QtGui.QFont.Weight.Medium))
             pad = max(2, ROW_PAD_Y // 2) if self._listing.density == "compact" else ROW_PAD_Y
             return QSize(option.rect.width(), max(metrics.height(), CHEVRON) + 2 * pad)
         return super().sizeHint(option, index)
@@ -798,7 +799,8 @@ class GroupedList(QtWidgets.QWidget):
             return
         text = self._group_label(group.value) if self._group_label else group_key_text(group.value)
         theme = theme_of(self.view)
-        font = theme.font(CODE_TEXT, QtGui.QFont.Weight.Medium)
+        # A heading reads at the row's own step, whether its value came from a column or a key.
+        font = theme.font(ROW_TEXT[self._size], QtGui.QFont.Weight.Medium)
         painter.setFont(font)
         painter.setPen(theme.color("foreground"))
         painter.drawText(

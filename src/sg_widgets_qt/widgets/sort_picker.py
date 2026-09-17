@@ -23,7 +23,6 @@ from sg_widgets_core.filter_ux import SortKey, is_sortable, to_sort_string
 from sg_widgets_core.pickers import friendly_field_path
 from sg_widgets_core.schema import FieldSchema
 
-from ..primitives.badge import Badge
 from ..primitives.base import ThemedWidget, elide, painter_for
 from ..primitives.button import Button
 from ..primitives.checkbox import ToggleGroup
@@ -58,9 +57,6 @@ KEY_PAD_Y = 2
 
 #: The count beside the label is a chip, so it takes the step under the control.
 COUNT_CHIP_SIZE: dict[str, str] = {"sm": "xs", "md": "sm", "lg": "md"}
-
-#: Between the trigger's label and the count it carries, which reads as one control.
-COUNT_GAP = 6
 
 #: The button step beside a control of each height.
 CONTROL_BUTTON: dict[str, str] = {"sm": "sm", "md": "default", "lg": "lg"}
@@ -112,15 +108,11 @@ class SortPicker(QtWidgets.QWidget):
         line.setContentsMargins(0, 0, 0, 0)
         line.setSpacing(0)
 
+        # The count is part of the trigger: a chip inside its own border, a glyph gap from
+        # the keys it names.
         self._trigger = _SortTrigger(self._size, self)
         self._trigger.clicked.connect(self.toggle)
         line.addWidget(self._trigger)
-        # The count reads as part of the trigger, so it sits a glyph gap from its label.
-        line.addSpacing(COUNT_GAP)
-        self._count = Badge("", variant="secondary", parent=self)
-        self._count.setObjectName("sort-count")
-        self._count.hide()
-        line.addWidget(self._count)
         line.addStretch(1)
 
         self._panel = QtWidgets.QWidget()
@@ -385,9 +377,8 @@ class SortPicker(QtWidgets.QWidget):
         names = [self.name_of(key.field) for key in self._value]
         self._trigger.set_label("Sort" if not names else ", ".join(names))
         self._trigger.setEnabled(not self._disabled)
-        self._count.set_size(COUNT_CHIP_SIZE[self._size])
-        self._count.set_text(str(len(self._value)))
-        self._count.setVisible(len(self._value) > 1)
+        self._trigger.set_count_size(COUNT_CHIP_SIZE[self._size])
+        self._trigger.set_count(str(len(self._value)) if len(self._value) > 1 else "")
         self._field_picker.set_filter(self.offers)
         self._keys.rebuild()
 

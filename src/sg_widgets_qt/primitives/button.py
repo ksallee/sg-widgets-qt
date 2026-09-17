@@ -17,6 +17,8 @@ from ..icons import paint_icon
 from ..theme import mix, with_alpha
 from .base import (
     CHIP_HEIGHT,
+    CHIP_PAD,
+    CHIP_TEXT,
     DURATION,
     ThemedWidget,
     fill_round_rect,
