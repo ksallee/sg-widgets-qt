@@ -60,8 +60,9 @@ def image(widget: QtWidgets.QWidget) -> QtGui.QImage:
 
 
 def centre_colour(widget: QtWidgets.QWidget) -> QtGui.QColor:
+    """The fill at mid-height, 5px in from the left edge: inside the surface, never on a glyph."""
     shot = image(widget)
-    return shot.pixelColor(shot.width() // 2, shot.height() // 2)
+    return shot.pixelColor(5, shot.height() // 2)
 
 
 def counts(shot: QtGui.QImage) -> dict:
