@@ -57,6 +57,7 @@ from .. import icons
 from ..primitives.base import elide
 from ..primitives.button import Button
 from ..primitives.roles import Roles
+from ..primitives.scroll_latch import WheelLatch
 from ..primitives.skeleton import Skeleton
 from ..primitives.table import CELL_PAD_X, CellDelegate, HeaderDelegate, TableSurface
 from ..theme import Theme, theme_of, with_alpha
@@ -433,10 +434,18 @@ class _Body(TableSurface):
     def __init__(self, table: EntityTable, density: str = "default") -> None:
         self._table = table
         super().__init__(table, density=density)
+        self._latch = WheelLatch(self, more=lambda: self._table.control.snapshot().has_more)
         self.setObjectName("entity-table-scroll")
         self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
+
+    def wheelEvent(self, event: QtGui.QWheelEvent) -> None:  # noqa: N802
+        """A gesture that reached the edge, or a page on its way, keeps the wheel off the page."""
+        if self._latch.keeps(event):
+            event.accept()
+            return
+        super().wheelEvent(event)
     def setHorizontalHeader(self, header: QtWidgets.QHeaderView) -> None:  # noqa: N802
         """Keep the surface's own pointer on the header that is installed.
 

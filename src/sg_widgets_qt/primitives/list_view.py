@@ -20,7 +20,7 @@ from qtpy.QtCore import (
     Qt,
     Signal,
 )
-from qtpy.QtGui import QKeyEvent, QLinearGradient, QPainter
+from qtpy.QtGui import QKeyEvent, QLinearGradient, QPainter, QWheelEvent
 from qtpy.QtWidgets import QAbstractItemView, QListView, QWidget
 
 from sg_widgets_core.list_chrome import OverflowEdges, overflow_edges
@@ -28,6 +28,7 @@ from sg_widgets_core.list_chrome import OverflowEdges, overflow_edges
 from ..theme import theme_of, watch_theme, with_alpha
 from .roles import Roles
 from .row_delegate import RowDelegate
+from .scroll_latch import WheelLatch
 from .scrollbar import WIDTH as SCROLLBAR_WIDTH
 from .scrollbar import install_overlay_scrollbars
 
@@ -212,6 +213,7 @@ class ListSurface(QListView):
         delegate: RowDelegate | None = None,
     ) -> None:
         super().__init__(parent)
+        self._latch = WheelLatch(self, more=lambda: self.load_more_visible)
         self._max_height = int(max_height)
         self._loop = bool(loop)
         self._proxy = _LoadMoreProxy(self)
@@ -246,6 +248,13 @@ class ListSurface(QListView):
 
     # --- the model -----------------------------------------------------------------------
 
+
+    def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: N802
+        """A gesture that reached the edge, or a load-more row waiting, keeps the wheel off the page."""
+        if self._latch.keeps(event):
+            event.accept()
+            return
+        super().wheelEvent(event)
     def setModel(self, model: QAbstractItemModel) -> None:  # noqa: N802
         self._proxy.setSourceModel(model)
         if self.model() is not self._proxy:

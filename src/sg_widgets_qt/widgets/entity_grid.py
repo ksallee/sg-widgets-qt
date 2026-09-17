@@ -48,6 +48,7 @@ from sg_widgets_core.state import NO_ROWS_LABEL, StateLabels
 from sg_widgets_core.status import StatusRecord
 
 from ..primitives.roles import Roles
+from ..primitives.scroll_latch import WheelLatch
 from ..primitives.scrollbar import install_overlay_scrollbars
 from ..primitives.skeleton import Skeleton
 from ..theme import theme_of
@@ -150,6 +151,7 @@ class _GridView(QtWidgets.QListView):
     def __init__(self, grid: EntityGrid) -> None:
         self._grid = grid
         super().__init__(grid)
+        self._latch = WheelLatch(self, more=lambda: self._grid.control.snapshot().has_more)
         self.setObjectName("entity-grid-list")
         self.setFrameShape(QtWidgets.QListView.Shape.NoFrame)
         self.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
@@ -167,6 +169,13 @@ class _GridView(QtWidgets.QListView):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         install_overlay_scrollbars(self)
 
+
+    def wheelEvent(self, event: QtGui.QWheelEvent) -> None:  # noqa: N802
+        """A gesture that reached the edge, or a page on its way, keeps the wheel off the page."""
+        if self._latch.keeps(event):
+            event.accept()
+            return
+        super().wheelEvent(event)
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         point = event.position().toPoint() if hasattr(event, "position") else event.pos()
         index = self.indexAt(point)

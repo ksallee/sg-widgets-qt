@@ -58,6 +58,7 @@ from ..primitives.base import THUMB_SIZE, elide
 from ..primitives.list_view import GUTTER
 from ..primitives.roles import Roles
 from ..primitives.row_delegate import CODE_TEXT, ROW_PAD_X, ROW_PAD_Y, ROW_TEXT, RowDelegate
+from ..primitives.scroll_latch import WheelLatch
 from ..primitives.scrollbar import install_overlay_scrollbars
 from ..primitives.skeleton import Skeleton
 from ..theme import theme_of, with_alpha
@@ -237,6 +238,7 @@ class _ListView(QtWidgets.QListView):
     def __init__(self, listing: GroupedList) -> None:
         self._listing = listing
         super().__init__(listing)
+        self._latch = WheelLatch(self, more=lambda: self._listing.control.snapshot().has_more)
         self.setObjectName("grouped-list-rows")
         self.setFrameShape(QtWidgets.QListView.Shape.NoFrame)
         self.setSpacing(0)
@@ -253,6 +255,13 @@ class _ListView(QtWidgets.QListView):
         self.setViewportMargins(0, 0, GUTTER, 0)
         install_overlay_scrollbars(self)
 
+
+    def wheelEvent(self, event: QtGui.QWheelEvent) -> None:  # noqa: N802
+        """A gesture that reached the edge, or a page on its way, keeps the wheel off the page."""
+        if self._latch.keeps(event):
+            event.accept()
+            return
+        super().wheelEvent(event)
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         point = event.position().toPoint() if hasattr(event, "position") else event.pos()
         index = self.indexAt(point)
