@@ -6,7 +6,7 @@
   },
   "items": {
     "core/client": {
-      "status": "partial",
+      "status": "complete",
       "upstream": {
         "packages/core/src/client.ts": "3e641c20c17964c54544e9e182b84198590ff1be24df3ba02c22204f4d9f5f94",
         "packages/core/test/client.test.ts": "7ccb68c97eb3c8a41a85b635d823da51f7eba613140f9110cf9ad617e7742261"
@@ -16,7 +16,46 @@
         "tests/core/test_client.py"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
-      "note": "RestClient and RestClientOptions are in the adapter module; its 18 tests are skipped here with that reason."
+      "note": "RestClient is ShotgunClient in shotgun_client.py"
+    },
+    "core/context": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/context.ts": "205e50b31a20ce624eb29f7925859988fb4c477eb66d60ed7efb4a436cbb58d2",
+        "packages/core/test/context.test.ts": "1684f13333752b51a322f92feab646a0bf7b8cc7abb182aefae3c7013488608b"
+      },
+      "ported": [
+        "src/sg_widgets_core/context.py",
+        "tests/core/test_context.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "create_sg_context and context_from_client take the client first and SgContextOptions second, as the other core factories do; SgContextOptions is SitePreferences plus ttl_ms and site_url. The WeakMap is a weakref.WeakKeyDictionary. preferences_of answers a render.FieldTextOptions carrying the four preferences."
+    },
+    "core/edit": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/edit.ts": "3104a3455f9eba0f6fcece77dc0d79b2f81e4614b0a0ff408de40c481c1e214c",
+        "packages/core/test/edit.test.ts": "a8cb14eb51f650c5ef136d223dbdbbb5235a7b4e49612a070ef654fa003534b5"
+      },
+      "ported": [
+        "src/sg_widgets_core/edit.py",
+        "tests/core/test_edit.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "ParseResult is the pair ParseValue and ParseError. timeZoneName with no zone answers the running process's zone abbreviation, which is what the standard library spells."
+    },
+    "core/field-icons": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/field-icons.ts": "cca23e197b5224b2b192043fdbce02420894dcbb4e36a977e57372bed4a559c2",
+        "packages/core/test/field-icons.test.ts": "c56491d04da74daa843d504b5b7498a8825ffc80a61d73f58a8f10fbe99f638a"
+      },
+      "ported": [
+        "src/sg_widgets_core/field_icons.py",
+        "tests/core/test_field_icons.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
     },
     "core/field-types": {
       "status": "complete",
@@ -44,6 +83,19 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
     },
+    "core/filter-ux": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/filter-ux.ts": "d7486793904dbc600c6eaffd15627497b93487bbf4f571bde418734f927c6848",
+        "packages/core/test/filter-ux.test.ts": "cb12a5e2b97240bf1f569f9e19bf682c5d4d6dd1257cd802f8666c8bc5828535"
+      },
+      "ported": [
+        "src/sg_widgets_core/filter_ux.py",
+        "tests/core/test_filter_ux.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "facetLists is synchronous: the reads run in order and the Qt layer puts them on a worker. NO_EMPTY_VALUE and NO_SCHEMA stand in for undefined where None already means something else. A facet's entity value is an EntityRef, read from EntityRow.values."
+    },
     "core/list-chrome": {
       "status": "partial",
       "upstream": {
@@ -56,6 +108,19 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "markOverflow, watchOverflow and the two CSS variable names are not ported: DOM plumbing around overflow_edges. The Qt layer reads scroll_top, scroll_height and client_height off its view and repaints the edge fades."
+    },
+    "core/mock": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/mock.ts": "e63cc57d599515c672e799d635cfdf11340128655c824f20f8b8d36ccfa97366",
+        "packages/core/test/mock.test.ts": "308bc2f2f91f6dc09f5af9c2d0102f4857973540658f0bce34025332a174d47f"
+      },
+      "ported": [
+        "src/sg_widgets_core/mock.py",
+        "tests/core/test_mock.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Every method is ported. The mulberry32 PRNG is ported bit for bit, so seed 1 reproduces the upstream ids, codes, statuses and dates exactly. A row is EntityRow(type, id, values), one flat map with relationships as {type, id, name} dicts and dotted fields under their literal key, so the tests read row.values where upstream reads attributes and relationships. latency_ms is a time.sleep and mutable state is guarded by one threading.RLock."
     },
     "core/picker-keys": {
       "status": "partial",
@@ -70,6 +135,59 @@
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "focusChip, scrollHighlightedIntoView and watchHighlight are not ported: DOM plumbing with no decision. The Qt layer gives the caret to the chip an intent names and keeps the view scrolled to the highlighted row."
     },
+    "core/pickers": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/pickers.ts": "4109e418983a84f29a5e88fbe8343774b8b525a7f31d273d26213c2b63503506",
+        "packages/core/test/pickers.test.ts": "d0e4a32264e1eb1624f19620bbcc70dfe33ff1332133aa82783a113a7cca357d"
+      },
+      "ported": [
+        "src/sg_widgets_core/pickers.py",
+        "tests/core/test_pickers.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "FieldOptionsInput carries root_type, hops and the FieldPickerRestrictions fields in one dataclass, because a dataclass cannot add a required field to one with defaults. Options are ordered case-insensitively by display name, the way localeCompare collates them upstream. move_field_path takes from_index and to_index."
+    },
+    "core/presentation": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/presentation.ts": "cb16c4fd9e6d1136774e4a34c4a30213cff1d7c84ae6c7b3611ca6591e9a6220",
+        "packages/core/test/presentation.test.ts": "43157803ac62b501e5706b20bb7c261eb2711f8003a6952b821f34a163e86a95"
+      },
+      "ported": [
+        "src/sg_widgets_core/presentation.py",
+        "tests/core/test_presentation.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "path_label takes a PathLabelOptions dataclass."
+    },
+    "core/query": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/query.ts": "a1b81b0aa5a0fb37efc25d630f8518671d837608c8b30c9477f45c4326f924ef",
+        "packages/core/test/query.test.ts": "72b35f4f1b812da9e1cf291c77400fdf71e981c3b396f8a2d980c352a7ac6f75"
+      },
+      "ported": [
+        "src/sg_widgets_core/query.py",
+        "tests/core/test_query.py",
+        "tests/core/fake_client.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Synchronous: what upstream awaits is called. In-flight deduping is a threading.Lock per key, tested with two threads. The TTL clock is QueryCacheOptions.now, default time.monotonic, in seconds against ttl_ms. Key method names are snake_case, so a prefix reads 'fields:[\"Shot\"'. The tests read tests/core/fake_client.py, a small fake standing in for MockClient with the fixture values the upstream tests name."
+    },
+    "core/render": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/render.ts": "0a4bb05f674f038978c459697a7e50ada732dbc99e51435d148b47a1e82beed9",
+        "packages/core/test/render.test.ts": "24cd4023d4ddf551b710d3d9f8e92e76c4665806e15f8bd229bfbdbed97d19c0"
+      },
+      "ported": [
+        "src/sg_widgets_core/render.py",
+        "tests/core/test_render.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Intl has no standard-library equal: LOCALES holds the medium date pattern, the short time pattern and the number marks for en-US, en-GB, fr-FR, de-DE and ja-JP, and an unknown locale formats as en-US. currentPlatform reads sys.platform, not a browser navigator."
+    },
     "core/schema": {
       "status": "complete",
       "upstream": {
@@ -82,6 +200,46 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "Upstream has no schema.test.ts: the schema tests live in the schema blocks of status.test.ts."
+    },
+    "core/schema-service": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/schema-service.ts": "2356b0d2a5fa57ed59a0420978c912d291d807e2cfc3df71ec67e6af9386cff3",
+        "packages/core/test/schema-service.test.ts": "0acfd91480b0f5c0192477a5aa3202144550e1d00d0041fabbc4e796608abd71"
+      },
+      "ported": [
+        "src/sg_widgets_core/schema_service.py",
+        "tests/core/test_schema_service.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Synchronous; a resolve_path failure raises ValueError with the upstream message. Tests read tests/core/fake_client.py in place of MockClient."
+    },
+    "core/search": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/search.ts": "424d93d61a8c3140f1e2c7c7bdb079b113812154971d97de490c23fcfe1c9c1b",
+        "packages/core/test/search.test.ts": "49279945a425bad1906a466464afd03e15ca20b5846b1ff9a85c3749b2deb14e"
+      },
+      "ported": [
+        "src/sg_widgets_core/search.py",
+        "tests/core/test_search.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "Timing is the Qt layer's: SEARCH_DEBOUNCE_MS is a constant here and sg_widgets_qt.workers.Debounce owns the timer; PressGate reads an injectable clock. hydrate reads the flat EntityRow.values instead of attributes and relationships."
+    },
+    "core/shotgun-client": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/client.ts": "3e641c20c17964c54544e9e182b84198590ff1be24df3ba02c22204f4d9f5f94",
+        "packages/core/test/client.test.ts": "7ccb68c97eb3c8a41a85b635d823da51f7eba613140f9110cf9ad617e7742261"
+      },
+      "ported": [
+        "src/sg_widgets_core/shotgun_client.py",
+        "tests/core/test_shotgun_client.py",
+        "tests/live/test_live_read.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": ""
     },
     "core/sortable": {
       "status": "partial",
@@ -134,6 +292,19 @@
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": ""
+    },
+    "core/status-service": {
+      "status": "complete",
+      "upstream": {
+        "packages/core/src/status-service.ts": "f517f0d90a50912fa4ff09b6902f33efee921cb3b54e8f7b908a92b87890972a",
+        "packages/core/test/status-service.test.ts": "335eba1edf85464eaad8fa3258289dd939140eac7b47f84849c833080d96eec1"
+      },
+      "ported": [
+        "src/sg_widgets_core/status_service.py",
+        "tests/core/test_status_service.py"
+      ],
+      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "note": "The memoised promise is a table behind a threading.Lock, so two threads asking at once cost one read; by_code answers a Mapping."
     },
     "docs/checkbox-editor": {
       "status": "partial",

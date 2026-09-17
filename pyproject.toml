@@ -46,6 +46,7 @@ packages = ["src/sg_widgets_core", "src/sg_widgets_qt"]
 testpaths = ["tests"]
 addopts = "-q"
 filterwarnings = ["ignore::DeprecationWarning"]
+markers = ["live: reads the test site over the network, skipped without .env.local"]
 
 [dependency-groups]
 dev = [
