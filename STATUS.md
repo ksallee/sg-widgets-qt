@@ -4,7 +4,7 @@ What is ported from `~/dev/sg-widgets`, what is partial, what is left. Generated
 `python tools/status.py` from `sync/manifest.json`; `python tools/sync_status.py` says what drifted
 upstream since. Only the Not ported section is written by hand.
 
-Last synced upstream commit: `130d4633433c`.
+Last synced upstream commit: `a3e515188ab1`.
 
 | kind | complete | partial | skipped |
 |---|---|---|---|
@@ -33,7 +33,7 @@ Last synced upstream commit: `130d4633433c`.
 | paging | complete | `paging.ts`, `paging.test.ts` |  |
 | picker | complete | `picker.ts`, `picker.test.ts` | Synchronous and without timers: begin/fetch_page/deliver split the read so the Qt layer can debounce and run fetch_page on a thread, and a stale ticket is dropped. flatten_row reads the one flat EntityRow.values. |
 | picker-keys | partial | `picker-keys.ts`, `picker-keys.test.ts` | focusChip, scrollHighlightedIntoView and watchHighlight are not ported: DOM plumbing with no decision. The Qt layer gives the caret to the chip an intent names and keeps the view scrolled to the highlighted row. |
-| pickers | complete | `pickers.ts`, `pickers.test.ts` | FieldOptionsInput carries root_type, hops and the FieldPickerRestrictions fields in one dataclass, because a dataclass cannot add a required field to one with defaults. Options are ordered case-insensitively by display name, the way localeCompare collates them upstream. move_field_path takes from_index and to_index. |
+| pickers | complete | `pickers.ts`, `pickers.test.ts` | Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. FieldOptionsInput carries root_type, hops and the FieldPickerRestrictions fields in one dataclass, because a dataclass cannot add a required field to one with defaults. Options are ordered case-insensitively by display name, the way localeCompare collates them upstream. move_field_path takes from_index and to_index. resolve_field_path_options is synchronous and takes the SchemaService itself where upstream takes Pick<SchemaService, 'resolvePath'>; FieldPathOption.data_type and .sub_label are the snake_case of dataType and subLabel. |
 | presentation | complete | `presentation.ts`, `presentation.test.ts` | path_label takes a PathLabelOptions dataclass. |
 | proxy-client | skipped | `proxy-client.ts`, `proxy.test.ts` | Browser-only: a proxy over the REST API or the App Session Launcher flow; see STATUS.md |
 | proxy-handler | skipped | `proxy-handler.ts`, `proxy.test.ts` | Browser-only: a proxy over the REST API or the App Session Launcher flow; see STATUS.md |
@@ -103,7 +103,7 @@ Last synced upstream commit: `130d4633433c`.
 | entity-type-multi-picker | complete | `entity-type-multi-picker.tsx`, `entity-type-multi-picker.svelte`, `Demo.tsx`, `entity-type-multi-picker.mdx`, `entity-type-multi-picker.ts` |  |
 | entity-type-picker | complete | `entity-type-picker.tsx`, `entity-type-picker.svelte`, `Demo.tsx`, `entity-type-picker.mdx`, `entity-type-picker.ts` |  |
 | field-editor | complete | `field-editor.tsx`, `field-editor.svelte`, `field-editor.ts`, `field-editor.mdx`, `Demo.tsx` | FieldValue has not landed, so the display half is drawn here from core's field_text with a status badge and entity chips. Adds an 'entity' keyword: with one the commit is written through context.client.update on a worker and the row read back (024_read_after_write); without one it only emits, as upstream does. readonly also follows the schema's editable. |
-| field-picker | complete | `field-picker.tsx`, `field-picker.svelte`, `field-picker.ts`, `field-picker.mdx`, `Demo.tsx` | Built on picker_control with text_value and a breadcrumb over the search row, rather than upstream's Popover over a Command list. Left, Right and Enter on a link belong to the levels, so a descend never closes the popup. |
+| field-picker | complete | `field-picker.tsx`, `field-picker.svelte`, `field-picker.ts`, `field-picker.mdx`, `Demo.tsx` | Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. Built on picker_control with text_value and a breadcrumb over the search row, rather than upstream's Popover over a Command list. Left, Right and Enter on a link belong to the levels, so a descend never closes the popup. The options prop takes the name the Qt picker used for its derived schema rows, which are now picker.derived, upstream's own name for that list. A fixed row is a FlatFieldRow, a FieldOption carrying its own sub_label, so both lists draw through one delegate. |
 | field-value | complete | `field-value.tsx`, `field-value.svelte`, `Demo.tsx`, `field-value.mdx`, `field-value.ts` |  |
 | filter-bar | complete | `filter-bar.tsx`, `filter-bar.svelte`, `filter-bar.ts`, `filter-bar.mdx`, `Demo.tsx` | The rows under the bar are grouped-list, as upstream draws them. |
 | filter-dialog | complete | `filter-dialog.tsx`, `filter-dialog.svelte`, `filter-dialog.ts`, `filter-dialog.mdx`, `Demo.tsx` |  |
@@ -123,7 +123,7 @@ Last synced upstream commit: `130d4633433c`.
 | project-picker | complete | `project-picker.tsx`, `project-picker.svelte`, `Demo.tsx`, `project-picker.mdx`, `project-picker.ts` |  |
 | search-control | complete | `search-control.tsx`, `search-control.svelte`, `Demo.tsx`, `search-control.mdx`, `search-control.ts` |  |
 | search-skeleton | complete | `search-skeleton.tsx`, `search-skeleton.svelte`, `search-skeleton.ts` |  |
-| sort-picker | complete | `sort-picker.tsx`, `sort-picker.svelte`, `sort-picker.ts`, `sort-picker.mdx`, `Demo.tsx`, `sortable.tsx` | The rows in that order are entity-table, as upstream draws them. |
+| sort-picker | complete | `sort-picker.tsx`, `sort-picker.svelte`, `sort-picker.ts`, `sort-picker.mdx`, `Demo.tsx`, `sortable.tsx` | Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. The rows in that order are entity-table, as upstream draws them. options hands the field picker a flat list and drops the chosen keys from it itself, as upstream's flat does; paths keeps its meaning and still nests. |
 | state-line | complete | `state-line.tsx`, `state-line.svelte`, `Demo.tsx`, `state-line.mdx`, `state-line.ts` |  |
 | status-badge | complete | `status-badge.tsx`, `status-badge.svelte`, `Demo.tsx`, `status-badge.mdx`, `status-badge.ts` |  |
 | status-glyph | complete | `status-glyph.tsx`, `status-glyph.svelte`, `status-glyph.ts` | No demo of its own: it is drawn on the status-badge page. |
@@ -144,7 +144,7 @@ Last synced upstream commit: `130d4633433c`.
 | collection-control | complete | `Demo.tsx` |  |
 | composition | skipped | `Demo.tsx` | One screen built from every widget for the consistency drive; a follow-up |
 | entity-grid | partial | `Demo.tsx` | The caller's own card section is out: the tile is a delegate, which the docs page says how to replace. |
-| entity-table | complete | `Demo.tsx` |  |
+| entity-table | complete | `Demo.tsx` | Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. The toolbar's sort control takes the shown columns through options, so it sorts on the linked column too. |
 | entity-table-infinite | complete | `Demo.tsx` |  |
 | entity-tree | complete | `Demo.tsx` |  |
 | grouped-list | partial | `Demo.tsx` | The armed-failure section is out: the demo client here has no failNext. |
@@ -177,7 +177,7 @@ Last synced upstream commit: `130d4633433c`.
 | entity-type-multi-picker | complete | `entity-type-multi-picker.mdx`, `entity-type-multi-picker.ts` | Qt notes written by the widget pass |
 | entity-type-picker | complete | `entity-type-picker.mdx`, `entity-type-picker.ts` | Qt notes written by the widget pass |
 | field-editor | complete | `field-editor.mdx`, `field-editor.ts` | Qt notes written by the widget pass |
-| field-picker | complete | `field-picker.mdx`, `field-picker.ts` | Qt notes written by the widget pass |
+| field-picker | complete | `field-picker.mdx`, `field-picker.ts` | Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. Qt notes written by the widget pass. |
 | field-value | complete | `field-value.mdx`, `field-value.ts` | Qt notes written by the widget pass |
 | filter-bar | complete | `filter-bar.mdx`, `filter-bar.ts` | Qt notes written by the widget pass |
 | filter-dialog | complete | `filter-dialog.mdx`, `filter-dialog.ts` | Qt notes written by the widget pass |
@@ -197,7 +197,7 @@ Last synced upstream commit: `130d4633433c`.
 | project-picker | complete | `project-picker.mdx`, `project-picker.ts` | Qt notes written by the widget pass |
 | props-export | complete | `_types.ts`, `_resolve.ts`, `astro.config.mjs` |  |
 | search-control | complete | `search-control.mdx` |  |
-| sort-picker | complete | `sort-picker.mdx`, `sort-picker.ts` | Qt notes written by the widget pass |
+| sort-picker | complete | `sort-picker.mdx`, `sort-picker.ts` | Recorded from the feature branch feat/field-picker-options (a3e5151), not from dev. Qt notes written by the widget pass. |
 | start-install | complete | `install.mdx` |  |
 | start-introduction | complete | `introduction.mdx` |  |
 | state-line | complete | `state-line.mdx`, `state-line.ts` | Qt notes written by the widget pass |
@@ -230,9 +230,15 @@ Last synced upstream commit: `130d4633433c`.
 |---|---|
 | filter-editor page | A rebuild of the five demo editors takes 55ms on PySide6 (30ms on PyQt5), 5ms over the 50ms budget of the thread drive, after the picker popup became lazy. Next cost is the row layout itself. |
 | text search on the Python API | `shotgun_api3.text_search` refuses a term under three characters; global and hierarchical search show that as their error line. Documented on both pages. |
-| `tests/qt/test_primitives_leaf.py::test_a_filled_button_paints_primary_at_its_centre` | Flaked once in whole-suite order during concurrent edits; not seen in the final runs on either binding. Watch it. |
+| `tests/qt/test_primitives_leaf.py::test_a_filled_button_paints_primary_at_its_centre` | Flaked once under a random test order during concurrent edits; passes alone, in file order and in every final run on either binding. Watch it. |
+| field-picker, sort-picker, pickers, entity-table demo | Recorded from upstream branch `feat/field-picker-options` (PR #255), not from `dev`. Re-record the six items against the merged commit once the PR lands. |
 | `pytest -q` | `addopts` already carries `-q`; a second `-q` hides the summary line. Run `pytest` bare. |
 
 ## Verified
 
-Final run on 2026-09-17: 1868 passed, 7 skipped, 0 failed on PySide6 6.7 and on PyQt5 5.15, Python 3.9. `ruff check src tests tools` clean. Every widget page has light and dark shots under `shots/`, a state matrix under `tools/drives/states/` with upstream twins under `tools/drives/upstream/`, and a read-only live pass against the test site.
+Final run on 2026-09-17: 1939 passed, 7 skipped, 0 failed on PySide6 6.7 and the same on PyQt5 5.15, Python 3.9.
+`ruff check src tests tools` clean. Every widget page has light and dark shots under `shots/`, a
+state matrix under `tools/drives/states/` with upstream twins under `tools/drives/upstream/`,
+geometry measured against the upstream DOM under `tools/drives/measure/`, a headed functional
+walkthrough under `tools/drives/walk/` that does what each demo caption invites and reads the
+result back, and a read-only live pass against the test site.
