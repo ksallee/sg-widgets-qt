@@ -155,7 +155,10 @@ class StatusGlyphSource(QtCore.QObject):
     def _landed(self, pixmap: QtGui.QPixmap | None) -> None:
         self._pixmap = pixmap
         self._failed = pixmap is None
-        self.changed.emit()
+        try:
+            self.changed.emit()
+        except RuntimeError:
+            pass  # The owner went while the picture was on its way.
 
     # --- painting ---
 
