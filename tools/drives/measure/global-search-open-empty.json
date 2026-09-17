@@ -1456,7 +1456,7 @@
    "column-gap": 0,
    "font-size": 12,
    "font-weight": 400,
-   "h": 218,
+   "h": 216,
    "opacity": 1.0,
    "padding-bottom": 14,
    "padding-left": 14,
@@ -1479,12 +1479,12 @@
    "column-gap": 0,
    "font-size": 12,
    "font-weight": 400,
-   "h": 190,
+   "h": 188,
    "opacity": 1.0,
-   "padding-bottom": 1,
-   "padding-left": 1,
-   "padding-right": 1,
-   "padding-top": 1,
+   "padding-bottom": 0,
+   "padding-left": 0,
+   "padding-right": 0,
+   "padding-top": 0,
    "paint-corner": "#0000000f",
    "paint-mid": "#ffffffff",
    "paint-right": "#ffffffff",
@@ -1514,10 +1514,10 @@
    "row-gap": "normal",
    "slot": "command-input",
    "text": "Search\u2026",
-   "w": 332,
+   "w": 334,
    "where": "popup",
-   "x": 57,
-   "y": 29
+   "x": 56,
+   "y": 28
   },
   {
    "border-top-left-radius": "",
@@ -1537,10 +1537,10 @@
    "row-gap": "normal",
    "slot": "search-list",
    "text": "",
-   "w": 374,
+   "w": 376,
    "where": "popup",
-   "x": 19,
-   "y": 55
+   "x": 18,
+   "y": 54
   },
   {
    "border-top-left-radius": "",
@@ -1560,10 +1560,10 @@
    "row-gap": "normal",
    "slot": "qt_scrollarea_viewport",
    "text": "",
-   "w": 358,
+   "w": 360,
    "where": "popup",
-   "x": 23,
-   "y": 59
+   "x": 22,
+   "y": 58
   },
   {
    "border-top-left-radius": "",
@@ -1585,10 +1585,10 @@
    "row-gap": "normal",
    "slot": "search-list-heading",
    "text": "Recent",
-   "w": 358,
+   "w": 360,
    "where": "popup",
-   "x": 23,
-   "y": 59
+   "x": 22,
+   "y": 58
   },
   {
    "border-top-left-radius": "",
@@ -1610,10 +1610,10 @@
    "row-gap": "normal",
    "slot": "search-list-option",
    "text": "sh010_0010",
-   "w": 358,
+   "w": 360,
    "where": "popup",
-   "x": 23,
-   "y": 87
+   "x": 22,
+   "y": 86
   },
   {
    "border-top-left-radius": "",
@@ -1636,8 +1636,8 @@
    "text": "",
    "w": 32,
    "where": "popup",
-   "x": 31,
-   "y": 91
+   "x": 30,
+   "y": 90
   },
   {
    "border-top-left-radius": "",
@@ -1658,10 +1658,10 @@
    "row-gap": "normal",
    "slot": "picker-row-text",
    "text": "",
-   "w": 302,
+   "w": 304,
    "where": "popup",
-   "x": 71,
-   "y": 91
+   "x": 70,
+   "y": 90
   },
   {
    "border-top-left-radius": "",
@@ -1682,10 +1682,10 @@
    "row-gap": "normal",
    "slot": "picker-row-sub-label",
    "text": "",
-   "w": 302,
+   "w": 304,
    "where": "popup",
-   "x": 71,
-   "y": 111
+   "x": 70,
+   "y": 110
   },
   {
    "border-top-left-radius": "",
@@ -1707,10 +1707,10 @@
    "row-gap": "normal",
    "slot": "search-list-option",
    "text": "charAda",
-   "w": 358,
+   "w": 360,
    "where": "popup",
-   "x": 23,
-   "y": 123
+   "x": 22,
+   "y": 122
   },
   {
    "border-top-left-radius": "",
@@ -1733,8 +1733,8 @@
    "text": "",
    "w": 32,
    "where": "popup",
-   "x": 31,
-   "y": 127
+   "x": 30,
+   "y": 126
   },
   {
    "border-top-left-radius": "",
@@ -1755,10 +1755,10 @@
    "row-gap": "normal",
    "slot": "picker-row-text",
    "text": "",
-   "w": 302,
+   "w": 304,
    "where": "popup",
-   "x": 71,
-   "y": 127
+   "x": 70,
+   "y": 126
   },
   {
    "border-top-left-radius": "",
@@ -1779,10 +1779,10 @@
    "row-gap": "normal",
    "slot": "picker-row-sub-label",
    "text": "",
-   "w": 302,
+   "w": 304,
    "where": "popup",
-   "x": 71,
-   "y": 147
+   "x": 70,
+   "y": 146
   },
   {
    "border-top-left-radius": "",
@@ -1798,16 +1798,16 @@
    "padding-right": 0,
    "padding-top": 0,
    "paint-corner": "#ffffffff",
-   "paint-mid": "#868789ff",
+   "paint-mid": "#cdcdceff",
    "paint-right": "#ffffffff",
    "row": 3,
    "row-gap": "normal",
    "slot": "search-list-option",
    "text": "Blue Moon Rising",
-   "w": 358,
+   "w": 360,
    "where": "popup",
-   "x": 23,
-   "y": 159
+   "x": 22,
+   "y": 158
   },
   {
    "border-top-left-radius": "",
@@ -1830,8 +1830,8 @@
    "text": "",
    "w": 32,
    "where": "popup",
-   "x": 31,
-   "y": 163
+   "x": 30,
+   "y": 162
   },
   {
    "border-top-left-radius": "",
@@ -1852,10 +1852,10 @@
    "row-gap": "normal",
    "slot": "picker-row-text",
    "text": "",
-   "w": 302,
+   "w": 304,
    "where": "popup",
-   "x": 71,
-   "y": 163
+   "x": 70,
+   "y": 162
   },
   {
    "border-top-left-radius": "",
@@ -1876,10 +1876,10 @@
    "row-gap": "normal",
    "slot": "picker-row-sub-label",
    "text": "",
-   "w": 302,
+   "w": 304,
    "where": "popup",
-   "x": 71,
-   "y": 183
+   "x": 70,
+   "y": 182
   }
  ],
  "tokens": {

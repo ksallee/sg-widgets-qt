@@ -1,6 +1,6 @@
 {
- "verdict": "PASS measured 82 widgets",
- "count": 82,
+ "verdict": "PASS the calendar is open",
+ "count": 81,
  "elements": [
   {
    "slot": "page",
@@ -887,6 +887,276 @@
    }
   },
   {
+   "slot": null,
+   "cls": "Popover",
+   "box": {
+    "x": 308,
+    "y": 806,
+    "w": 248,
+    "h": 372
+   },
+   "pad": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "font": {
+    "px": 12,
+    "weight": 400,
+    "family": "Sans Serif"
+   },
+   "enabled": true,
+   "hint": [
+    248,
+    372
+   ],
+   "text": "",
+   "layout": {
+    "cls": "QVBoxLayout",
+    "gap": 0,
+    "pad": [
+     14,
+     14,
+     14,
+     14
+    ]
+   },
+   "paint": {
+    "centre": "",
+    "top": "#f9fcfe",
+    "left": "",
+    "right": "",
+    "bottom": "",
+    "inset": "#f9fcfe"
+   }
+  },
+  {
+   "slot": "date-editor-day",
+   "cls": "Input",
+   "box": {
+    "x": 334,
+    "y": 832,
+    "w": 196,
+    "h": 28
+   },
+   "pad": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "font": {
+    "px": 14,
+    "weight": 400,
+    "family": "Geist"
+   },
+   "enabled": true,
+   "hint": [
+    -1,
+    -1
+   ],
+   "text": "2026-09-02",
+   "layout": null,
+   "paint": {
+    "centre": "",
+    "top": "#f9fcfe",
+    "left": "",
+    "right": "",
+    "bottom": "",
+    "inset": "#f9fcfe"
+   }
+  },
+  {
+   "slot": "date-editor-calendar",
+   "cls": "Calendar",
+   "box": {
+    "x": 334,
+    "y": 872,
+    "w": 196,
+    "h": 280
+   },
+   "pad": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "font": {
+    "px": 12,
+    "weight": 400,
+    "family": "Sans Serif"
+   },
+   "enabled": true,
+   "hint": [
+    196,
+    280
+   ],
+   "text": "",
+   "layout": {
+    "cls": "QVBoxLayout",
+    "gap": 16,
+    "pad": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "paint": {
+    "centre": "",
+    "top": "",
+    "left": "",
+    "right": "",
+    "bottom": "",
+    "inset": ""
+   }
+  },
+  {
+   "slot": null,
+   "cls": "IconButton",
+   "box": {
+    "x": 334,
+    "y": 872,
+    "w": 28,
+    "h": 28
+   },
+   "pad": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "font": {
+    "px": 12,
+    "weight": 400,
+    "family": "Sans Serif"
+   },
+   "enabled": true,
+   "hint": [
+    -1,
+    -1
+   ],
+   "text": "",
+   "layout": null,
+   "paint": {
+    "centre": "",
+    "top": "",
+    "left": "",
+    "right": "",
+    "bottom": "",
+    "inset": ""
+   }
+  },
+  {
+   "slot": null,
+   "cls": "IconButton",
+   "box": {
+    "x": 502,
+    "y": 872,
+    "w": 28,
+    "h": 28
+   },
+   "pad": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "font": {
+    "px": 12,
+    "weight": 400,
+    "family": "Sans Serif"
+   },
+   "enabled": true,
+   "hint": [
+    -1,
+    -1
+   ],
+   "text": "",
+   "layout": null,
+   "paint": {
+    "centre": "",
+    "top": "",
+    "left": "",
+    "right": "",
+    "bottom": "",
+    "inset": ""
+   }
+  },
+  {
+   "slot": "caption-label",
+   "cls": "CaptionLabel",
+   "box": {
+    "x": 362,
+    "y": 872,
+    "w": 140,
+    "h": 28
+   },
+   "pad": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "font": {
+    "px": 12,
+    "weight": 400,
+    "family": "Sans Serif"
+   },
+   "enabled": true,
+   "hint": [
+    -1,
+    -1
+   ],
+   "text": "",
+   "layout": null,
+   "paint": {
+    "centre": "",
+    "top": "",
+    "left": "",
+    "right": "",
+    "bottom": "",
+    "inset": ""
+   }
+  },
+  {
+   "slot": null,
+   "cls": "MonthGrid",
+   "box": {
+    "x": 334,
+    "y": 916,
+    "w": 196,
+    "h": 236
+   },
+   "pad": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "font": {
+    "px": 12,
+    "weight": 400,
+    "family": "Sans Serif"
+   },
+   "enabled": true,
+   "hint": [
+    -1,
+    -1
+   ],
+   "text": "",
+   "layout": null,
+   "paint": {
+    "centre": "",
+    "top": "",
+    "left": "",
+    "right": "",
+    "bottom": "",
+    "inset": ""
+   }
+  },
+  {
    "slot": "demo-case",
    "cls": "QWidget",
    "box": {
@@ -1046,312 +1316,6 @@
     "left": "#f9fcfe",
     "right": "#f9fcfe",
     "bottom": "#f9fcfe",
-    "inset": "#f9fcfe"
-   }
-  },
-  {
-   "slot": null,
-   "cls": "Popover",
-   "box": {
-    "x": 308,
-    "y": 590,
-    "w": 362,
-    "h": 344
-   },
-   "pad": [
-    0,
-    0,
-    0,
-    0
-   ],
-   "font": {
-    "px": 12,
-    "weight": 400,
-    "family": "Sans Serif"
-   },
-   "enabled": true,
-   "hint": [
-    362,
-    344
-   ],
-   "text": "",
-   "layout": {
-    "cls": "QVBoxLayout",
-    "gap": 0,
-    "pad": [
-     14,
-     14,
-     14,
-     14
-    ]
-   },
-   "paint": {
-    "centre": "#f9fcfe",
-    "top": "#f9fcfe",
-    "left": "#f9fcfe",
-    "right": "#f9fcfe",
-    "bottom": "",
-    "inset": "#f9fcfe"
-   }
-  },
-  {
-   "slot": "date-editor-day",
-   "cls": "Input",
-   "box": {
-    "x": 334,
-    "y": 616,
-    "w": 310,
-    "h": 32
-   },
-   "pad": [
-    0,
-    0,
-    0,
-    0
-   ],
-   "font": {
-    "px": 14,
-    "weight": 400,
-    "family": "Geist"
-   },
-   "enabled": true,
-   "hint": [
-    -1,
-    -1
-   ],
-   "text": "2026-09-02",
-   "layout": null,
-   "paint": {
-    "centre": "#f9fcfe",
-    "top": "#f9fcfe",
-    "left": "#f9fcfe",
-    "right": "#f9fcfe",
-    "bottom": "#f9fcfe",
-    "inset": "#f9fcfe"
-   }
-  },
-  {
-   "slot": "date-editor-calendar",
-   "cls": "Calendar",
-   "box": {
-    "x": 334,
-    "y": 660,
-    "w": 310,
-    "h": 248
-   },
-   "pad": [
-    0,
-    0,
-    0,
-    0
-   ],
-   "font": {
-    "px": 12,
-    "weight": 400,
-    "family": "Sans Serif"
-   },
-   "enabled": true,
-   "hint": [
-    310,
-    248
-   ],
-   "text": "",
-   "layout": {
-    "cls": "QVBoxLayout",
-    "gap": 12,
-    "pad": [
-     8,
-     8,
-     8,
-     8
-    ]
-   },
-   "paint": {
-    "centre": "#f9fcfe",
-    "top": "#f9fcfe",
-    "left": "#f9fcfe",
-    "right": "#f9fcfe",
-    "bottom": "",
-    "inset": "#f9fcfe"
-   }
-  },
-  {
-   "slot": null,
-   "cls": "IconButton",
-   "box": {
-    "x": 342,
-    "y": 668,
-    "w": 28,
-    "h": 28
-   },
-   "pad": [
-    0,
-    0,
-    0,
-    0
-   ],
-   "font": {
-    "px": 12,
-    "weight": 400,
-    "family": "Sans Serif"
-   },
-   "enabled": true,
-   "hint": [
-    -1,
-    -1
-   ],
-   "text": "",
-   "layout": null,
-   "paint": {
-    "centre": "#f9fcfe",
-    "top": "#f9fcfe",
-    "left": "#f9fcfe",
-    "right": "#f9fcfe",
-    "bottom": "#f9fcfe",
-    "inset": "#f9fcfe"
-   }
-  },
-  {
-   "slot": null,
-   "cls": "IconButton",
-   "box": {
-    "x": 608,
-    "y": 668,
-    "w": 28,
-    "h": 28
-   },
-   "pad": [
-    0,
-    0,
-    0,
-    0
-   ],
-   "font": {
-    "px": 12,
-    "weight": 400,
-    "family": "Sans Serif"
-   },
-   "enabled": true,
-   "hint": [
-    -1,
-    -1
-   ],
-   "text": "",
-   "layout": null,
-   "paint": {
-    "centre": "#f9fcfe",
-    "top": "#f9fcfe",
-    "left": "#f9fcfe",
-    "right": "#f9fcfe",
-    "bottom": "#f9fcfe",
-    "inset": "#f9fcfe"
-   }
-  },
-  {
-   "slot": null,
-   "cls": "Select",
-   "box": {
-    "x": 376,
-    "y": 668,
-    "w": 124,
-    "h": 28
-   },
-   "pad": [
-    0,
-    0,
-    0,
-    0
-   ],
-   "font": {
-    "px": 12,
-    "weight": 400,
-    "family": "Sans Serif"
-   },
-   "enabled": true,
-   "hint": [
-    -1,
-    -1
-   ],
-   "text": "",
-   "layout": null,
-   "paint": {
-    "centre": "#f9fcfe",
-    "top": "#f9fcfe",
-    "left": "#f9fcfe",
-    "right": "#f9fcfe",
-    "bottom": "#f9fcfe",
-    "inset": "#f9fcfe"
-   }
-  },
-  {
-   "slot": null,
-   "cls": "Select",
-   "box": {
-    "x": 506,
-    "y": 668,
-    "w": 96,
-    "h": 28
-   },
-   "pad": [
-    0,
-    0,
-    0,
-    0
-   ],
-   "font": {
-    "px": 12,
-    "weight": 400,
-    "family": "Sans Serif"
-   },
-   "enabled": true,
-   "hint": [
-    -1,
-    -1
-   ],
-   "text": "",
-   "layout": null,
-   "paint": {
-    "centre": "#f9fcfe",
-    "top": "#f9fcfe",
-    "left": "#f9fcfe",
-    "right": "#f9fcfe",
-    "bottom": "#f9fcfe",
-    "inset": "#f9fcfe"
-   }
-  },
-  {
-   "slot": null,
-   "cls": "MonthGrid",
-   "box": {
-    "x": 391,
-    "y": 708,
-    "w": 196,
-    "h": 192
-   },
-   "pad": [
-    0,
-    0,
-    0,
-    0
-   ],
-   "font": {
-    "px": 12,
-    "weight": 400,
-    "family": "Sans Serif"
-   },
-   "enabled": true,
-   "hint": [
-    -1,
-    -1
-   ],
-   "text": "",
-   "layout": null,
-   "paint": {
-    "centre": "#f9fcfe",
-    "top": "#f9fcfe",
-    "left": "#f9fcfe",
-    "right": "#f9fcfe",
-    "bottom": "",
     "inset": "#f9fcfe"
    }
   },
@@ -3222,8 +3186,8 @@
   {
    "top": "Popover",
    "box": [
-    362,
-    344
+    248,
+    372
    ],
    "elements": [
     {
@@ -3232,8 +3196,8 @@
      "box": {
       "x": 0,
       "y": 0,
-      "w": 362,
-      "h": 344
+      "w": 248,
+      "h": 372
      },
      "pad": [
       0,
@@ -3248,8 +3212,8 @@
      },
      "enabled": true,
      "hint": [
-      362,
-      344
+      248,
+      372
      ],
      "text": "",
      "layout": {
@@ -3277,8 +3241,8 @@
      "box": {
       "x": 26,
       "y": 26,
-      "w": 310,
-      "h": 32
+      "w": 196,
+      "h": 28
      },
      "pad": [
       0,
@@ -3312,9 +3276,9 @@
      "cls": "Calendar",
      "box": {
       "x": 26,
-      "y": 70,
-      "w": 310,
-      "h": 248
+      "y": 66,
+      "w": 196,
+      "h": 280
      },
      "pad": [
       0,
@@ -3329,18 +3293,18 @@
      },
      "enabled": true,
      "hint": [
-      310,
-      248
+      196,
+      280
      ],
      "text": "",
      "layout": {
       "cls": "QVBoxLayout",
-      "gap": 12,
+      "gap": 16,
       "pad": [
-       8,
-       8,
-       8,
-       8
+       0,
+       0,
+       0,
+       0
       ]
      },
      "paint": {
@@ -3356,8 +3320,8 @@
      "slot": null,
      "cls": "IconButton",
      "box": {
-      "x": 34,
-      "y": 78,
+      "x": 26,
+      "y": 66,
       "w": 28,
       "h": 28
      },
@@ -3392,8 +3356,8 @@
      "slot": null,
      "cls": "IconButton",
      "box": {
-      "x": 300,
-      "y": 78,
+      "x": 194,
+      "y": 66,
       "w": 28,
       "h": 28
      },
@@ -3425,48 +3389,12 @@
      }
     },
     {
-     "slot": null,
-     "cls": "Select",
+     "slot": "caption-label",
+     "cls": "CaptionLabel",
      "box": {
-      "x": 68,
-      "y": 78,
-      "w": 124,
-      "h": 28
-     },
-     "pad": [
-      0,
-      0,
-      0,
-      0
-     ],
-     "font": {
-      "px": 12,
-      "weight": 400,
-      "family": "Sans Serif"
-     },
-     "enabled": true,
-     "hint": [
-      -1,
-      -1
-     ],
-     "text": "",
-     "layout": null,
-     "paint": {
-      "centre": "#dadbdb",
-      "top": "#ffffff",
-      "left": "#ffffff",
-      "right": "#ffffff",
-      "bottom": "#ffffff",
-      "inset": "#ededed"
-     }
-    },
-    {
-     "slot": null,
-     "cls": "Select",
-     "box": {
-      "x": 198,
-      "y": 78,
-      "w": 96,
+      "x": 54,
+      "y": 66,
+      "w": 140,
       "h": 28
      },
      "pad": [
@@ -3493,17 +3421,17 @@
       "left": "#ffffff",
       "right": "#ffffff",
       "bottom": "#ffffff",
-      "inset": "#ededed"
+      "inset": "#ffffff"
      }
     },
     {
      "slot": null,
      "cls": "MonthGrid",
      "box": {
-      "x": 83,
-      "y": 118,
+      "x": 26,
+      "y": 110,
       "w": 196,
-      "h": 192
+      "h": 236
      },
      "pad": [
       0,
@@ -3524,7 +3452,7 @@
      "text": "",
      "layout": null,
      "paint": {
-      "centre": "#afafb0",
+      "centre": "#525355",
       "top": "#ffffff",
       "left": "#ffffff",
       "right": "#ffffff",
@@ -3534,6 +3462,5 @@
     }
    ]
   }
- ],
- "open": true
+ ]
 }

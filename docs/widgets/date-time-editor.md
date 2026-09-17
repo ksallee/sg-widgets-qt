@@ -64,3 +64,9 @@ Only `null` clears the field; the empty string is a 400 (field_types/date_time).
 
 Most timestamp fields are server-managed, and the name does not predict it. Read the schema's
 `editable` flag before offering this control (field_types/date_time).
+
+## The calendar
+
+The month grid is the one `docs/widgets/date-editor.md` describes, on the same defaults: a centred
+caption between two ghost step buttons, 28px day cells, and the days either side of the month in
+`muted_foreground`.

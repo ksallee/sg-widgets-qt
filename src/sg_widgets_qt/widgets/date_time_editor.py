@@ -139,7 +139,7 @@ class DateTimeEditor(ValueEditor):
         self._session.bind(self._day, "date")
         panel.layout().addWidget(self._day)
 
-        self._calendar = Calendar(surface="transparent", parent=panel)
+        self._calendar = Calendar(surface="transparent", padding=0, parent=panel)
         self._calendar.setObjectName("date-time-editor-calendar")
         self._calendar.grid().picked.connect(self._pick)
         panel.layout().addWidget(self._calendar)

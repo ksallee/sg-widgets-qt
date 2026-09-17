@@ -58,3 +58,21 @@ on write and as a filter value (field_types/date).
 
 Both `null` and the empty string clear the field and read back as null, so there is one empty state
 (field_types/date).
+
+## The calendar
+
+The calendar in the popover is `primitives/calendar.py`, the port of `components/ui/calendar.tsx`.
+It wears that file's own defaults: the caption is a centred `March 2026` at the body step in
+medium, 28 high, with a ghost step button at each end of the row carrying a 16px chevron, and the
+days of the month either side of it are shown in `muted_foreground` rather than left blank
+(`captionLayout='label'`, `buttonVariant='ghost'`, `showOutsideDays` upstream). A day cell is 28
+square on a `md` corner, a week clears the one over it by 8, the weekday headings are the 13px
+step in `muted_foreground`, today wears `muted`, and the chosen day is filled in `primary`.
+
+`caption_layout='dropdown'` is the other layout react-day-picker offers: a month select and a year
+select in place of the label, for a caller who jumps further than a month at a time. The two step
+buttons stay either side of them.
+
+One thing differs from upstream by choice. The grid always draws six weeks, so the popover keeps
+one height whatever month is on show; upstream draws the month's own week count and the popover
+grows and shrinks by a row as you step through the year.

@@ -287,7 +287,9 @@ class ContextTrigger(ThemedWidget):
         step = self.size_step
         lead = 8 if step == "sm" else 8
         trail = 8 if step == "sm" else 12
-        pad_y = 0 if not self._refs else 1
+        # `PICKER_BOX` of `picker-classes.ts`: what the chip and the control's own border leave
+        # under the ladder, halved — 3 at sm and md, 1 at lg — and nothing while it is empty.
+        pad_y = 0 if not self._refs else (1 if step == "lg" else 3)
         self._row.setContentsMargins(
             lead if not self._refs else 3, pad_y, trail + CONTROL_GLYPH[step] + 6, pad_y
         )

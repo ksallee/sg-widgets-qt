@@ -1,9 +1,4 @@
-"""The date editor with its calendar popover open, measured against the upstream DOM walk.
-
-The twin of `tools/drives/upstream/measure/date-editor-open.js`. The popover is a window of its
-own here, so the surface is read through `measure_popups`, which is where the upstream portalled
-`popover-content` lands.
-"""
+"""The date editor with its calendar open, measured against the upstream DOM walk."""
 from __future__ import annotations
 
 import os
@@ -16,10 +11,18 @@ from _leaves import measure_page, measure_popups  # noqa: E402
 
 
 def drive(page, wait, find, prefs) -> dict:
-    editor = find("date-editor", all=True)[1]
-    click(editor.trigger)
-    wait(600)
+    wait(400)
+    trigger = find("date-editor-trigger")
+    if trigger is None:
+        from sg_widgets_qt.widgets.date_editor import DateTrigger
+
+        found = find(DateTrigger, all=True)
+        trigger = found[0] if found else None
+    if trigger is None:
+        return {"verdict": "FAIL no date trigger on the page"}
+    click(trigger)
+    wait(400)
     out = measure_page(page)
     out["popups"] = measure_popups()
-    out["open"] = editor.is_open
+    out["verdict"] = "PASS the calendar is open" if out["popups"] else "FAIL no popup opened"
     return out

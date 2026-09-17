@@ -1,8 +1,13 @@
 """The month grid of `calendar.tsx`.
 
-A caption holding a month and a year select between two ghost step buttons, a row of weekday
-headings, and six weeks of 32px day cells drawn by one `paintEvent`. Today is outlined, the
-chosen day is filled in `primary`, and the days between the ends of a range wear `accent`.
+A caption between two ghost step buttons, a row of weekday headings, and six weeks of 28px day
+cells drawn by one `paintEvent`. Today wears `muted`, the chosen day is filled in `primary`, and
+the days between the ends of a range wear `accent`.
+
+`caption_layout` is the upstream prop of the same name. `label`, the default there and here,
+centres "March 2026" at the body step in medium between the two step buttons. `dropdown`, the
+other layout react-day-picker offers, puts a month select and a year select there instead, for a
+caller who wants a jump of more than one month.
 
 Dates cross the boundary as ISO strings (`YYYY-MM-DD`), which is what the API sends and what
 core reads; a `date` is taken too and is given back as its ISO string.
@@ -22,24 +27,48 @@ from .input_group import IconButton
 from .select import Select
 
 __all__ = [
+    "CALENDAR_PAD",
+    "CAPTION_GAP",
+    "CAPTION_LAYOUT_VALUES",
     "CELL",
     "MONTH_NAMES",
+    "WEEK_PITCH",
     "WEEKDAY_LETTERS",
     "Calendar",
+    "CaptionLabel",
     "MonthGrid",
 ]
 
 #: A day cell, and the weekday heading over it. `--cell-size: --spacing(7)` of `calendar.tsx`
 #: is 28, which is the control ladder's smallest step: a month of them is 196 across.
 CELL = 28
+
+#: The weekday heading over a column: `text-[0.8rem]` on the 20px line its row stands at.
 HEADING_HEIGHT = 20
+HEADING_TEXT = 13
+
+#: `mt-2` on every week, so the days sit a row's air apart and the first row clears the
+#: headings by the same. One week therefore takes `CELL + WEEK_GAP` of the column.
+WEEK_GAP = 8
+WEEK_PITCH = CELL + WEEK_GAP
 
 #: Six weeks, so the grid keeps one height whatever month it shows.
 WEEKS = 6
 COLUMNS = 7
 
-#: The step buttons beside the caption.
+#: The step buttons beside the caption, which are the square of a cell, and the caption's own
+#: row, which is that square as well (`h-(--cell-size)` of `month_caption`).
 NAV_SIZE = 28
+CAPTION_HEIGHT = 28
+CAPTION_TEXT = 14
+
+#: `gap-4` between the caption row and the grid, and `p-2` around the whole calendar. A caller
+#: whose surface has padding of its own passes 0, as the date editor's popover does.
+CAPTION_GAP = 16
+CALENDAR_PAD = 8
+
+#: The two layouts `calendar.tsx` offers for the caption. `label` is its default and ours.
+CAPTION_LAYOUT_VALUES: tuple[str, ...] = ("label", "dropdown")
 
 #: Month names, and the weekday letters in Monday-first order.
 MONTH_NAMES: tuple[str, ...] = (
@@ -57,6 +86,9 @@ MONTH_NAMES: tuple[str, ...] = (
     "December",
 )
 WEEKDAY_LETTERS: tuple[str, ...] = ("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")
+
+#: `gap-1.5` between the two selects of the `dropdown` layout.
+DROPDOWN_GAP = 6
 
 #: Years the year select offers around the one on show.
 YEAR_SPAN = 10
@@ -181,16 +213,16 @@ class MonthGrid(ThemedWidget):
         return [WEEKDAY_LETTERS[6], *WEEKDAY_LETTERS[:6]]
 
     def cell_rect(self, column: int, week: int) -> QRect:
-        top = HEADING_HEIGHT + 4 + week * CELL
+        top = HEADING_HEIGHT + WEEK_GAP + week * WEEK_PITCH
         return QRect(column * CELL, top, CELL, CELL)
 
     def date_at(self, point: QPoint) -> datetime.date | None:
         """The day under a point, or None where the point is off the grid."""
-        top = HEADING_HEIGHT + 4
+        top = HEADING_HEIGHT + WEEK_GAP
         if point.y() < top:
             return None
         column = point.x() // CELL
-        week = (point.y() - top) // CELL
+        week = (point.y() - top) // WEEK_PITCH
         if not (0 <= column < COLUMNS and 0 <= week < WEEKS):
             return None
         return self.first_cell() + datetime.timedelta(days=int(week * COLUMNS + column))
@@ -202,7 +234,7 @@ class MonthGrid(ThemedWidget):
         return not (self._max is not None and day > self._max)
 
     def sizeHint(self) -> QSize:  # noqa: N802
-        return QSize(COLUMNS * CELL, HEADING_HEIGHT + 4 + WEEKS * CELL)
+        return QSize(COLUMNS * CELL, HEADING_HEIGHT + WEEKS * WEEK_PITCH)
 
     # --- painting ------------------------------------------------------------------------
 
@@ -212,7 +244,7 @@ class MonthGrid(ThemedWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
 
-        painter.setFont(theme.font(12))
+        painter.setFont(theme.font(HEADING_TEXT))
         painter.setPen(theme.color("muted_foreground"))
         for column, letter in enumerate(self.headings()):
             box = QRect(column * CELL, 0, CELL, HEADING_HEIGHT)
@@ -263,7 +295,10 @@ class MonthGrid(ThemedWidget):
             fill_round_rect(painter, box, radius, with_alpha(theme.accent, 0.5))
             ink = theme.color("accent_foreground")
         elif day == today:
-            fill_round_rect(painter, box, radius, None, theme.color("primary"))
+            # `today` is `bg-muted text-foreground` upstream, a filled cell rather than an
+            # outlined one, so it does not read as a second selection.
+            fill_round_rect(painter, box, radius, theme.color("muted"))
+            ink = theme.color("foreground")
 
         if self.hasFocus() and day == self._cursor:
             self.paint_focus_ring(painter, box, radius)
@@ -337,13 +372,48 @@ class MonthGrid(ThemedWidget):
         return True
 
 
+class CaptionLabel(ThemedWidget):
+    """The month and the year as one centred line: `caption_label` at `text-sm font-medium`."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("caption-label")
+        self._text = ""
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setMinimumWidth(0)
+
+    @property
+    def text(self) -> str:
+        """The caption on show, as `March 2026`."""
+        return self._text
+
+    def set_text(self, value: str) -> None:
+        self._text = value
+        self.updateGeometry()
+        self.update()
+
+    def sizeHint(self) -> QSize:  # noqa: N802
+        return QSize(0, CAPTION_HEIGHT)
+
+    def paintEvent(self, _event: QEvent) -> None:  # noqa: N802
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+        theme = self.theme
+        painter.setFont(theme.font(CAPTION_TEXT, QFont.Weight.Medium))
+        painter.setPen(theme.color("foreground"))
+        painter.drawText(self.rect(), int(Qt.AlignmentFlag.AlignCenter), self._text)
+        painter.end()
+
+
 class Calendar(ThemedWidget):
     """A month of days a person picks from.
 
     `mode` of `single` keeps one day and `range` keeps two. `value` and `value_changed` carry
     ISO strings: one string in `single`, a `(start, end)` pair in `range`, either end None while
     it is unset. `surface` of `transparent` drops the `background` fill, for a calendar sitting
-    in a popover that has painted one already.
+    in a popover that has painted one already. `caption_layout` is `label`, the upstream
+    default, or `dropdown` for the month and year selects. `padding` is the calendar's own
+    inset, `p-2` upstream; a surface that pads already passes 0.
     """
 
     value_changed = Signal(object)
@@ -357,11 +427,16 @@ class Calendar(ThemedWidget):
         max: DateLike = None,  # noqa: A002
         locale: str = "en-US",
         surface: str = "background",
+        caption_layout: str = "label",
+        padding: int = CALENDAR_PAD,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._mode = mode if mode in ("single", "range") else "single"
         self._surface = surface
+        self._caption_layout = (
+            caption_layout if caption_layout in CAPTION_LAYOUT_VALUES else "label"
+        )
         self._locale = locale
         self._min = as_date(min)
         self._max = as_date(max)
@@ -372,25 +447,36 @@ class Calendar(ThemedWidget):
 
         self._prev = IconButton("chevron-left", self, side=NAV_SIZE, glyph=16, tooltip="Previous month")
         self._next = IconButton("chevron-right", self, side=NAV_SIZE, glyph=16, tooltip="Next month")
+        self._label = CaptionLabel(self)
         self._month_select = Select(parent=self, size="sm", placeholder="Month")
         self._year_select = Select(parent=self, size="sm", placeholder="Year")
         self._month_select.setMinimumWidth(124)
         self._year_select.setMinimumWidth(96)
+        self._dropdowns = QWidget(self)
+        self._dropdowns.setObjectName("caption-dropdowns")
+        picks = QHBoxLayout(self._dropdowns)
+        picks.setContentsMargins(0, 0, 0, 0)
+        picks.setSpacing(DROPDOWN_GAP)
+        picks.addStretch(1)
+        picks.addWidget(self._month_select)
+        picks.addWidget(self._year_select)
+        picks.addStretch(1)
+        self._apply_caption_layout()
         self._grid = MonthGrid(self, locale=locale)
         self._grid.set_mode(self._mode)
         self._grid.set_bounds(self._min, self._max)
 
         column = QVBoxLayout(self)
-        column.setContentsMargins(8, 8, 8, 8)
-        column.setSpacing(12)
+        column.setContentsMargins(padding, padding, padding, padding)
+        column.setSpacing(CAPTION_GAP)
+        # `nav` sits over `month_caption` upstream, both the height of one cell, so the step
+        # buttons hold the ends of the row and the caption centres in what is left.
         caption = QHBoxLayout()
         caption.setContentsMargins(0, 0, 0, 0)
-        caption.setSpacing(6)
+        caption.setSpacing(0)
         caption.addWidget(self._prev)
-        caption.addStretch(1)
-        caption.addWidget(self._month_select)
-        caption.addWidget(self._year_select)
-        caption.addStretch(1)
+        caption.addWidget(self._label, 1)
+        caption.addWidget(self._dropdowns, 1)
         caption.addWidget(self._next)
         column.addLayout(caption)
         column.addWidget(self._grid, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -464,8 +550,29 @@ class Calendar(ThemedWidget):
         """The day grid, which holds the keyboard cursor."""
         return self._grid
 
+    @property
+    def caption_layout(self) -> str:
+        """`label`, the centred month and year, or `dropdown`, the two selects."""
+        return self._caption_layout
+
+    def set_caption_layout(self, value: str) -> None:
+        self._caption_layout = value if value in CAPTION_LAYOUT_VALUES else "label"
+        self._apply_caption_layout()
+        self._rebuild_caption()
+
+    def _apply_caption_layout(self) -> None:
+        """Show the layout's own part and hide the other, so one holds the middle of the row."""
+        dropdown = self._caption_layout == "dropdown"
+        self._label.setVisible(not dropdown)
+        self._dropdowns.setVisible(dropdown)
+
+    def caption_label(self) -> CaptionLabel:
+        """The centred caption, which the `label` layout shows."""
+        return self._label
+
     def _rebuild_caption(self) -> None:
         year, month = self._grid.year, self._grid.month
+        self._label.set_text(f"{MONTH_NAMES[month - 1]} {year}")
         self._month_select.blockSignals(True)
         self._year_select.blockSignals(True)
         self._month_select.set_items([(i + 1, name) for i, name in enumerate(MONTH_NAMES)])

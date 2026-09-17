@@ -222,7 +222,10 @@ class SearchControl(ThemedWidget):
         self._column = QVBoxLayout(self)
         # The box's own hairline border, which upstream's box model puts outside the `p-1`
         # and a painted Qt border would otherwise take out of it.
-        edge = 0 if self._shell == "bare" else BOX_BORDER
+        # Only the box standing in the page draws one: `search-control.tsx` hands its class
+        # string to the command shell alone, so the palette's box inside the dialog has no
+        # border and the dialog's own ring is the edge a reader sees.
+        edge = BOX_BORDER if self._shell == "command" else 0
         self._column.setContentsMargins(edge, edge, edge, edge)
         self._column.setSpacing(0)
 
@@ -855,6 +858,6 @@ class SearchControl(ThemedWidget):
             self.rect(),
             float(theme.radius_px("xl")),
             brush=theme.color("popover"),
-            border=theme.color("border"),
+            border=theme.color("border") if self._shell == "command" else None,
         )
         painter.end()

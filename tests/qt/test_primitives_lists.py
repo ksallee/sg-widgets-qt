@@ -8,7 +8,13 @@ from qtpy.QtCore import QAbstractListModel, QAbstractTableModel, QEvent, QModelI
 from qtpy.QtGui import QColor, QKeyEvent, QPainter, QPixmap
 from qtpy.QtWidgets import QStyle, QStyleOptionViewItem
 
-from sg_widgets_qt.primitives.calendar import Calendar
+from sg_widgets_qt.primitives.calendar import (
+    CELL,
+    HEADING_HEIGHT,
+    WEEK_GAP,
+    WEEK_PITCH,
+    Calendar,
+)
 from sg_widgets_qt.primitives.command import Command
 from sg_widgets_qt.primitives.list_view import FADE_SIZE, ListSurface
 from sg_widgets_qt.primitives.roles import Roles
@@ -430,6 +436,37 @@ def test_a_range_keeps_two_ends(themed):
     calendar.grid().picked.emit(datetime.date(2026, 3, 9))
     calendar.grid().picked.emit(datetime.date(2026, 3, 4))
     assert calendar.value == ("2026-03-04", "2026-03-09")
+
+
+def test_the_caption_is_a_centred_label_between_the_two_step_buttons(themed):
+    """`calendar.tsx` defaults to `captionLayout="label"`: one line, not two selects."""
+    calendar = themed(Calendar(value="2026-03-04"))
+    assert calendar.caption_layout == "label"
+    assert calendar.caption_label().isVisible()
+    assert calendar.caption_label().text == "March 2026"
+
+    calendar.step_month(1)
+    assert calendar.caption_label().text == "April 2026"
+
+
+def test_the_dropdown_layout_puts_the_two_selects_back(themed):
+    """`captionLayout="dropdown"` is the other layout react-day-picker offers."""
+    calendar = themed(Calendar(value="2026-03-04", caption_layout="dropdown"))
+    assert not calendar.caption_label().isVisible()
+    calendar.set_caption_layout("label")
+    assert calendar.caption_label().isVisible()
+
+
+def test_the_grid_stands_on_the_upstream_cell_ladder(themed):
+    """`--cell-size` is 28, a week clears the one over it by `mt-2`, and the row is 7 wide."""
+    calendar = themed(Calendar(value="2026-03-04"))
+    grid = calendar.grid()
+    first = grid.cell_rect(0, 0)
+    assert (first.width(), first.height()) == (CELL, CELL)
+    assert first.top() == HEADING_HEIGHT + WEEK_GAP
+    assert grid.cell_rect(0, 1).top() - first.top() == WEEK_PITCH
+    assert grid.sizeHint().width() == 7 * CELL
+    assert grid.cell_rect(6, 0).right() + 1 == grid.sizeHint().width()
 
 
 def test_the_week_starts_on_monday_outside_en_us(themed):
