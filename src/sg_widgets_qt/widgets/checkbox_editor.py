@@ -22,10 +22,14 @@ from ..primitives.checkbox import Switch
 from ..primitives.label import Label
 from .value_editor import VALUE_EDITOR_GAP, ValueEditor
 
-__all__ = ["CHECKBOX_EDITOR_LABELS", "CheckboxEditor"]
+__all__ = ["CHECKBOX_EDITOR_LABELS", "CHECKBOX_EDITOR_SWITCH", "CheckboxEditor"]
 
 #: The two words shown beside the switch.
 CHECKBOX_EDITOR_LABELS: tuple[str, str] = ("Yes", "No")
+
+#: `SWITCH` of `checkbox-editor.tsx`: the switch primitive carries two steps, so the third
+#: reuses the larger one.
+CHECKBOX_EDITOR_SWITCH: dict[str, str] = {"sm": "sm", "md": "default", "lg": "default"}
 
 
 class CheckboxEditor(ValueEditor):
@@ -56,7 +60,7 @@ class CheckboxEditor(ValueEditor):
         line = QtWidgets.QHBoxLayout(row)
         line.setContentsMargins(0, 0, 0, 0)
         line.setSpacing(VALUE_EDITOR_GAP)
-        self._switch = Switch(self._value, row)
+        self._switch = Switch(self._value, row, size=CHECKBOX_EDITOR_SWITCH[self.size])
         self._switch.setObjectName("checkbox-editor-switch")
         self._switch.toggled.connect(self._on_toggled)
         line.addWidget(self._switch, 0, QtCore.Qt.AlignmentFlag.AlignVCenter)
@@ -136,6 +140,9 @@ class CheckboxEditor(ValueEditor):
 
     def _apply_size(self, size: str) -> None:
         self._row.setMinimumHeight(CONTROL_HEIGHT[size])
+        switch = getattr(self, "_switch", None)
+        if switch is not None:
+            switch.set_size(CHECKBOX_EDITOR_SWITCH[size])
 
     def _apply_state(self) -> None:
         switch = getattr(self, "_switch", None)

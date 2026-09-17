@@ -93,6 +93,10 @@ PICKER_CHIP: dict[str, str] = {"sm": "xs", "md": "sm", "lg": "md"}
 #: The glyphs inside a control.
 PICKER_GLYPH: dict[str, int] = {"sm": 16, "md": 16, "lg": 20}
 
+#: `PICKER_ICON_BUTTON`'s `p-0.5`: the room the clear and open controls keep around their glyph.
+#: It is what the pair takes in the layout; the hit box of rule 3 is centred on it and takes none.
+ICON_PAD = 2
+
 #: The control's own border, which the vertical inset is measured from the inside of.
 BORDER = 1
 
@@ -109,8 +113,9 @@ POPUP_WIDTH = 384
 SEARCH_ROW_HEIGHT = 32
 SEARCH_ROW_PAD = 12
 
-#: The `+n` pill and the load-more row, on the metadata step.
+#: The `+n` pill and the load-more row, on the metadata step, and the line that step stands on.
 PILL_TEXT = 12
+PILL_LINE = 16
 
 #: Skeletons a read stands behind, shaped like the rows they replace.
 SKELETON_ROWS = 3
@@ -283,8 +288,17 @@ class _IconButton(ThemedWidget):
         self.updateGeometry()
         self.update()
 
+    def box_side(self) -> int:
+        """The control's own box: the glyph and `PICKER_ICON_BUTTON`'s 2px, as upstream lays it.
+
+        The hit box rule 3 asks for is wider than that, and takes no room of its own: it is
+        centred on this box, the way the upstream pseudo-element is, so the glyph sits where
+        the browser puts it and the pointer still has its 24 pixels.
+        """
+        return PICKER_GLYPH[self.size_step] + 2 * ICON_PAD
+
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
-        side = max(ICON_HIT_BOX, PICKER_GLYPH[self.size_step])
+        side = max(ICON_HIT_BOX, self.box_side())
         return QtCore.QSize(side, side)
 
     def on_hover_changed(self, value: bool) -> None:
@@ -294,7 +308,9 @@ class _IconButton(ThemedWidget):
         theme = self.theme
         painter = painter_for(self)
         painter.setOpacity(self.disabled_opacity())
-        box = self.rect()
+        side = self.box_side()
+        box = QtCore.QRect(0, 0, side, side)
+        box.moveCenter(self.rect().center())
         if self.pressed and not theme.reduced_motion:
             centre = QtCore.QPointF(box.center())
             painter.translate(centre)
@@ -369,8 +385,13 @@ class _OverflowPill(ThemedWidget):
         return self.theme.font(PILL_TEXT, tabular=True)
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
+        """`PICKER_PILL`: the label and nothing else, on the metadata line of rule 6.
+
+        The pill has no box of its own upstream — no padding and no height beyond its own
+        line — so anything added here would push the chips beside it out of step.
+        """
         metrics = QtGui.QFontMetrics(self._font())
-        return QtCore.QSize(text_width(metrics, self._label()) + 4, metrics.height())
+        return QtCore.QSize(text_width(metrics, self._label()), PILL_LINE)
 
     def on_hover_changed(self, value: bool) -> None:
         self._hover.set(1.0 if value else 0.0)
@@ -1641,12 +1662,14 @@ class PickerControl(ThemedWidget):
             self._pill.setToolTip(f"Show all {len(self._labels)} selected")
 
         left, right, pad_y = self._insets()
-        room = max(0, self.width() - left - right)
+        room = max(0, self.width() - 2 * BORDER - left - right)
         line = max(1, self._line_height())
         ladder = CONTROL_HEIGHT[self.size_step]
         # The inset is what the chip and the control's own border leave under the ladder,
         # halved, so the border counts: 20 and 2 under 28 at sm, 24 and 2 under 32 at md.
-        x, y = left, BORDER + pad_y
+        # It counts on both axes — the padding of a box model is measured from inside the
+        # border — so the leading edge starts one pixel further in than the inset alone.
+        x, y = BORDER + left, BORDER + pad_y
         rows = 1
         placed: list[tuple[QtWidgets.QWidget, QtCore.QRect]] = []
         for index, chip in enumerate(self._chips):
@@ -1655,16 +1678,19 @@ class PickerControl(ThemedWidget):
             if not shown_chip:
                 continue
             width = chip.sizeHint().width()
-            if not self._one_line and x > left and x + width > left + room:
-                x = left
+            if not self._one_line and x > BORDER + left and x + width > BORDER + left + room:
+                x = BORDER + left
                 y += line + CHIP_GAP
                 rows += 1
             placed.append((chip, QtCore.QRect(x, y, min(width, max(0, room)), line)))
             x += width + CHIP_GAP
         if show_pill:
-            width = self._pill.sizeHint().width()
-            placed.append((self._pill, QtCore.QRect(x, y, width, line)))
-            x += width + CHIP_GAP
+            # `items-center`: the pill is its own line tall and centres on the chip row, so it
+            # never stretches to the chip's height the way a chip's own box does.
+            hint = self._pill.sizeHint()
+            top = y + max(0, (line - hint.height()) // 2)
+            placed.append((self._pill, QtCore.QRect(x, top, hint.width(), hint.height())))
+            x += hint.width() + CHIP_GAP
 
         natural = 2 * (BORDER + pad_y) + rows * line + (rows - 1) * CHIP_GAP
         height = max(ladder, natural)
@@ -1678,7 +1704,7 @@ class PickerControl(ThemedWidget):
 
         if self._inline:
             floor = TOKEN_CARET_MIN_WIDTH if self._token_input else CARET_MIN_WIDTH
-            width = max(floor, self.width() - right - x)
+            width = max(floor, self.width() - BORDER - right - x)
             if placed:
                 self._caret.setGeometry(x, y + shift, width, line)
             else:
@@ -1701,11 +1727,13 @@ class PickerControl(ThemedWidget):
         for control, shown in ((self._trigger, show_trigger), (self._clear, show_clear)):
             if not shown:
                 continue
-            hint = control.sizeHint()
-            edge -= hint.width()
-            control.setGeometry(
-                edge, lane + (ladder - hint.height()) // 2, hint.width(), hint.height()
-            )
+            side = control.box_side()
+            hit = control.sizeHint().width()
+            edge -= side
+            # The pair is laid out on its own box, `gap-1` apart; the wider hit box is centred
+            # on that box and takes no room, so the glyphs sit where the browser draws them.
+            grow = (hit - side) // 2
+            control.setGeometry(edge - grow, lane + (ladder - side) // 2 - grow, hit, hit)
             edge -= 4
         self._place_ring()
         self.update()

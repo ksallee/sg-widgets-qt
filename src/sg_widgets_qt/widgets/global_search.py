@@ -22,7 +22,7 @@ from dataclasses import field as dc_field
 from typing import Any
 
 from qtpy.QtCore import QEvent, QRect, QSize, Qt, Signal
-from qtpy.QtGui import QKeySequence, QPainter
+from qtpy.QtGui import QFont, QKeySequence, QPainter
 from qtpy.QtWidgets import QShortcut, QSizePolicy, QVBoxLayout, QWidget
 
 from sg_widgets_core.filter import EntityRef
@@ -49,7 +49,8 @@ from ..primitives.base import (
     elide,
     fill_round_rect,
 )
-from ..theme import theme_of, with_alpha
+from ..primitives.button import outline_surface
+from ..theme import theme_of
 from ..workers import default_pool
 from .field_value import FieldValueOptions, field_value_size_hint, paint_field_value
 from .picker_row import PickerRowModel
@@ -79,9 +80,12 @@ META = "⌘" if sys.platform == "darwin" else "Ctrl"
 #: The heading a list of what was picked before sits under.
 RECENT_HEADING = "Recent"
 
-#: Room inside the kbd pill, and its type step.
-KBD_PAD = 6
-KBD_TEXT = 11
+#: The kbd pill of `kbd.tsx`: `h-5 px-1`, the metadata step at medium weight, `rounded-sm`,
+#: `bg-muted` and no border of its own.
+KBD_PAD = 4
+KBD_TEXT = 12
+KBD_HEIGHT = 20
+KBD_MIN_WIDTH = 20
 
 #: The room between the chip of a recent and the type name beside it, rule 2.
 RECENT_GAP = 8
@@ -197,12 +201,10 @@ class SearchTrigger(ThemedWidget):
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
         painter.setOpacity(self.disabled_opacity())
         radius = float(theme.radius_px("lg"))
-        fill = (
-            with_alpha(theme.accent, self._hover.value)
-            if self._hover.value > 0
-            else theme.color("background")
-        )
-        fill_round_rect(painter, self.rect(), radius, brush=fill, border=theme.color("border"))
+        # The trigger is `button.tsx`'s outline variant, so its fill and its border come from
+        # there rather than from a rule of its own.
+        fill, border = outline_surface(theme, self._hover.value)
+        fill_round_rect(painter, self.rect(), radius, brush=fill, border=border)
 
         glyph = CONTROL_GLYPH[step]
         pad = 10
@@ -216,23 +218,29 @@ class SearchTrigger(ThemedWidget):
 
         hint_width = 0
         if self._hint:
-            painter.setFont(theme.font(KBD_TEXT))
-            hint_width = painter.fontMetrics().horizontalAdvance(self._hint) + 2 * KBD_PAD
-            pill = box.adjusted(box.width() - hint_width, (box.height() - 20) // 2, 0, 0)
+            painter.setFont(theme.font(KBD_TEXT, QFont.Weight.Medium))
+            hint_width = max(
+                KBD_MIN_WIDTH,
+                painter.fontMetrics().horizontalAdvance(self._hint) + 2 * KBD_PAD,
+            )
+            pill = box.adjusted(box.width() - hint_width, (box.height() - KBD_HEIGHT) // 2, 0, 0)
             pill.setWidth(hint_width)
-            pill.setHeight(20)
+            pill.setHeight(KBD_HEIGHT)
+            # `bg-muted` is the token as it stands, a wash rather than a fill, and the pill
+            # carries no border: `kbd.tsx` gives it neither.
             fill_round_rect(
                 painter,
                 pill,
                 float(theme.radius_px("sm")),
-                brush=with_alpha(theme.muted, 1.0),
-                border=theme.color("border"),
+                brush=theme.color("muted"),
+                border=None,
             )
             painter.setPen(theme.color("muted_foreground"))
             painter.drawText(pill, int(Qt.AlignmentFlag.AlignCenter), self._hint)
 
         text = box.adjusted(glyph + 6, 0, -(hint_width + 8 if hint_width else 0), 0)
-        painter.setFont(theme.font(14))
+        # The trigger is the outline button of `button.tsx`, which is `text-sm font-medium`.
+        painter.setFont(theme.font(14, QFont.Weight.Medium))
         painter.setPen(theme.color("foreground"))
         painter.drawText(
             text,

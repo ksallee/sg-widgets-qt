@@ -37,6 +37,7 @@ __all__ = [
     "EASE_OUT",
     "FOCUS_RING_OFFSET",
     "FOCUS_RING_WIDTH",
+    "SHADOW_INK",
     "THUMB_SIZE",
     "AnimatedValue",
     "ChipPad",
@@ -198,6 +199,13 @@ def paint_focus_ring(
     painter.restore()
 
 
+#: What a shadow is made of. Upstream's `shadow-md` is `rgb(0 0 0 / 0.1)` twice over, a fixed
+#: black in both modes rather than a token, because a shadow is the light the surface blocks and
+#: not a colour of the palette. Painting `foreground` instead put a white halo around every
+#: popover in dark, where the page is dark and the foreground is near white.
+SHADOW_INK = "#000000"
+
+
 def paint_shadow(
     painter: QtGui.QPainter,
     rect: QtCore.QRect,
@@ -206,14 +214,14 @@ def paint_shadow(
     spread: int = 6,
     opacity: float = 0.18,
 ) -> None:
-    """A soft shadow under a surface, painted as falling bands of `foreground`."""
+    """A soft shadow under a surface, painted as falling bands of `SHADOW_INK`."""
     painter.save()
     painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
     painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
     box = QtCore.QRectF(rect).translated(0, 2)
     for step in range(spread, 0, -1):
         fade = opacity * (1.0 - (step - 1) / float(spread)) ** 2
-        painter.setPen(QtGui.QPen(with_alpha(theme.foreground, fade), 1))
+        painter.setPen(QtGui.QPen(with_alpha(SHADOW_INK, fade), 1))
         band = box.adjusted(-step, -step, step, step)
         painter.drawRoundedRect(band, radius + step, radius + step)
     painter.restore()

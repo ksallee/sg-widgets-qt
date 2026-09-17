@@ -238,9 +238,9 @@ _STYLE = """
 body {{ color: {foreground}; font-family: "{sans}"; font-size: 14px; }}
 p {{ color: {foreground}; margin-top: 0px; margin-bottom: 12px; line-height: 150%; }}
 p.quote {{ color: {muted}; }}
-h1 {{ font-size: 22px; font-weight: 500; margin-top: 8px; margin-bottom: 12px; }}
-h2 {{ font-size: 18px; font-weight: 500; margin-top: 16px; margin-bottom: 8px; }}
-h3 {{ font-size: 15px; font-weight: 500; margin-top: 12px; margin-bottom: 8px; }}
+h1 {{ color: {foreground}; font-size: 22px; font-weight: 500; margin-top: 8px; margin-bottom: 12px; }}
+h2 {{ color: {foreground}; font-size: 18px; font-weight: 500; margin-top: 16px; margin-bottom: 8px; }}
+h3 {{ color: {foreground}; font-size: 15px; font-weight: 500; margin-top: 12px; margin-bottom: 8px; }}
 a {{ color: {primary}; text-decoration: none; }}
 ul {{ margin-top: 0px; margin-bottom: 12px; }}
 li {{ margin-bottom: 4px; line-height: 150%; }}

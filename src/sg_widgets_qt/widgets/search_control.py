@@ -61,8 +61,19 @@ SearchShell = str
 
 SEARCH_SHELLS: tuple[str, ...] = ("command", "dialog", "bare")
 
-#: `p-1` around the search row and the list, as the Command surface takes.
+#: `p-1` around the search row and the list, as the Command surface takes. The search row
+#: sits in a `p-1` wrapper of its own inside that one, with no room under it.
 BOX_PAD = 4
+
+#: The search row of `command.tsx`: `h-8!`, and its glyph `pl-3!` with the caret `pl-1.5`
+#: beside it, which is the command box's own override of the input group's `pl-2`.
+SEARCH_ROW_HEIGHT = "md"
+SEARCH_ROW_LEAD = 12
+SEARCH_ROW_TRAIL = 0
+SEARCH_ROW_GAP = 6
+
+#: The palette's dialog: `sm:max-w-sm` and `p-0`, since the command box brings its own inset.
+DIALOG_WIDTH = 384
 
 #: The load-more row's two labels.
 LOAD_MORE_LABEL = "Load more"
@@ -212,7 +223,8 @@ class SearchControl(ThemedWidget):
         self._input: _SearchInput | None = None
         self._group: InputGroup | None = None
         if self._shell != "bare":
-            self._group = InputGroup(self, size="sm", surface="muted")
+            self._group = InputGroup(self, size=SEARCH_ROW_HEIGHT, surface="muted")
+            self._group.set_insets(SEARCH_ROW_LEAD, SEARCH_ROW_TRAIL, SEARCH_ROW_GAP)
             self._group.add_icon("search", "start")
             self._input = _SearchInput(self, size=size)
             self._input.setObjectName("command-input")
@@ -220,7 +232,9 @@ class SearchControl(ThemedWidget):
             self._input.setText(query)
             self._group.set_control(self._input)
             head = QVBoxLayout()
-            head.setContentsMargins(BOX_PAD, BOX_PAD, BOX_PAD, BOX_PAD)
+            # `p-1 pb-0` inside the box's own `p-1`, so the row stands 8 from the edge and the
+            # list under it 4, with nothing between the two.
+            head.setContentsMargins(2 * BOX_PAD, 2 * BOX_PAD, 2 * BOX_PAD, 0)
             head.setSpacing(0)
             head.addWidget(self._group)
             self._column.addLayout(head)
@@ -777,7 +791,7 @@ class SearchControl(ThemedWidget):
         # Upstream's command dialog draws no header and no close control: the title and the
         # description are `sr-only`, so the panel is the search box and its list and nothing
         # else. Here they are the panel's accessible name and description.
-        self._dialog = Dialog(host, show_close=False)
+        self._dialog = Dialog(host, show_close=False, padding=0, width=DIALOG_WIDTH, align="third")
         self._dialog.setAccessibleName(self._title)
         self._dialog.setAccessibleDescription(self._description)
         self._dialog.set_content(self)
@@ -827,10 +841,12 @@ class SearchControl(ThemedWidget):
         theme = self.theme
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        # `rounded-xl!` on the command surface, which beats the `rounded-lg` of the class
+        # string a wrapper hands it.
         fill_round_rect(
             painter,
             self.rect(),
-            float(theme.radius_px("lg")),
+            float(theme.radius_px("xl")),
             brush=theme.color("popover"),
             border=theme.color("border"),
         )

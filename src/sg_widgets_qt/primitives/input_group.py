@@ -14,7 +14,8 @@ from qtpy.QtWidgets import QHBoxLayout, QLineEdit, QSizePolicy, QWidget
 from .. import icons
 from ..theme import theme_of, watch_theme, with_alpha
 from .base import CONTROL_GLYPH, CONTROL_HEIGHT, DURATION, ThemedWidget, fill_round_rect
-from .input import apply_field_ink
+from .input import TEXT_SIZE, apply_field_ink
+from .type_scale import line_box
 
 __all__ = [
     "ADDON_PAD",
@@ -49,7 +50,9 @@ class InputGroupInput(QLineEdit):
 
     def _apply_theme(self) -> None:
         theme = theme_of(self)
-        self.setFont(theme.font(14 if self._size != "sm" else 12))
+        # `Input` is `text-base md:text-sm` at every step of `CONTROL_BOX`, which changes the
+        # box and never the type: a small control holds body text in a shorter box.
+        self.setFont(theme.font(TEXT_SIZE))
         # The ink goes in the palette, never in a stylesheet: a stylesheet beats every palette
         # under it, and Qt 5 derives the placeholder from its `color`.
         apply_field_ink(self, theme)
@@ -72,12 +75,20 @@ class InputGroupText(ThemedWidget):
         self.updateGeometry()
         self.update()
 
+    def _step(self) -> int:
+        # `text-sm` at every step, as the frame's own input is: the ladder moves the box.
+        return TEXT_SIZE
+
     def _font(self) -> QFont:
-        return self.theme.font(14 if self.size_step != "sm" else 12, QFont.Weight.Medium)
+        # `text-sm text-muted-foreground` of `input-group.tsx`: the body step at the body
+        # weight, so the addon reads as the caret's neighbour and never as a label over it.
+        return self.theme.font(self._step())
 
     def sizeHint(self) -> QSize:  # noqa: N802
+        # The line box of the step, not the frame's height: upstream the addon is a span of its
+        # own line and the row centres it, so a taller box would move nothing and measure wrong.
         metrics = QFontMetrics(self._font())
-        return QSize(metrics.horizontalAdvance(self._text), CONTROL_HEIGHT[self.size_step])
+        return QSize(metrics.horizontalAdvance(self._text), line_box(self._step()))
 
     def paintEvent(self, _event: QEvent) -> None:  # noqa: N802
         painter = QPainter(self)
@@ -130,10 +141,14 @@ class IconButton(ThemedWidget):
         side: int = BUTTON_SIZE,
         glyph: int = 16,
         tooltip: str = "",
+        width: int = 0,
     ) -> None:
         super().__init__(parent)
         self._name = name
         self._side = int(side)
+        # A stepper inside an input is wider than it is tall (`h-3.5 w-5` of `number-editor.tsx`),
+        # so the box takes a width of its own where one is named and stays square otherwise.
+        self._width = int(width) if width else int(side)
         self._glyph = int(glyph)
         self._wash = self.animated(DURATION["hover"])
         self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
@@ -147,7 +162,7 @@ class IconButton(ThemedWidget):
         self.update()
 
     def sizeHint(self) -> QSize:  # noqa: N802
-        return QSize(self._side, self._side)
+        return QSize(self._width, self._side)
 
     def on_hover_changed(self, value: bool) -> None:
         self._wash.set(1.0 if value else 0.0)
@@ -224,6 +239,27 @@ class InputGroup(ThemedWidget):
         row.setSpacing(GROUP_GAP)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
+    def set_insets(self, lead: int = ADDON_PAD, trail: int = ADDON_PAD, gap: int = GROUP_GAP) -> None:
+        """The room before the first addon, after the last, and between the things inside.
+
+        `input-group.tsx` gives an addon `pl-2` / `pr-2` and the caret beside it `pl-1.5`; a
+        surface that wants another inset says so in its own class string, as the command box
+        does with `*:data-[slot=input-group-addon]:pl-3!`.
+        """
+        row = self.layout()
+        row.setContentsMargins(int(lead), 0, int(trail), 0)
+        row.setSpacing(int(gap))
+
+    def set_size_step(self, value: str) -> None:
+        """Take a step, and hand it to the addons hanging off the frame's ends.
+
+        An addon reads its own step for its type and its box, so a frame that changed step with
+        a stale label beside the caret would draw that label at the step it was built at.
+        """
+        super().set_size_step(value)
+        for addon in self.findChildren((InputGroupText, InputGroupIcon)):
+            addon.set_size_step(self.size_step)
+
     # --- the parts -----------------------------------------------------------------------
 
     def set_control(self, widget: QWidget) -> None:
@@ -288,13 +324,25 @@ class InputGroup(ThemedWidget):
     def minimumSizeHint(self) -> QSize:  # noqa: N802
         return QSize(0, CONTROL_HEIGHT[self.size_step])
 
+    def _wash(self, theme: object) -> object:
+        """The `bg-input/…` the frame wears, which is the one `input.tsx` wears.
+
+        `input-group.tsx` carries no light background at all and `dark:bg-input/30` on a dark
+        page; inert it takes that token at 50% light and 80% dark. A frame that filled with
+        `background` instead would paint the page's own colour over the wash and read flat
+        against the fields beside it on a dark page.
+        """
+        if not self.isEnabled():
+            return with_alpha(theme.input, 0.8 if theme.dark else 0.5)
+        return with_alpha(theme.input, 0.3) if theme.dark else None
+
     def paintEvent(self, _event: QEvent) -> None:  # noqa: N802
         theme = self.theme
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setOpacity(self.disabled_opacity())
         radius = float(theme.radius_px("lg"))
-        fill = with_alpha(theme.input, 0.3) if self._surface == "muted" else theme.color("background")
+        fill = with_alpha(theme.input, 0.3) if self._surface == "muted" else self._wash(theme)
         border = theme.color("destructive") if self._invalid else theme.color("input")
         if self._surface == "muted":
             border = with_alpha(border, 0.3)

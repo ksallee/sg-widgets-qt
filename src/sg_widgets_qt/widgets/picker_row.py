@@ -639,8 +639,13 @@ class PickerRowModel(QAbstractListModel):
 
     @property
     def bare_glyph(self) -> bool:
-        """True when the caller named the glyph, so the row has no picture to stand in for."""
-        return self._glyph_of is not None
+        """True when the row was never to have a picture, so the slot is the glyph's own.
+
+        A caller that names a glyph beside a picture field is naming the fallback, not a
+        slot: `picker-row.tsx` keeps the thumbnail ladder there and draws the glyph inside
+        it, which is what a level of the hierarchy shows.
+        """
+        return self._thumbnail is False
 
     def _glyph(self, row: RowLike) -> str:
         if self._glyph_of is not None:

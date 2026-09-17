@@ -122,8 +122,11 @@ class CollectionFooter(ThemedWidget):
         sizes.setContentsMargins(0, 0, 0, 0)
         sizes.setSpacing(FOOTER_GAP)
         sizes.addWidget(_FooterText("Rows per page", tabular=False, parent=self._size_box))
+        # The footer's own type is `text-xs`, but its controls keep the default step of the
+        # control ladder — upstream's `SelectTrigger`, `Input` and `size="icon"` buttons are all
+        # 32 here — so the pager does not read as a row of small buttons.
         self._size_select = Select(
-            [(size, str(size)) for size in self._page_sizes], size="sm", parent=self._size_box
+            [(size, str(size)) for size in self._page_sizes], parent=self._size_box
         )
         self._size_select.setAccessibleName("Rows per page")
         self._size_select.setFixedWidth(72)
@@ -147,12 +150,12 @@ class CollectionFooter(ThemedWidget):
         self._range.setObjectName(f"{self._slot_name}-range")
         pages.addWidget(self._range)
         self._previous = Button(
-            icon="chevron-left", variant="outline", size="icon-sm", parent=self._pager_box
+            icon="chevron-left", variant="outline", size="icon", parent=self._pager_box
         )
         self._previous.setAccessibleName("Previous page")
         self._previous.clicked.connect(self._go_previous)
         pages.addWidget(self._previous)
-        self._page = Input(size="sm", parent=self._pager_box)
+        self._page = Input(parent=self._pager_box)
         self._page.setObjectName(f"{self._slot_name}-page-number")
         self._page.setAccessibleName("Page number")
         self._page.setFixedWidth(PAGE_BOX_WIDTH)
@@ -163,7 +166,7 @@ class CollectionFooter(ThemedWidget):
         self._of = _FooterText("", parent=self._pager_box)
         pages.addWidget(self._of)
         self._next = Button(
-            icon="chevron-right", variant="outline", size="icon-sm", parent=self._pager_box
+            icon="chevron-right", variant="outline", size="icon", parent=self._pager_box
         )
         self._next.setAccessibleName("Next page")
         self._next.clicked.connect(self._go_next)

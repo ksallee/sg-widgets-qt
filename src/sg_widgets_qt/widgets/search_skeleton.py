@@ -20,7 +20,7 @@ from qtpy.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
 from sg_widgets_core.state import LOADING_LABEL
 
 from ..primitives.base import THUMB_SIZE
-from ..primitives.row_delegate import GAP, ROW_PAD_X, ROW_PAD_Y_SUB
+from ..primitives.row_delegate import GAP, ROW_PAD_X, ROW_PAD_Y
 from ..primitives.skeleton import Skeleton
 
 __all__ = ["LABEL_BAR", "SUB_BAR", "SearchSkeleton"]
@@ -156,7 +156,9 @@ class SearchSkeleton(QWidget):
         row = QWidget(self)
         row.setObjectName("search-skeleton-row")
         line = QHBoxLayout(row)
-        line.setContentsMargins(ROW_PAD_X, ROW_PAD_Y_SUB, ROW_PAD_X, ROW_PAD_Y_SUB)
+        # `px-2 py-1.5`: a skeleton row keeps the full inset whatever the row it stands in
+        # for holds, so the block is as tall as the page that replaces it.
+        line.setContentsMargins(ROW_PAD_X, ROW_PAD_Y, ROW_PAD_X, ROW_PAD_Y)
         line.setSpacing(GAP)
 
         picture = Skeleton(lead.width(), lead.height(), parent=row)
@@ -187,7 +189,7 @@ class SearchSkeleton(QWidget):
         return box
 
     def sizeHint(self) -> QSize:  # noqa: N802
-        row = max(self.lead.height(), LABEL_LINE + SUB_LINE) + 2 * ROW_PAD_Y_SUB
+        row = max(self.lead.height(), LABEL_LINE + SUB_LINE) + 2 * ROW_PAD_Y
         return QSize(0, row * self._lines)
 
     def minimumSizeHint(self) -> QSize:  # noqa: N802

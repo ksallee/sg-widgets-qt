@@ -590,14 +590,16 @@ class EntityTable(QtWidgets.QWidget):
         start = QtWidgets.QHBoxLayout(self._toolbar_start)
         start.setContentsMargins(0, 0, 0, 0)
         start.setSpacing(COLLECTION_GAP)
-        bar.addWidget(self._toolbar_start)
+        # `items-center`: each block is as tall as what it holds and sits on the bar's centre
+        # line, so a filter bar that wrapped to two rows does not stretch the sort control beside it.
+        bar.addWidget(self._toolbar_start, 0, Qt.AlignmentFlag.AlignVCenter)
         bar.addStretch(1)
         self._toolbar_end = QtWidgets.QWidget(self._toolbar)
         self._toolbar_end.setObjectName("entity-table-toolbar-end")
         end = QtWidgets.QHBoxLayout(self._toolbar_end)
         end.setContentsMargins(0, 0, 0, 0)
         end.setSpacing(COLLECTION_GAP)
-        bar.addWidget(self._toolbar_end)
+        bar.addWidget(self._toolbar_end, 0, Qt.AlignmentFlag.AlignVCenter)
         self._toolbar.hide()
         column.addWidget(self._toolbar)
 

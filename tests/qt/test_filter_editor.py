@@ -9,6 +9,7 @@ from sg_widgets_core.context import SgContextOptions, create_sg_context
 from sg_widgets_core.filter import EntityRef, condition, group, to_api3_hash
 from sg_widgets_core.mock import MOCK_NOW, MockClient
 from sg_widgets_qt.primitives.button import Button
+from sg_widgets_qt.primitives.remove_control import RemoveControl
 from sg_widgets_qt.primitives.select import Select
 from sg_widgets_qt.theme import apply_theme, theme_for
 from sg_widgets_qt.widgets.filter_editor import FilterEditor
@@ -81,6 +82,12 @@ def buttons(editor: FilterEditor, name: str) -> list[Button]:
     return editor.findChildren(Button, name)
 
 
+def crosses(editor: FilterEditor, name: str = "filter-remove") -> list[RemoveControl]:
+    """The remove controls. They are `RemoveControl`, not buttons: a cross is the glyph and its
+    2px, so it sits level with the row rather than standing an icon button's height over it."""
+    return editor.findChildren(RemoveControl, name)
+
+
 def test_add_condition_appends_a_blank_row(qtbot):
     editor = build(qtbot, value=group("and", [condition("code", "contains", "sh")]))
     assert len(editor.rows()) == 1
@@ -97,7 +104,7 @@ def test_remove_condition_drops_the_row(qtbot):
     )
     seen: list = []
     editor.changed.connect(seen.append)
-    buttons(editor, "filter-remove")[-1].clicked.emit()
+    crosses(editor)[-1].clicked.emit()
     spin(qtbot)
     assert len(editor.rows()) == 1
     assert [c.path for c in editor.value.conditions] == ["code"]

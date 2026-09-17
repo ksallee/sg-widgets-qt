@@ -104,10 +104,13 @@ class HoverCard(QtCore.QObject):
         close_delay: int = CLOSE_DELAY_MS,
         side: str = "bottom",
         align: str = "center",
+        width: int = HOVER_CARD_WIDTH,
     ) -> None:
         super().__init__(anchor)
         self._anchor = anchor
-        self._popover = Popover(anchor, content, side=side, align=align, width=HOVER_CARD_WIDTH)
+        # `w-64` is the plain card's own width; a caller whose content asks for another says so,
+        # the way the entity chip's `w-72` preview does.
+        self._popover = Popover(anchor, content, side=side, align=align, width=width)
         self._popover.opened.connect(self.opened.emit)
         self._popover.closed.connect(self.closed.emit)
 

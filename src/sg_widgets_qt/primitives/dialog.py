@@ -150,8 +150,18 @@ class Dialog(QtWidgets.QDialog):
         description: str = "",
         content: QtWidgets.QWidget | None = None,
         show_close: bool = True,
+        padding: int | None = None,
+        width: int = 0,
+        align: str = "centre",
     ) -> None:
         super().__init__(parent)
+        # `p-4` by default; a panel whose content brings its own inset takes `p-0`, as the
+        # command palette of `command.tsx` does.
+        self._padding = DIALOG_PADDING if padding is None else max(0, int(padding))
+        # `sm:max-w-sm` where a panel names a width of its own, and `top-1/3` where it hangs
+        # from a third of the way down rather than centring.
+        self._width = max(0, int(width))
+        self._align = align if align in ("centre", "third") else "centre"
         self._host = parent.window() if parent is not None else None
         self._progress = 0.0
         self._animating = False
@@ -180,9 +190,9 @@ class Dialog(QtWidgets.QDialog):
         self._body.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         body = QtWidgets.QVBoxLayout(self._body)
         body.setContentsMargins(
-            DIALOG_PADDING, DIALOG_PADDING, DIALOG_PADDING, DIALOG_PADDING
+            self._padding, self._padding, self._padding, self._padding
         )
-        body.setSpacing(DIALOG_GAP)
+        body.setSpacing(DIALOG_GAP if self._padding else 0)
         self._body_layout = body
         stack.addWidget(self._body)
 
@@ -306,7 +316,7 @@ class Dialog(QtWidgets.QDialog):
 
     def _place(self) -> None:
         hint = self._frame_widget.sizeHint()
-        width = min(DIALOG_MAX_WIDTH, max(hint.width(), 320))
+        width = self._width or min(DIALOG_MAX_WIDTH, max(hint.width(), 320))
         host = self._host
         if host is not None:
             width = min(width, max(240, host.width() - 2 * DIALOG_INSET))
@@ -320,7 +330,10 @@ class Dialog(QtWidgets.QDialog):
             if host is not None
             else QtCore.QPoint(self.width() // 2, self.height() // 2)
         )
-        self.move(centre.x() - self.width() // 2, centre.y() - self.height() // 2)
+        top = centre.y() - self.height() // 2
+        if self._align == "third" and host is not None:
+            top = host.mapToGlobal(QtCore.QPoint(0, host.height() // 3)).y() - SHADOW_MARGIN
+        self.move(centre.x() - self.width() // 2, top)
         if self._close_button is not None:
             spot = self.surface_rect()
             size = self._close_button.sizeHint()
@@ -381,7 +394,7 @@ class Dialog(QtWidgets.QDialog):
     def sizeHint(self) -> QSize:  # noqa: N802
         hint = self._frame_widget.sizeHint()
         return QSize(
-            min(DIALOG_MAX_WIDTH, hint.width()) + 2 * SHADOW_MARGIN,
+            (self._width or min(DIALOG_MAX_WIDTH, hint.width())) + 2 * SHADOW_MARGIN,
             hint.height() + 2 * SHADOW_MARGIN,
         )
 

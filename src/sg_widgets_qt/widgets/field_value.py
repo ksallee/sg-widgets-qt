@@ -57,13 +57,12 @@ from ..primitives.base import (
     text_width,
 )
 from ..primitives.checkbox import (
-    RING_ROOM,
-    SWITCH_HEIGHT,
     SWITCH_INSET,
-    SWITCH_THUMB,
-    SWITCH_WIDTH,
+    SWITCH_THUMB_SIZE,
+    SWITCH_TRACK,
     Switch,
 )
+from ..primitives.type_scale import line_box
 from ..theme import Theme, theme_for, with_alpha
 from .entity_chip import ENTITY_CHIP_VARIANT_VALUES, EntityChip
 from .entity_glyphs import entity_glyph
@@ -320,15 +319,16 @@ def _chip_font(theme: Theme, step: str, named: bool) -> QtGui.QFont:
     return theme.font(CHIP_TEXT[step], QtGui.QFont.Weight.Medium, mono=not named, tabular=not named)
 
 
-def _glyph_slot(box: QtCore.QRect, left: int, glyph: int) -> QtCore.QRect:
+def _glyph_slot(box: QtCore.QRect, left: int, mark: QtCore.QSize) -> QtCore.QRect:
     """The leading slot of a chip, where the badge primitive puts it.
 
-    `primitives/badge.py` centres the glyph on the box's own centre line rather than sharing the
+    `primitives/badge.py` centres the mark on the box's own centre line rather than sharing the
     room above and below, so the delegate face centres it the same way: the widget face composes
-    that primitive, and the two faces must land on one pixel.
+    that primitive, and the two faces must land on one pixel. The mark is the glyph's own box,
+    which for a stock sprite is the cell's pixel size rather than the chip ladder's step.
     """
-    slot = QtCore.QRect(0, 0, glyph, glyph)
-    slot.moveCenter(QtCore.QPoint(left + glyph // 2, box.center().y()))
+    slot = QtCore.QRect(QtCore.QPoint(0, 0), mark)
+    slot.moveCenter(QtCore.QPoint(left + mark.width() // 2, box.center().y()))
     return slot
 
 
@@ -475,7 +475,7 @@ def _paint_one_chip(
     ink = theme.color("secondary_foreground")
     fill_round_rect(painter, box, float(theme.radius_px("md")), fill, theme.color("border"))
     glyph = CHIP_GLYPH[step]
-    slot = _glyph_slot(box, box.left() + pad.lead, glyph)
+    slot = _glyph_slot(box, box.left() + pad.lead, QtCore.QSize(glyph, glyph))
     paint_icon(painter, slot, entity_glyph(ref.type), with_alpha(ink, 0.7))
     # The badge walks its own cursor past the slot rather than reading the slot's right edge,
     # which `QRect.moveCenter` shifts by a pixel on an even glyph. The two must agree.
@@ -502,11 +502,13 @@ def _status_width(theme: Theme, plan: FieldValuePlan, options: FieldValueOptions
     font = _chip_font(theme, step, named=True)
     # A status the site draws nothing for is a bordered label, which is what StatusBadge draws:
     # no glyph, and the bare text inset in its place.
-    glyph = _status_glyph_source(plan, options).draws()
+    source = _status_glyph_source(plan, options)
+    glyph = source.draws()
+    mark = source.natural_size(CHIP_GLYPH[step])
     if options.status_variant == "icon" and glyph:
         # The glyph alone, centred in its pill: `CHIP_PAD[size].icon` on both sides.
-        return 2 * pad.icon + CHIP_GLYPH[step]
-    lead = pad.lead + CHIP_GLYPH[step] + CHIP_SPACING[step].glyph if glyph else pad.text
+        return 2 * pad.icon + mark.width()
+    lead = pad.lead + mark.width() + CHIP_SPACING[step].glyph if glyph else pad.text
     return lead + text_width(QtGui.QFontMetrics(font), plan.text) + pad.text
 
 
@@ -532,14 +534,14 @@ def _paint_status(
     ink = theme.color("foreground")
     source = _status_glyph_source(plan, options)
     left = box.left() + pad.text
+    mark = source.natural_size(CHIP_GLYPH[step])
     if options.status_variant == "icon" and source.draws():
-        source.paint(painter, _glyph_slot(box, box.left() + pad.icon, CHIP_GLYPH[step]), theme)
+        source.paint(painter, _glyph_slot(box, box.left() + pad.icon, mark), theme)
         return
     if source.draws():
-        glyph = CHIP_GLYPH[step]
-        slot = _glyph_slot(box, box.left() + pad.lead, glyph)
+        slot = _glyph_slot(box, box.left() + pad.lead, mark)
         source.paint(painter, slot, theme)
-        left = box.left() + pad.lead + glyph + CHIP_SPACING[step].glyph
+        left = box.left() + pad.lead + mark.width() + CHIP_SPACING[step].glyph
     font = _chip_font(theme, step, named=True)
     painter.setFont(font)
     painter.setPen(ink)
@@ -640,9 +642,15 @@ def _paint_url(
     _draw_line(painter, rect, font, ink, plan.text, plan)
 
 
+#: `field-value.tsx` draws the switch at `size="sm"`: a value is read, not pressed, so it takes
+#: the step under the one a form control wears.
+VALUE_SWITCH_STEP = "sm"
+
+
 def _switch_size() -> QtCore.QSize:
-    """The room the switch primitive asks for, its focus ring's included."""
-    return QtCore.QSize(SWITCH_WIDTH + RING_ROOM * 2, SWITCH_HEIGHT + RING_ROOM * 2)
+    """The track the value reads as. It never takes the focus, so it keeps no room for a ring."""
+    width, height = SWITCH_TRACK[VALUE_SWITCH_STEP]
+    return QtCore.QSize(width, height)
 
 
 def _paint_checkbox(
@@ -661,15 +669,16 @@ def _paint_checkbox(
     theme = _theme_of(options)
     size = _switch_size()
     box = QtCore.QRect(rect.left(), _centre_top(rect, size.height()), size.width(), size.height())
-    track = QtCore.QRect(0, 0, SWITCH_WIDTH, SWITCH_HEIGHT)
+    track = QtCore.QRect(0, 0, size.width(), size.height())
     track.moveCenter(box.center())
     radius = track.height() / 2.0
     off = with_alpha(theme.input, 0.8) if theme.dark else theme.color("input")
     fill_round_rect(painter, track, radius, theme.color("primary") if plan.checked else off)
 
-    travel = track.width() - SWITCH_THUMB - SWITCH_INSET * 2
+    side = SWITCH_THUMB_SIZE[VALUE_SWITCH_STEP]
+    travel = track.width() - side - SWITCH_INSET * 2
     x = track.x() + SWITCH_INSET + (travel if plan.checked else 0)
-    thumb = QtCore.QRectF(x, track.y() + SWITCH_INSET, SWITCH_THUMB, SWITCH_THUMB)
+    thumb = QtCore.QRectF(x, track.y() + SWITCH_INSET, side, side)
     if theme.dark:
         ink = theme.color("primary_foreground" if plan.checked else "foreground")
     else:
@@ -773,21 +782,26 @@ def field_value_size_hint(
     if plan.kind == "checkbox":
         return _switch_size()
 
+    step = META_TEXT if plan.kind == "empty" or plan.kind == "color" else VALUE_TEXT
     font = theme.font(META_TEXT) if plan.kind == "empty" else _value_font(theme, plan)
     metrics = QtGui.QFontMetrics(font)
+    # A value stands as tall as its line box, not as tall as the font: upstream measures every
+    # value from `text-sm`'s 20px line, and a column of values drifts a row otherwise.
+    line = line_box(step)
     if o.wrap and plan.wrap and width is not None:
         box = metrics.boundingRect(
             QtCore.QRect(0, 0, max(1, int(width)), 1 << 16),
             int(QtCore.Qt.TextFlag.TextWordWrap),
             plan.text,
         )
-        return QtCore.QSize(int(width), max(metrics.height(), box.height()))
+        lines = max(1, round(box.height() / max(1, metrics.lineSpacing())))
+        return QtCore.QSize(int(width), lines * line)
     extra = SWATCH + GLYPH_GAP if plan.kind == "color" and plan.rgb is not None else 0
     widest = max(
-        (text_width(metrics, line) for line in plan.text.splitlines() or [""]),
+        (text_width(metrics, line_text) for line_text in plan.text.splitlines() or [""]),
         default=0,
     )
-    return QtCore.QSize(widest + extra, max(metrics.height(), SWATCH))
+    return QtCore.QSize(widest + extra, max(line, SWATCH))
 
 
 # --- the widget face --------------------------------------------------------------------------
@@ -892,9 +906,14 @@ class _ValueSwitch(Switch):
 
     def __init__(self, checked: bool = False, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(checked, parent)
+        self.set_size(VALUE_SWITCH_STEP)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
+
+    def sizeHint(self) -> QtCore.QSize:  # noqa: N802
+        """The track alone: nothing can focus this switch, so the ring's room would be a gap."""
+        return _switch_size()
 
 
 class FieldValue(ThemedWidget):

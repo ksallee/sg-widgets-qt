@@ -43,6 +43,7 @@ from ..primitives.list_view import LIST_PAD
 from ..primitives.roles import Roles
 from ..primitives.row_delegate import RowDelegate
 from ..primitives.skeleton import Skeleton
+from ..primitives.type_scale import line_box
 from ..workers import Ticket, default_pool
 from .picker_control import PICKER_SIZE_VALUES, PickerControl
 
@@ -551,10 +552,14 @@ class PathLabel(ThemedWidget):
         return CRUMB_SEPARATOR.join(self._parts)
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
+        """The path on one line, as tall as that line and not as tall as the control.
+
+        The label is the control's value, not its box: asking for the whole ladder made the
+        control two pixels taller than the ladder once its own border was added, which put a
+        filter row off the step every other control in it stands on.
+        """
         metrics = QtGui.QFontMetrics(self.theme.font(VALUE_TEXT))
-        return QtCore.QSize(
-            metrics.horizontalAdvance(self.text()) + 2, CONTROL_HEIGHT[self.size_step]
-        )
+        return QtCore.QSize(metrics.horizontalAdvance(self.text()) + 2, line_box(VALUE_TEXT))
 
     def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
         if not self._parts:

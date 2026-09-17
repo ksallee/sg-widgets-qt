@@ -35,6 +35,10 @@ QUERY_WIDTH = 256
 #: Between the lines of a list, which is a zero gap plus the line's own leading.
 LINE_GAP = 6
 
+#: The step the muted line takes. Upstream it is a `text-xs` paragraph and the atom inherits it,
+#: so it stays there whatever step the toolbar puts the labels on.
+MUTED_STEP = "sm"
+
 
 class MatchTextDemo(QtWidgets.QWidget):
     """The query box, the labels it marks, and the same marking in a muted line."""
@@ -44,10 +48,12 @@ class MatchTextDemo(QtWidgets.QWidget):
         self.setObjectName("match-text-demo")
         #: Nothing is read, so the demo is ready as soon as it stands.
         self.demo_ready = True
+        #: The labels the toolbar's step moves, and every label the query re-marks.
         self._labels: list[MatchText] = []
+        self._marked: list[MatchText] = []
 
         body = lay.column(self)
-        self.query = chrome.SearchField(placeholder="Query", size="sm", parent=self)
+        self.query = chrome.SearchField(placeholder="Query", size="md", parent=self)
         self.query.setObjectName("match-query")
         self.query.setFixedWidth(QUERY_WIDTH)
         self.query.set_text(QUERY)
@@ -66,7 +72,7 @@ class MatchTextDemo(QtWidgets.QWidget):
 
         muted = lay.section(
             "In a muted line, where weight is the only mark",
-            lay.row(self._label(MUTED_LINE, self, muted=True), parent=self),
+            lay.row(self._muted_label(MUTED_LINE), parent=self),
             parent=self,
         )
         muted.setObjectName("case-muted")
@@ -77,13 +83,20 @@ class MatchTextDemo(QtWidgets.QWidget):
         for label in self._labels:
             label.set_size(size)
 
-    def _label(self, text: str, parent: QtWidgets.QWidget, muted: bool = False) -> MatchText:
-        label = MatchText(text=text, query=QUERY, muted=muted, parent=parent)
+    def _label(self, text: str, parent: QtWidgets.QWidget) -> MatchText:
+        label = MatchText(text=text, query=QUERY, parent=parent)
         self._labels.append(label)
         return label
 
+    def _muted_label(self, text: str) -> MatchText:
+        """The muted line, which the toolbar's step does not move: upstream it is a paragraph
+        of its own and the atom takes whatever the paragraph carries."""
+        label = MatchText(text=text, query=QUERY, size=MUTED_STEP, muted=True, parent=self)
+        self._marked.append(label)
+        return label
+
     def _on_query(self, text: str) -> None:
-        for label in self._labels:
+        for label in (*self._labels, *self._marked):
             label.set_query(text)
 
 

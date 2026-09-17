@@ -195,10 +195,12 @@ def test_a_demo_toggle_is_bordered_before_it_is_pressed(qapp):
 def test_the_header_holds_a_project_picker_bound_to_the_source(qtbot):
     """The header's project control is the real picker over the mock's projects, and a pick scopes the demos."""
     from sg_widgets_core.filter import EntityRef
+    from sg_widgets_qt.showcase.context import demo_context
+    from sg_widgets_qt.showcase.prefs import Prefs
     from sg_widgets_qt.showcase.window import ShowcaseWindow
     from sg_widgets_qt.widgets.project_picker import ProjectPicker
 
-    window = ShowcaseWindow()
+    window = ShowcaseWindow(prefs=Prefs(persist=False), context=demo_context())
     qtbot.addWidget(window)
     picker = window.header.project
     assert isinstance(picker, ProjectPicker)
@@ -207,3 +209,15 @@ def test_the_header_holds_a_project_picker_bound_to_the_source(qtbot):
     window.header.project_picked.emit(71, "Second show")
     assert window.context.project_id == 71
     assert window.context.project_name == "Second show"
+
+
+def test_prose_headings_take_the_foreground_in_dark(qtbot):
+    """A heading in the docs prose is painted in `foreground`, not the document's black default."""
+    from sg_widgets_qt.showcase import markdown
+    from sg_widgets_qt.theme import theme_for
+
+    dark = theme_for("default", dark=True)
+    css = markdown.stylesheet(dark)
+    for tag in ("h1", "h2", "h3"):
+        rule = css[css.index(tag + " {") : css.index("}", css.index(tag + " {"))]
+        assert dark.foreground in rule, tag

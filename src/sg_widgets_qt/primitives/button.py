@@ -26,7 +26,7 @@ from .base import (
     text_width,
 )
 
-__all__ = ["BUTTON_SIZES", "Button", "ButtonSize", "ButtonVariant"]
+__all__ = ["BUTTON_SIZES", "Button", "ButtonSize", "ButtonVariant", "outline_surface"]
 
 ButtonVariant = Literal["default", "outline", "secondary", "ghost", "destructive", "link"]
 BUTTON_VARIANT_VALUES: tuple[str, ...] = (
@@ -315,10 +315,8 @@ class Button(ThemedWidget):
             fill = mix(theme.primary, with_alpha(theme.primary, 0.8), amount)
             return fill, None, theme.color("primary_foreground")
         if self._variant == "outline":
-            base = with_alpha(theme.input, 0.3) if dark else theme.color("background")
-            top = with_alpha(theme.input, 0.5) if dark else theme.color("muted")
-            border = theme.color("input") if dark else theme.color("border")
-            return mix(base, top, amount), border, theme.color("foreground")
+            fill, border = outline_surface(theme, amount)
+            return fill, border, theme.color("foreground")
         if self._variant == "secondary":
             top = mix(theme.secondary, theme.foreground, 0.05)
             return mix(theme.secondary, top, amount), None, theme.color("secondary_foreground")
@@ -515,3 +513,18 @@ class Button(ThemedWidget):
             event.accept()
             return
         super().keyReleaseEvent(event)
+
+
+def outline_surface(theme: object, hover: float = 0.0) -> tuple[QtGui.QColor, QtGui.QColor]:
+    """The fill and the border the `outline` variant wears, `hover` of the way to its wash.
+
+    `button.tsx`: `border-border bg-background hover:bg-muted`, and on a dark page
+    `dark:border-input dark:bg-input/30 dark:hover:bg-input/50`. A control that is drawn as an
+    outline button without being one — the global search trigger — takes it from here, so the
+    two cannot drift.
+    """
+    dark = theme.dark
+    base = with_alpha(theme.input, 0.3) if dark else theme.color("background")
+    top = with_alpha(theme.input, 0.5) if dark else theme.color("muted")
+    border = theme.color("input") if dark else theme.color("border")
+    return mix(base, top, hover), border

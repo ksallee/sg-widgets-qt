@@ -18,6 +18,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 from sg_widgets_core.search import MatchRun, match_runs
 
 from ..primitives.base import ThemedWidget, painter_for
+from ..primitives.type_scale import line_box
 
 __all__ = ["MATCH_TEXT_SIZE", "MatchText"]
 
@@ -108,8 +109,9 @@ class MatchText(ThemedWidget):
         return width + 1 if width else 0
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
-        base, _ = self._fonts()
-        return QtCore.QSize(self._natural_width(), QtGui.QFontMetrics(base).height())
+        # The line box of the step, not the font's own height: a list of labels keeps the pitch
+        # its upstream twin has, whatever the platform's metrics say.
+        return QtCore.QSize(self._natural_width(), line_box(MATCH_TEXT_SIZE[self.size_step]))
 
     def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802
         return QtCore.QSize(0, self.sizeHint().height())

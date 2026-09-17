@@ -70,8 +70,10 @@ HOLD_TICK = 60
 SHIFT_STEPS = 10
 PAGE_STEPS = 100
 
-#: A stepper is the square of the control it steps.
-STEPPER_SIZE: dict[str, str] = {"sm": "icon-sm", "md": "icon", "lg": "icon-lg"}
+#: `STEPPER` of `number-editor.tsx`: `size-8` / `size-9` / `size-10`, one step over the control
+#: the pair steps, drawn as the square icon button of the same height. The ladder of `button.py`
+#: stops at 36, so `lg` shares `md`'s box until a 40px icon step is added beside it.
+STEPPER_SIZE: dict[str, str] = {"sm": "icon", "md": "icon-lg", "lg": "icon-lg"}
 
 #: The comfortable width of each numeric type in the row form: eight characters of number,
 #: eleven of timecode.
@@ -84,9 +86,10 @@ INLINE_WIDTH: dict[str, int] = {
     "timecode": 112,
 }
 
-#: The tiny pair the row form puts inside the input.
+#: The tiny pair the row form puts inside the input: `h-3.5 w-5` with a `size-3` glyph.
 INLINE_STEPPER = 14
-INLINE_GLYPH = 10
+INLINE_STEPPER_WIDTH = 20
+INLINE_GLYPH = 12
 
 
 class _NumberInput(InputGroupInput):
@@ -329,11 +332,19 @@ class NumberEditor(ValueEditor):
         stack.setContentsMargins(0, 0, 0, 0)
         stack.setSpacing(0)
         self._inline_up = IconButton(
-            "chevron-up", self._inline_steppers, side=INLINE_STEPPER, glyph=INLINE_GLYPH
+            "plus",
+            self._inline_steppers,
+            side=INLINE_STEPPER,
+            glyph=INLINE_GLYPH,
+            width=INLINE_STEPPER_WIDTH,
         )
         self._inline_up.setObjectName("number-editor-increment")
         self._inline_down = IconButton(
-            "chevron-down", self._inline_steppers, side=INLINE_STEPPER, glyph=INLINE_GLYPH
+            "minus",
+            self._inline_steppers,
+            side=INLINE_STEPPER,
+            glyph=INLINE_GLYPH,
+            width=INLINE_STEPPER_WIDTH,
         )
         self._inline_down.setObjectName("number-editor-decrement")
         for button in (self._inline_up, self._inline_down):

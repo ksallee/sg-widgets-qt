@@ -238,15 +238,22 @@ def test_a_label_behind_crumbs_is_drawn_one_weight_step_up():
 
 
 def test_a_glyph_the_caller_named_is_drawn_with_no_picture_box(host, qtbot):
-    """A tree level or an assigned task names its glyph, so there is no picture to stand in for."""
-    model = PickerRowModel([SHOT], host, thumbnail=False)
-    assert model.bare_glyph is False
-    model.set_glyph_of(lambda _row: "folder")
-    assert model.bare_glyph is True
+    """A tree level names its glyph beside a picture field, so the glyph is the fallback.
 
-    control = SearchControl(host, model=model)
+    `picker-row.tsx` keeps the thumbnail ladder there and draws the glyph inside it; only a
+    row that was never to have a picture (`thumbnail={false}`) takes the glyph's own slot.
+    """
+    named = PickerRowModel([SHOT], host, thumbnail="image")
+    named.set_glyph_of(lambda _row: "folder")
+    assert named.bare_glyph is False
+
+    control = SearchControl(host, model=named)
     qtbot.addWidget(control)
-    assert control.list_surface().row_delegate().bare_glyph is True
+    assert control.list_surface().row_delegate().bare_glyph is False
+
+    pictureless = PickerRowModel([SHOT], host, thumbnail=False)
+    pictureless.set_glyph_of(lambda _row: "folder")
+    assert pictureless.bare_glyph is True
 
 
 def test_a_page_landing_under_the_rows_is_an_insert_not_a_reset(qtbot):
@@ -285,17 +292,14 @@ def test_the_sub_label_marks_its_matched_runs_too(host):
 def test_a_bare_glyph_row_takes_the_glyphs_own_slot(qtbot):
     # Rule 9: the leading slot is as big as what it holds. A row that draws its own glyph and
     # never expected a picture stands on the row pitch, not on the thumbnail one.
-    from qtpy.QtGui import QFontMetrics
-
     from sg_widgets_qt.primitives.list_view import ListSurface
     from sg_widgets_qt.primitives.row_delegate import (
         LEAD,
         LEAD_GLYPH,
+        ROW_LINE,
         ROW_PAD_Y,
-        ROW_TEXT,
         RowDelegate,
     )
-    from sg_widgets_qt.theme import theme_of
 
     root = QWidget()
     apply_theme(root, theme_for("default"))
@@ -316,6 +320,6 @@ def test_a_bare_glyph_row_takes_the_glyphs_own_slot(qtbot):
     glyph = delegate.sizeHint(option, view.model().index(0, 0)).height()
     assert delegate._lead_size() == LEAD_GLYPH["md"]
     assert glyph < picture, "a bare glyph row is not on the thumbnail pitch"
-    # Nothing in the row is taller than its own label any more, so the label sets the pitch.
-    label = QFontMetrics(theme_of(view).font(ROW_TEXT["md"])).height()
-    assert glyph == max(label, LEAD_GLYPH["md"]) + 2 * ROW_PAD_Y
+    # Nothing in the row is taller than its own label any more, so the label sets the pitch,
+    # and a label's height is the line its type step sits on rather than the font's own metrics.
+    assert glyph == max(ROW_LINE["md"], LEAD_GLYPH["md"]) + 2 * ROW_PAD_Y

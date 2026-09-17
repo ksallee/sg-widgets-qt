@@ -20,6 +20,7 @@ from ..icons import paint_icon
 from ..images import ImageLoader, grayscale, image_loader
 from ..primitives.base import THUMB_SIZE, ThemedWidget, painter_for
 from ..primitives.skeleton import Skeleton
+from ..theme import initials_tint
 
 __all__ = ["AVATAR_GLYPH", "AVATAR_SIZE_VALUES", "AVATAR_TEXT", "COLOR_VALUES", "UserAvatar"]
 
@@ -34,12 +35,6 @@ AVATAR_GLYPH: dict[str, int] = {"sm": 16, "md": 16, "lg": 20}
 
 #: Whether the initials take the hue their name derives.
 COLOR_VALUES: tuple[str, ...] = ("auto", "none")
-
-#: The tint behind initials, as saturation and lightness per scheme. A fixed hue from the name at
-#: a light and a dark lightness, so one person reads the same under every theme. Like status
-#: colour, it is data rather than a token (design rule 1).
-TINT_LIGHT = ((0.55, 0.90), (0.55, 0.34))
-TINT_DARK = ((0.35, 0.26), (0.55, 0.80))
 
 #: The glyph a script account shows in place of a face.
 API_GLYPH = "bot"
@@ -248,12 +243,7 @@ class UserAvatar(ThemedWidget):
 
     def _tint(self) -> tuple[QtGui.QColor, QtGui.QColor]:
         """The ground and the ink the initials take, from the name's hue."""
-        ground, ink = TINT_DARK if self.theme.dark else TINT_LIGHT
-        hue = self.hue / 360.0
-        return (
-            QtGui.QColor.fromHslF(hue, ground[0], ground[1]),
-            QtGui.QColor.fromHslF(hue, ink[0], ink[1]),
-        )
+        return initials_tint(self.hue, self.theme.dark)
 
     def _surface(self) -> tuple[QtGui.QColor, QtGui.QColor]:
         theme = self.theme

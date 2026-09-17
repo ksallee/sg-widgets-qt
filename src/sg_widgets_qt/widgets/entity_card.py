@@ -60,6 +60,7 @@ from ..primitives.base import (
     text_width,
 )
 from ..primitives.skeleton import Skeleton
+from ..primitives.type_scale import line_box
 from ..theme import Theme, theme_for, with_alpha
 from ..workers import JobPool, Ticket, default_pool
 from .entity_glyphs import entity_glyph
@@ -119,6 +120,11 @@ CARD_VALUE = 14
 
 #: Between the type glyph and its label, and between the columns of the grid.
 GLYPH_GAP = 6
+
+
+def _half_leading(step: int, metrics: QtGui.QFontMetrics) -> int:
+    """The room a line box leaves above its text, which is what centres a line in CSS."""
+    return max(0, (line_box(step) - metrics.height()) // 2)
 GRID_GAP = 12
 
 #: The glyph beside the type label.
@@ -186,7 +192,9 @@ class _FieldLabel(ThemedWidget):
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
         metrics = QtGui.QFontMetrics(self._font())
-        return QtCore.QSize(text_width(metrics, self._text), max(metrics.height(), self._baseline))
+        return QtCore.QSize(
+            text_width(metrics, self._text), max(line_box(CARD_META), self._baseline)
+        )
 
     def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802
         return QtCore.QSize(0, self.sizeHint().height())
@@ -358,8 +366,13 @@ class _CardValue(ThemedWidget):
         return self.theme.font(CARD_VALUE, tabular=self.kind == "number")
 
     def baseline(self) -> int:
-        """Where this value puts its first line's baseline, which the label sits on too."""
-        return QtGui.QFontMetrics(self._font()).ascent()
+        """Where this value puts its first line's baseline, which the label sits on too.
+
+        A line sits centred in its line box, so the baseline carries the half-leading the box
+        leaves above the text, the way CSS puts a line in `line-height`.
+        """
+        metrics = QtGui.QFontMetrics(self._font())
+        return _half_leading(CARD_VALUE, metrics) + metrics.ascent()
 
     def _wraps(self) -> bool:
         column = self._column
@@ -375,7 +388,8 @@ class _CardValue(ThemedWidget):
         metrics = QtGui.QFontMetrics(self._font())
         if self._wraps() and self.width() > 0:
             return QtCore.QSize(self.width(), self.heightForWidth(self.width()))
-        return QtCore.QSize(text_width(metrics, self.text.replace("\n", " ")), metrics.height())
+        step = CARD_META if self.kind == "empty" else CARD_VALUE
+        return QtCore.QSize(text_width(metrics, self.text.replace("\n", " ")), line_box(step))
 
     def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802
         return QtCore.QSize(0, self.sizeHint().height())
@@ -385,14 +399,18 @@ class _CardValue(ThemedWidget):
 
     def heightForWidth(self, width: int) -> int:  # noqa: N802
         metrics = QtGui.QFontMetrics(self._font())
+        line = line_box(CARD_VALUE)
         if not self._wraps():
-            return metrics.height()
+            return line
         box = metrics.boundingRect(
             QtCore.QRect(0, 0, max(1, width), 1 << 16),
             int(QtCore.Qt.TextFlag.TextWordWrap),
             self.text,
         )
-        return max(metrics.height(), box.height())
+        # The wrapped block stands as many line boxes tall as Qt broke it into lines, so a
+        # value that wraps keeps the pitch the upstream block has.
+        lines = max(1, round(box.height() / max(1, metrics.lineSpacing())))
+        return lines * line
 
     def _place_child(self) -> None:
         """The badge or the picture, at the top left of the room the value has."""
@@ -486,7 +504,7 @@ class _CardValue(ThemedWidget):
             painter.setPen(theme.color("muted_foreground"))
             painter.drawText(
                 self.rect(),
-                int(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop),
+                int(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter),
                 self._empty_label,
             )
             painter.end()
@@ -496,10 +514,14 @@ class _CardValue(ThemedWidget):
         elif kind == "url":
             self._paint_url(painter, theme)
         elif self._wraps():
-            painter.setFont(self._font())
+            font = self._font()
+            painter.setFont(font)
             painter.setPen(theme.color("foreground"))
+            # The block's first line sits where a one-line value sits, so a wrapped value and
+            # the label beside it keep one baseline.
+            lead = _half_leading(CARD_VALUE, QtGui.QFontMetrics(font))
             painter.drawText(
-                self.rect(),
+                self.rect().adjusted(0, lead, 0, 0),
                 int(
                     QtCore.Qt.AlignmentFlag.AlignLeft
                     | QtCore.Qt.AlignmentFlag.AlignTop
@@ -513,7 +535,7 @@ class _CardValue(ThemedWidget):
             painter.setPen(theme.color("foreground"))
             painter.drawText(
                 self.rect(),
-                int(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop),
+                int(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter),
                 elide(QtGui.QFontMetrics(font), self.text.replace("\n", " "), self.width()),
             )
         if self.keyboard_focus and self._links:
@@ -532,13 +554,16 @@ class _CardValue(ThemedWidget):
         plain = theme.font(CARD_VALUE)
         # Both fonts measure the same, so the runs land in the same place under the pointer.
         metrics = QtGui.QFontMetrics(plain)
+        # The runs sit on the line box's baseline, which is where the label beside them sits.
+        base = self.baseline()
+        top = base - metrics.ascent()
         left = 0
         for index, (label, url) in enumerate(runs):
             if index > 0:
                 painter.setFont(plain)
                 painter.setPen(theme.color("muted_foreground"))
                 separator = ", "
-                painter.drawText(left, metrics.ascent(), separator)
+                painter.drawText(left, base, separator)
                 left += text_width(metrics, separator)
             room = max(0, self.width() - left)
             if room <= 0:
@@ -546,11 +571,11 @@ class _CardValue(ThemedWidget):
             shown = elide(metrics, label, room)
             painter.setFont(marked if url and index == self._hovered_link else plain)
             painter.setPen(theme.color("foreground"))
-            painter.drawText(left, metrics.ascent(), shown)
+            painter.drawText(left, base, shown)
             width = text_width(metrics, shown)
             if url:
                 self._links.append(
-                    _Link(QtCore.QRect(left, 0, width, metrics.height()), label, url)
+                    _Link(QtCore.QRect(left, top, width, metrics.height()), label, url)
                 )
             left += width
 
@@ -628,7 +653,7 @@ class _CardName(ThemedWidget):
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
         metrics = QtGui.QFontMetrics(self._font())
-        return QtCore.QSize(text_width(metrics, self._text), metrics.height())
+        return QtCore.QSize(text_width(metrics, self._text), line_box(CARD_NAME[self._size]))
 
     def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802
         return QtCore.QSize(0, self.sizeHint().height())
@@ -711,7 +736,7 @@ class _TypeLine(ThemedWidget):
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
         metrics = QtGui.QFontMetrics(self._font())
         width = TYPE_GLYPH + GLYPH_GAP + text_width(metrics, self._label)
-        return QtCore.QSize(width, max(metrics.height(), TYPE_GLYPH))
+        return QtCore.QSize(width, max(line_box(CARD_META), TYPE_GLYPH))
 
     def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802
         return QtCore.QSize(TYPE_GLYPH, self.sizeHint().height())

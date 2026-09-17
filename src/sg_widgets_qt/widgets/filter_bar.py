@@ -57,7 +57,9 @@ from ..primitives.base import (
 from ..primitives.button import Button
 from ..primitives.command import Command
 from ..primitives.popover import Popover
+from ..primitives.remove_control import RemoveControl
 from ..primitives.roles import Roles
+from ..primitives.type_scale import line_box
 from ..theme import theme_of
 from ..workers import Ticket, default_pool
 from .field_picker import schema_of
@@ -723,7 +725,7 @@ class _FacetPill(ThemedWidget):
             line.addWidget(self._glyph)
             # An untouched facet is quiet: the whole pill, its name with its mark, is muted.
             line.addWidget(_PillText(bar.label_of(self._name), size, self, muted=True))
-            self._cross: Button | None = None
+            self._cross: RemoveControl | None = None
             return
         self._glyph = None
         field_name = _PillText(bar.label_of(self._name), size, self, weight="medium")
@@ -731,21 +733,25 @@ class _FacetPill(ThemedWidget):
         line.addWidget(field_name)
         if self._found.summary.operator != "in":
             line.addWidget(_PillText(self._parts.operator, size, self, muted=True))
-        line.addWidget(self._values_widget())
-        self._cross = Button(
-            "", icon="x", variant="ghost", size="icon-sm", parent=self
+        line.addWidget(self._values_widget(), 0, Qt.AlignmentFlag.AlignVCenter)
+        # `REMOVE_CONTROL`: the cross and its 2px, on the step under the pill, so it sits level
+        # with the chips beside it rather than standing an icon button's height over them.
+        self._cross = RemoveControl(
+            step=CROSS_SIZE[size], label=f"Remove {bar.label_of(self._name)} filter", parent=self
         )
         self._cross.setObjectName("filter-pill-remove")
-        self._cross.setAccessibleName(f"Remove {bar.label_of(self._name)} filter")
         self._cross.setEnabled(not bar.disabled)
         self._cross.clicked.connect(lambda: bar.remove_facet(self._name))
-        line.addWidget(self._cross)
+        line.addWidget(self._cross, 0, Qt.AlignmentFlag.AlignVCenter)
 
     def _values_widget(self) -> QtWidgets.QWidget:
         bar = self._bar
         shown = self._shown
         holder = QtWidgets.QWidget(self)
         holder.setObjectName("filter-pill-values")
+        # `items-center`: the run of values is as tall as the tallest thing in it — a chip, or
+        # one line of text — and centres in the pill rather than filling its height.
+        holder.setSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed)
         row = QtWidgets.QHBoxLayout(holder)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(PILL_GAP)
@@ -964,11 +970,16 @@ class _PillText(ThemedWidget):
         return theme_of(self).font(self._step, weight)
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
+        """The run's own width, on the line its type step stands on.
+
+        The line is the type scale's, not the font's: a pill holding a chip and a run of text
+        keeps the two on one centre line whatever family the theme wears.
+        """
         metrics = QtGui.QFontMetrics(self._font())
         width = text_width(metrics, self._text)
         if self._max_width:
             width = min(width, self._max_width)
-        return QtCore.QSize(width, metrics.height())
+        return QtCore.QSize(width, line_box(self._step))
 
     def paintEvent(self, _event: QtGui.QPaintEvent) -> None:  # noqa: N802
         theme = theme_of(self)

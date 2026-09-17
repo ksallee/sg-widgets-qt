@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from qtpy.QtCore import QEvent, QModelIndex, QRect, QRectF, QSize, Qt
-from qtpy.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPixmap
+from qtpy.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QPixmap
 from qtpy.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem, QToolTip, QWidget
 
 from sg_widgets_core.render import NAME_HUES as CORE_NAME_HUES
@@ -22,9 +22,10 @@ from sg_widgets_core.render import initials_of as core_initials_of
 from sg_widgets_core.render import name_hue as core_name_hue
 
 from .. import icons
-from ..theme import Theme, theme_of, with_alpha
+from ..theme import Theme, initials_tint, theme_of, with_alpha
 from .base import CHIP_HEIGHT, THUMB_SIZE, elide
 from .roles import Roles
+from .type_scale import line_box
 
 __all__ = [
     "CHIP_STEP",
@@ -62,8 +63,13 @@ LEAD_GLYPH: dict[str, int] = {"sm": 14, "md": 16, "lg": 20}
 #: A row's text, on the leaf ladder.
 ROW_TEXT: dict[str, int] = {"sm": 12, "md": 14, "lg": 16}
 
-#: The sub-label, the code and the secondary are all the metadata step.
+#: The line each step stands on: `type_scale.LINE_BOX`, the scale's own leading, which is what
+#: sets a two-line row's pitch. A font's own metrics drift from family to family; the scale does not.
+ROW_LINE: dict[str, int] = {step: line_box(size) for step, size in ROW_TEXT.items()}
+
+#: The sub-label, the code and the secondary are all the metadata step, on its own line.
 CODE_TEXT = 12
+CODE_LINE = line_box(CODE_TEXT)
 
 #: The row's own inset, and the tighter vertical inset a two-line row takes.
 ROW_PAD_X = 8
@@ -197,6 +203,16 @@ class RowDelegate(QStyledItemDelegate):
         widget = getattr(option, "widget", None)
         return theme_of(widget if widget is not None else self.parent())
 
+    def _indicator_column(self, box: QRect, left: int) -> QRect:
+        """The tick column, as tall as the picture beside it so the two share a centre.
+
+        Upstream gives the column the leading slot's own height rather than the row's, so a
+        checkbox centres on the picture and not on a two-line row's whole block (rule 2).
+        """
+        side = self._lead_size() if self._thumbnail else INDICATOR_HEIGHT
+        side = min(side, box.height())
+        return QRect(left, box.top() + (box.height() - side) // 2, INDICATOR_WIDTH, side)
+
     def _pad_y(self, has_sub: bool) -> int:
         pad = ROW_PAD_Y_SUB if has_sub else ROW_PAD_Y
         return max(1, pad // 2) if self._density == "compact" else pad
@@ -228,10 +244,9 @@ class RowDelegate(QStyledItemDelegate):
             return QSize(width, chip + 2 * self._pad_y(False))
 
         sub = _text(index, Roles.SUB_LABEL)
-        label_height = QFontMetrics(theme.font(ROW_TEXT[self._size])).height()
-        height = label_height
+        height = ROW_LINE[self._size]
         if sub:
-            height += QFontMetrics(theme.font(CODE_TEXT)).height()
+            height += CODE_LINE
         lead = self._lead_size() if self._thumbnail else 0
         if self._indicator != "none":
             lead = max(lead, INDICATOR_HEIGHT)
@@ -342,8 +357,7 @@ class RowDelegate(QStyledItemDelegate):
             return
 
         if self._indicator == "checkbox":
-            column = QRect(left, box.top(), INDICATOR_WIDTH, box.height())
-            self._paint_checkbox(painter, column, index, theme)
+            self._paint_checkbox(painter, self._indicator_column(box, left), index, theme)
             left += INDICATOR_WIDTH + GAP
 
         if self._thumbnail:
@@ -353,7 +367,7 @@ class RowDelegate(QStyledItemDelegate):
             left += side + GAP
 
         if self._indicator == "tick":
-            column = QRect(right - INDICATOR_WIDTH, box.top(), INDICATOR_WIDTH, box.height())
+            column = self._indicator_column(box, right - INDICATOR_WIDTH)
             self._paint_tick(painter, column, index, ink)
             right -= INDICATOR_WIDTH + GAP
 
@@ -387,7 +401,16 @@ class RowDelegate(QStyledItemDelegate):
             )
             right -= width + GAP
 
-        text_box = QRect(left, box.top(), max(0, right - left), box.height())
+        # `items-center`: the label and its sub-label stand as one block on the row's centre
+        # line, so the block is as tall as the lines it holds and not as tall as the row.
+        block = ROW_LINE[self._size] + (CODE_LINE if sub else 0)
+        block = min(block, box.height())
+        text_box = QRect(
+            left,
+            box.top() + (box.height() - block) // 2,
+            max(0, right - left),
+            block,
+        )
         self._paint_text(painter, text_box, index, theme, ink, muted, sub)
 
     def _paint_text(
@@ -402,8 +425,8 @@ class RowDelegate(QStyledItemDelegate):
     ) -> None:
         base = theme.font(ROW_TEXT[self._size])
         bold = theme.font(ROW_TEXT[self._size], QFont.Weight.DemiBold)
-        label_height = QFontMetrics(base).height()
-        sub_height = QFontMetrics(theme.font(CODE_TEXT)).height() if sub else 0
+        label_height = ROW_LINE[self._size]
+        sub_height = CODE_LINE if sub else 0
         top = box.top() + max(0, (box.height() - label_height - sub_height) // 2)
 
         runs = _runs(index)
@@ -449,7 +472,9 @@ class RowDelegate(QStyledItemDelegate):
     def _paint_lead(
         self, painter: QPainter, slot: QRect, index: QModelIndex, theme: Theme
     ) -> None:
-        radius = float(slot.width()) / 2.0 if self._round else float(theme.radius_px("sm"))
+        # `thumbnail.tsx` is `rounded-md border`, which is what `widgets/thumbnail.py` draws,
+        # so the slot in a row takes the same corner rather than the tighter one.
+        radius = float(slot.width()) / 2.0 if self._round else float(theme.radius_px("md"))
         picture = index.data(Roles.PIXMAP)
         if isinstance(picture, QPixmap) and not picture.isNull():
             scaled = picture.scaled(
@@ -472,23 +497,29 @@ class RowDelegate(QStyledItemDelegate):
         letters = _text(index, Roles.INITIALS)
         if letters:
             hue = name_hue(_text(index, Roles.LABEL) or _display(index) or letters)
-            fill = QColor.fromHsl(hue, 140, 90 if theme.dark else 170)
+            # The tint the avatar draws, so a person's initials in a row and the same person's
+            # avatar beside it are one colour: the upstream oklch pairs, not a wash of HSL.
+            ground, ink = initials_tint(hue, theme.dark)
             painter.save()
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(fill)
+            painter.setBrush(ground)
             painter.drawRoundedRect(slot, radius, radius)
             painter.setFont(theme.font(max(10, slot.height() // 3), QFont.Weight.Medium))
-            painter.setPen(QColor(255, 255, 255) if theme.dark else QColor(20, 20, 20))
+            painter.setPen(ink)
             painter.drawText(slot, int(Qt.AlignmentFlag.AlignCenter), letters)
             painter.restore()
             return
 
         glyph = _text(index, Roles.GLYPH)
         painter.save()
-        if not (self._bare_glyph and glyph and not glyph.startswith("#")):
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(with_alpha(theme.muted, 1.0))
-            painter.drawRoundedRect(slot, radius, radius)
+        # A named glyph stands bare, as `picker-row.tsx` draws it; the tile is the empty
+        # `Thumbnail`, `bg-muted` inside a hairline border.
+        if not (glyph and not glyph.startswith("#")):
+            painter.setPen(QPen(theme.color("border"), 1.0))
+            painter.setBrush(theme.color("muted"))
+            painter.drawRoundedRect(
+                QRectF(slot).adjusted(0.5, 0.5, -0.5, -0.5), radius - 0.5, radius - 0.5
+            )
         if glyph.startswith("#"):
             side = LEAD_GLYPH[self._size] // 2
             dot = QRect(slot.center().x() - side, slot.center().y() - side, side * 2, side * 2)

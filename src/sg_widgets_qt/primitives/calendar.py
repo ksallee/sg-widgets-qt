@@ -29,8 +29,9 @@ __all__ = [
     "MonthGrid",
 ]
 
-#: A day cell, and the weekday heading over it.
-CELL = 32
+#: A day cell, and the weekday heading over it. `--cell-size: --spacing(7)` of `calendar.tsx`
+#: is 28, which is the control ladder's smallest step: a month of them is 196 across.
+CELL = 28
 HEADING_HEIGHT = 20
 
 #: Six weeks, so the grid keeps one height whatever month it shows.

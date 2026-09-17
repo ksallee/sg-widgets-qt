@@ -12,16 +12,18 @@ from __future__ import annotations
 from qtpy import QtCore, QtGui, QtWidgets
 
 from .base import ThemedWidget, fill_round_rect, painter_for, text_width
+from .type_scale import line_box
 
-__all__ = ["KBD_HEIGHT", "Kbd", "Label", "Separator"]
+__all__ = ["KBD_GAP", "KBD_HEIGHT", "Kbd", "Label", "Separator"]
 
 #: `text-sm` of `label.tsx`, in the medium weight rule 6 keeps for emphasis.
 LABEL_SIZE = 14
 
-#: `h-5 min-w-5 px-1 text-xs` of `kbd.tsx`.
+#: `h-5 min-w-5 px-1 text-xs` of `kbd.tsx`. The gap a group keeps between two keys is `gap-1`.
 KBD_HEIGHT = 20
 KBD_PAD = 4
 KBD_SIZE = 12
+KBD_GAP = 4
 
 
 class Label(ThemedWidget):
@@ -66,8 +68,10 @@ class Label(ThemedWidget):
         return self.theme.font(LABEL_SIZE, self._weight)
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
+        # The line box of the step, not the font's own height: a `text-sm` line stands 20 high
+        # upstream and 18 on the family the palettes name, so a column of them drifts.
         metrics = QtGui.QFontMetrics(self._font())
-        return QtCore.QSize(text_width(metrics, self._text), max(metrics.height(), LABEL_SIZE + 4))
+        return QtCore.QSize(text_width(metrics, self._text), line_box(LABEL_SIZE))
 
     def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802
         return QtCore.QSize(0, self.sizeHint().height())
@@ -90,7 +94,11 @@ class Label(ThemedWidget):
 
 
 class Kbd(ThemedWidget):
-    """One keyboard key: the mono step on `muted`, rounded `sm` inside a 1px border."""
+    """One keyboard key: `text-xs font-medium` on `muted`, rounded `sm`.
+
+    `kbd.tsx` spells the family `font-sans` and gives the pill no border, so a key reads as a
+    wash on the surface rather than as a control of its own.
+    """
 
     def __init__(self, text: str = "", parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
@@ -107,7 +115,7 @@ class Kbd(ThemedWidget):
         self.update()
 
     def _font(self) -> QtGui.QFont:
-        return self.theme.font(KBD_SIZE, QtGui.QFont.Weight.Medium, mono=True)
+        return self.theme.font(KBD_SIZE, QtGui.QFont.Weight.Medium)
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
         metrics = QtGui.QFontMetrics(self._font())
@@ -120,9 +128,7 @@ class Kbd(ThemedWidget):
         theme = self.theme
         box = QtCore.QRect(0, 0, self.width(), min(self.height(), KBD_HEIGHT))
         box.moveCenter(self.rect().center())
-        fill_round_rect(
-            painter, box, float(theme.radius_px("sm")), theme.color("muted"), theme.color("border")
-        )
+        fill_round_rect(painter, box, float(theme.radius_px("sm")), theme.color("muted"))
         painter.setFont(self._font())
         painter.setPen(theme.color("muted_foreground"))
         painter.drawText(box, QtCore.Qt.AlignmentFlag.AlignCenter, self._text)

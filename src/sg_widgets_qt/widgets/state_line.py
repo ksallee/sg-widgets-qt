@@ -19,6 +19,7 @@ from sg_widgets_core.state import StateLabels, state_line
 
 from ..icons import paint_icon
 from ..primitives.base import ThemedWidget, painter_for, text_width
+from ..primitives.type_scale import line_box
 
 __all__ = ["STATE_LINE_GLYPH", "STATE_LINE_PAD", "STATE_LINE_TEXT", "StateLine"]
 
@@ -156,7 +157,9 @@ class StateLine(ThemedWidget):
         return width
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
-        line = max(QtGui.QFontMetrics(self._font()).height(), self._glyph())
+        # The row is the line box of the step against the glyph beside it, which is what the
+        # upstream flex line resolves to; the font's own height stands 2px under it.
+        line = max(line_box(STATE_LINE_TEXT[self.size_step]), self._glyph())
         return QtCore.QSize(self._content_width(), line + 2 * self._pad_y())
 
     def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802

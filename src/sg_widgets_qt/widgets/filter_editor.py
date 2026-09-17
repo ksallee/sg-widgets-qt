@@ -58,9 +58,10 @@ from sg_widgets_core.filter_ux import (
 from sg_widgets_core.schema import FieldSchema
 from sg_widgets_core.state import NOTHING_CHOSEN_LABEL
 
-from ..primitives.base import CHIP_CROSS, CONTROL_HEIGHT, ThemedWidget, painter_for
+from ..primitives.base import CONTROL_HEIGHT, ThemedWidget, painter_for
 from ..primitives.button import Button
 from ..primitives.checkbox import ToggleGroup
+from ..primitives.remove_control import RemoveControl
 from ..primitives.select import Select
 from ..primitives.skeleton import Skeleton
 from ..theme import theme_of, with_alpha
@@ -1073,7 +1074,9 @@ class _ConditionRow(ThemedWidget):
         cross.slot_path = (tuple(self._path), "remove")
         cross.setEnabled(not owner.disabled)
         cross.clicked.connect(lambda: owner.remove(self._path))
-        line.addWidget(cross, 0, Qt.AlignmentFlag.AlignTop)
+        # `items-center` on `filter-row`: the cross sits on the row's centre line, wherever a
+        # value editor that wrapped has put that line.
+        line.addWidget(cross, 0, Qt.AlignmentFlag.AlignVCenter)
 
         if not deferred:
             self.fill()
@@ -1656,11 +1659,13 @@ def _grip(parent: QtWidgets.QWidget, size: str) -> Button:
     return made
 
 
-def _cross(parent: QtWidgets.QWidget, size: str, label: str) -> Button:
-    """The control that removes a row, a group or a value."""
-    made = Button("", icon="x", variant="ghost", size=ICON_BUTTON[size], parent=parent)
+def _cross(parent: QtWidgets.QWidget, size: str, label: str) -> RemoveControl:
+    """The control that removes a row, a group or a value.
+
+    `REMOVE_CONTROL`, not a button: the cross and its 2px and nothing more, so it sits level
+    with the controls in the row rather than standing a button's height over them. The hit box
+    rule 3 asks for is centred on it and takes no room.
+    """
+    made = RemoveControl(step=CROSS_SIZE[size], label=label, parent=parent)
     made.setObjectName("filter-remove")
-    made.setAccessibleName(label)
-    made.setToolTip(label)
-    made.setFixedWidth(max(24, CHIP_CROSS[CROSS_SIZE[size]] + 12))
     return made

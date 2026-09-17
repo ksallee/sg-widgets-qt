@@ -139,6 +139,16 @@ class Badge(ThemedWidget):
         """True when the chip shows something in its leading slot."""
         return self._icon is not None
 
+    def leading_size(self) -> QtCore.QSize:
+        """The box the leading slot takes. A lucide glyph is square on the chip ladder.
+
+        A subclass whose mark carries its own pixel size answers that instead, the way a stock
+        status sprite does: upstream sets the cell's width and height on the image itself and
+        the chip's glyph class never reaches it (010_status_icons).
+        """
+        side = self._glyph()
+        return QtCore.QSize(side, side)
+
     def _left_pad(self) -> int:
         pad = CHIP_PAD[self.size_step]
         if self.has_leading():
@@ -158,7 +168,7 @@ class Badge(ThemedWidget):
         spacing = CHIP_SPACING[self.size_step]
         width = self._left_pad() + self._right_pad()
         if self.has_leading():
-            width += self._glyph()
+            width += self.leading_size().width()
             if self._text:
                 width += spacing.glyph
         width += self._label_width()
@@ -231,11 +241,11 @@ class Badge(ThemedWidget):
         spacing = CHIP_SPACING[self.size_step]
         x = box.x() + self._left_pad()
         if self.has_leading():
-            glyph = self._glyph()
-            slot = QtCore.QRect(0, 0, glyph, glyph)
-            slot.moveCenter(QtCore.QPoint(x + glyph // 2, box.center().y()))
+            mark = self.leading_size()
+            slot = QtCore.QRect(QtCore.QPoint(0, 0), mark)
+            slot.moveCenter(QtCore.QPoint(x + mark.width() // 2, box.center().y()))
             self.paint_leading(painter, slot, ink)
-            x += glyph + (spacing.glyph if self._text else 0)
+            x += mark.width() + (spacing.glyph if self._text else 0)
 
         right = box.right() + 1 - self._right_pad()
         if self._removable:

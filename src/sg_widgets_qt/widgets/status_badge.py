@@ -27,7 +27,7 @@ from sg_widgets_core.status import Rgb, StatusRecord, foreground_for, parse_bg_c
 
 from ..images import ImageLoader
 from ..primitives.badge import Badge
-from ..primitives.base import CHIP_HEIGHT, CHIP_PAD, painter_for
+from ..primitives.base import CHIP_GLYPH, CHIP_HEIGHT, CHIP_PAD, painter_for
 from ..theme import with_alpha
 from .status_glyph import StatusGlyphSource
 
@@ -281,6 +281,13 @@ class StatusBadge(Badge):
 
     def has_leading(self) -> bool:
         return self._shows_glyph()
+
+    def leading_size(self) -> QtCore.QSize:
+        """The glyph's own box: a sprite cell is its own pixel size, the dot is 8, an
+        `image` icon takes the chip ladder's step (010_status_icons)."""
+        if self._source is None:
+            return super().leading_size()
+        return self._source.natural_size(CHIP_GLYPH[self.size_step])
 
     def _left_pad(self) -> int:
         if self._status_variant == "icon":

@@ -15,6 +15,7 @@ host's own stylesheet survives.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
@@ -34,7 +35,9 @@ __all__ = [
     "contrast_ratio",
     "generate_qss",
     "host_theme",
+    "initials_tint",
     "mix",
+    "oklch_color",
     "theme_bus",
     "theme_for",
     "theme_of",
@@ -152,6 +155,57 @@ def to_color(value: QtGui.QColor | str) -> QtGui.QColor:
     if isinstance(value, QtGui.QColor):
         return QtGui.QColor(value)
     return QtGui.QColor(*_rgba(value))
+
+
+#: oklab to linear sRGB, the matrix of CSS Color 4 and Bjorn Ottosson's published OKLab.
+_OKLAB_TO_LMS = (
+    (1.0, 0.3963377774, 0.2158037573),
+    (1.0, -0.1055613458, -0.0638541728),
+    (1.0, -0.0894841775, -1.2914855480),
+)
+_LMS_TO_RGB = (
+    (4.0767416621, -3.3077115913, 0.2309699292),
+    (-1.2684380046, 2.6097574011, -0.3413193965),
+    (-0.0041960863, -0.7034186147, 1.7076147010),
+)
+
+
+def _from_linear(value: float) -> int:
+    """One linear-light channel as 8-bit sRGB, clipped the way a browser clips a gamut miss."""
+    shaped = 12.92 * value if value <= 0.0031308 else 1.055 * (value ** (1 / 2.4)) - 0.055
+    return max(0, min(255, int(round(shaped * 255))))
+
+
+def oklch_color(lightness: float, chroma: float, hue: float) -> QtGui.QColor:
+    """One oklch colour as a `QColor`, which is what a browser paints for `oklch(L C H)`.
+
+    Colour that is data rather than a token -- the hue derived from a name behind initials, and
+    the same tint a row's delegate draws -- is stated in oklch upstream, and oklch holds its
+    lightness across hues where HSL does not. It lives here so every drawer of that tint reads
+    one implementation.
+    """
+    radians = math.radians(hue)
+    lab = (lightness, chroma * math.cos(radians), chroma * math.sin(radians))
+    lms = [sum(row[i] * lab[i] for i in range(3)) ** 3 for row in _OKLAB_TO_LMS]
+    return QtGui.QColor(*(_from_linear(sum(row[i] * lms[i] for i in range(3))) for row in _LMS_TO_RGB))
+
+
+#: The tint behind a set of initials, as the oklch lightness and chroma of its ground and of its
+#: ink, per scheme. A fixed hue from the name at a light and a dark lightness, so one person reads
+#: the same under every theme. Like status colour it is data rather than a token (design rule 1).
+#: The pairs are the upstream `TINT` of `user-avatar.tsx`.
+TINT_LIGHT = ((0.93, 0.05), (0.42, 0.13))
+TINT_DARK = ((0.32, 0.06), (0.86, 0.09))
+
+
+def initials_tint(hue: float, dark: bool) -> tuple[QtGui.QColor, QtGui.QColor]:
+    """The ground and the ink a set of initials takes at that hue, in that scheme.
+
+    The avatar and the row delegate both draw it, so they read one implementation and a person's
+    initials in a list are the colour their avatar beside it is.
+    """
+    ground, ink = TINT_DARK if dark else TINT_LIGHT
+    return oklch_color(ground[0], ground[1], hue), oklch_color(ink[0], ink[1], hue)
 
 
 def with_alpha(color: QtGui.QColor | str, fraction: float) -> QtGui.QColor:

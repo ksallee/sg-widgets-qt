@@ -27,6 +27,7 @@ from ..images import ImageLoader, image_loader
 from ..primitives.badge import Chip
 from ..primitives.base import CHIP_GLYPH, CHIP_HEIGHT, CHIP_TEXT
 from ..primitives.hover_card import HoverCard, HoverCardContent
+from ..primitives.type_scale import line_box
 from ..theme import with_alpha
 from .entity_glyphs import entity_glyph
 
@@ -40,6 +41,11 @@ ACTIVATE_KEYS = (QtCore.Qt.Key.Key_Return, QtCore.Qt.Key.Key_Enter, QtCore.Qt.Ke
 REMOVE_KEYS = (QtCore.Qt.Key.Key_Delete, QtCore.Qt.Key.Key_Backspace)
 
 PreviewBuilder = Callable[[EntityRef, "list[str]", "SgContext | None"], QtWidgets.QWidget]
+
+#: `w-72 p-3` of the chip's own preview card, which is wider than the plain `w-64` hover card and
+#: takes a step more padding than the popover's own `p-2.5`.
+PREVIEW_WIDTH = 288
+PREVIEW_PAD = 12
 
 
 class EntityChip(Chip):
@@ -296,11 +302,26 @@ class EntityChip(Chip):
             self._card = None
         if not self._preview or self._entity is None:
             return
-        self._card = HoverCard(self, self._preview_content(), open_delay=200, close_delay=100)
+        self._card = HoverCard(
+            self,
+            self._preview_content(),
+            open_delay=200,
+            close_delay=100,
+            width=PREVIEW_WIDTH,
+        )
 
     def _preview_content(self) -> QtWidgets.QWidget:
         builder = self._preview_builder if self._preview_builder is not None else default_preview_builder
-        return builder(self._entity, list(self._preview), self._context)
+        made = builder(self._entity, list(self._preview), self._context)
+        # `p-3` on the card outranks the popover's own `p-2.5`, so the content carries the step
+        # it is drawn at rather than the shell changing under every other caller.
+        holder = QtWidgets.QWidget()
+        inset = QtWidgets.QVBoxLayout(holder)
+        inset.setContentsMargins(PREVIEW_PAD, PREVIEW_PAD, PREVIEW_PAD, PREVIEW_PAD)
+        inset.setSpacing(0)
+        made.setParent(holder)
+        inset.addWidget(made)
+        return holder
 
     # --- layout ---
 
@@ -340,7 +361,9 @@ class EntityChip(Chip):
         hint = super().sizeHint()
         if self.boxed:
             return hint
-        line = QtGui.QFontMetrics(self._font()).height()
+        # A link or a bare label has no box of its own, so it stands as tall as the line box
+        # of its step against the glyph beside it, the way the upstream inline row does.
+        line = line_box(CHIP_TEXT[self.size_step])
         return QtCore.QSize(hint.width(), max(line, CHIP_GLYPH[self.size_step]))
 
     def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802

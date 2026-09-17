@@ -40,10 +40,18 @@ CHECKBOX_SLOT = 24
 LABEL_GAP = 8
 LABEL_SIZE = 14
 
-#: The track and the thumb of `switch.tsx`, and the room the ring needs around the track.
-SWITCH_WIDTH = 32
-SWITCH_HEIGHT = 18
-SWITCH_THUMB = 16
+#: The two steps of `switch.tsx`: the track, then the thumb that slides inside it.
+#: `data-[size=default]` is 32 by 18.4 with a `size-4` thumb, `data-[size=sm]` 24 by 14 with a
+#: `size-3` one. A step the table does not name wears the default, as `SWITCH` upstream does.
+SWITCH_SIZE_VALUES: tuple[str, ...] = ("sm", "default")
+SWITCH_TRACK: dict[str, tuple[int, int]] = {"sm": (24, 14), "default": (32, 18)}
+SWITCH_THUMB_SIZE: dict[str, int] = {"sm": 12, "default": 16}
+
+#: The default step on its own, which is the track a value reads as rather than edits.
+SWITCH_WIDTH, SWITCH_HEIGHT = SWITCH_TRACK["default"]
+SWITCH_THUMB = SWITCH_THUMB_SIZE["default"]
+
+#: The 1px transparent border the track carries, which is what the thumb sits in from.
 SWITCH_INSET = 1
 RING_ROOM = FOCUS_RING_WIDTH + FOCUS_RING_OFFSET
 
@@ -216,17 +224,39 @@ class Checkbox(ThemedWidget):
 
 
 class Switch(ThemedWidget):
-    """A 32 by 18 track in `input` off and `primary` on, with a thumb that slides over 150ms."""
+    """A track in `input` off and `primary` on, with a thumb that slides over 150ms.
+
+    Two steps, as `switch.tsx` has: 32 by 18 with a 16 thumb, and 24 by 14 with a 12 one.
+    """
 
     toggled = QtCore.Signal(bool)
 
-    def __init__(self, checked: bool = False, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(
+        self,
+        checked: bool = False,
+        parent: QtWidgets.QWidget | None = None,
+        size: str = "default",
+    ) -> None:
         super().__init__(parent)
         self._checked = bool(checked)
+        self._size = size if size in SWITCH_SIZE_VALUES else "default"
         self._slide = self.animated(DURATION["hover"], value=1.0 if checked else 0.0)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+    @property
+    def size(self) -> str:
+        """Which step of `switch.tsx` the track wears: `sm` or `default`."""
+        return self._size
+
+    def set_size(self, value: str) -> None:
+        value = value if value in SWITCH_SIZE_VALUES else "default"
+        if value == self._size:
+            return
+        self._size = value
+        self.updateGeometry()
+        self.update()
 
     @property
     def checked(self) -> bool:
@@ -245,10 +275,12 @@ class Switch(ThemedWidget):
         self.set_checked(not self._checked)
 
     def sizeHint(self) -> QtCore.QSize:  # noqa: N802
-        return QtCore.QSize(SWITCH_WIDTH + RING_ROOM * 2, SWITCH_HEIGHT + RING_ROOM * 2)
+        width, height = SWITCH_TRACK[self._size]
+        return QtCore.QSize(width + RING_ROOM * 2, height + RING_ROOM * 2)
 
     def _track(self) -> QtCore.QRect:
-        rect = QtCore.QRect(0, 0, SWITCH_WIDTH, SWITCH_HEIGHT)
+        width, height = SWITCH_TRACK[self._size]
+        rect = QtCore.QRect(0, 0, width, height)
         rect.moveCenter(self.rect().center())
         return rect
 
@@ -261,9 +293,10 @@ class Switch(ThemedWidget):
         off = with_alpha(theme.input, 0.8) if theme.dark else theme.color("input")
         fill_round_rect(painter, track, radius, mix(off, theme.primary, self._slide.value))
 
-        travel = track.width() - SWITCH_THUMB - SWITCH_INSET * 2
+        side = SWITCH_THUMB_SIZE[self._size]
+        travel = track.width() - side - SWITCH_INSET * 2
         x = track.x() + SWITCH_INSET + travel * self._slide.value
-        thumb = QtCore.QRectF(x, track.y() + SWITCH_INSET, SWITCH_THUMB, SWITCH_THUMB)
+        thumb = QtCore.QRectF(x, track.y() + SWITCH_INSET, side, side)
         if theme.dark:
             ink = mix(theme.foreground, theme.primary_foreground, self._slide.value)
         else:
