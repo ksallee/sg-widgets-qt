@@ -62,6 +62,15 @@ says what differs.
 - Invented names only in demos, tests and docs. The test site, its hostname, projects and people are
   never named; say "the test site".
 
+## Process
+
+- A change starts as a short issue: one paragraph, edited in place when scope changes.
+- Branch from `dev` (`feat/<issue>-slug`, `fix/slug`). PR onto `dev`, squash-merged, once
+  `pytest` is green on both bindings and `ruff` is clean. Merging needs Kevin's say in the session.
+- `main` is promoted by a PR from `dev`, merge commit, after Kevin QAs `dev`.
+- The failing test lands first, in the same commit as the code that makes it pass. Docs-only
+  changes carry screenshots instead.
+
 ## Verifying UI
 
 `python tools/qa.py --page <name> --shot shots/<name>-light.png` starts the showcase offscreen,
