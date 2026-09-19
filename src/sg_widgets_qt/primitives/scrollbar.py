@@ -125,7 +125,9 @@ class OverlayScrollBar(QWidget):
         self.update()
 
     def _on_scrolled(self, *_: object) -> None:
+        # `wake` repaints only when the opacity moves; a shown bar still has to move its handle.
         self.wake()
+        self.update()
 
     def _start_fade(self) -> None:
         if self._hovered or self._dragging:
