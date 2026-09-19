@@ -14,7 +14,7 @@ from typing import Any
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ..icons import paint_icon
-from ..theme import mix, with_alpha
+from ..theme import with_alpha
 from .base import (
     CONTROL_GLYPH,
     CONTROL_HEIGHT,
@@ -189,10 +189,11 @@ class _Field(ThemedMixin):
         painter.setOpacity(self.disabled_opacity())
 
         # The shadcn input has no hover state; the wash on hover belongs to the picker control alone.
-        surface = theme.color("background")
-        wash = self._wash(theme)
-        if wash is not None:
-            surface = mix(surface, QtGui.QColor(wash.rgb()), wash.alphaF())
+        # `input.tsx` and `textarea.tsx` are `bg-transparent dark:bg-input/30`: the box is the
+        # surface it stands on, lifted by the wash on a dark page. Filling `background` under
+        # that wash would paint the page's own ground over a popover's or a card's, and the
+        # field would read as a hole cut in the surface rather than as a box on it.
+        surface = self._wash(theme)
         border = theme.color("destructive") if self._invalid else theme.color("input")
         fill_round_rect(painter, rect, radius, surface, border)
 

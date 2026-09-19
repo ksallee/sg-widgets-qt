@@ -28,6 +28,16 @@ SELECT_TRAILING_PAD = 8
 #: The gap between the label and the chevron.
 SELECT_GAP = 6
 
+#: `dark:bg-input/30` and `dark:hover:bg-input/50` of `select.tsx`: the wash the trigger wears
+#: on a dark page at rest and under the pointer. The `input` token carries its own alpha, so the
+#: fraction is of that, as it is for a field.
+REST_WASH_DARK = 0.3
+HOVER_WASH_DARK = 0.5
+
+#: The trigger carries no ground at all on a light page, where `bg-transparent` leaves the card,
+#: the popover or the page under it showing through; the pointer washes it with `muted/30`.
+HOVER_WASH = 0.3
+
 
 class Select(ThemedWidget):
     """A control that opens a list and keeps one value.
@@ -281,7 +291,14 @@ class Select(ThemedWidget):
         # at md, level with the controls beside it.
         box = QRect(0, 0, self.width(), self.height())
         border = theme.color("destructive") if self._invalid else theme.color("input")
-        fill = with_alpha(theme.color("muted"), 0.3 * self._hover.value)
+        # `bg-transparent dark:bg-input/30 dark:hover:bg-input/50`: a wash laid on the surface
+        # the trigger stands on, never a ground of its own, so a select inside a card or a
+        # popover shows that surface through it and a dark page lifts it.
+        if theme.dark:
+            share = REST_WASH_DARK + (HOVER_WASH_DARK - REST_WASH_DARK) * self._hover.value
+            fill = with_alpha(theme.color("input"), share)
+        else:
+            fill = with_alpha(theme.color("muted"), HOVER_WASH * self._hover.value)
 
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(fill)
