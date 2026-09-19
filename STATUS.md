@@ -4,13 +4,13 @@ What is ported from `~/dev/sg-widgets`, what is partial, what is left. Generated
 `python tools/status.py` from `sync/manifest.json`; `python tools/sync_status.py` says what drifted
 upstream since. Only the Not ported section is written by hand.
 
-Last synced upstream commit: `356391d7354a`.
+Last synced upstream commit: `882c450c0574`.
 
 | kind | complete | partial | skipped |
 |---|---|---|---|
 | Core | 27 | 3 | 3 |
 | Theme, workers, icons and primitives | 20 | 3 | 0 |
-| Widgets | 51 | 1 | 0 |
+| Widgets | 52 | 0 | 0 |
 | Demos and the showcase | 9 | 2 | 1 |
 | Docs pages | 55 | 0 | 0 |
 
@@ -98,7 +98,7 @@ Last synced upstream commit: `356391d7354a`.
 | entity-grid | complete | `entity-grid.tsx`, `entity-grid.ts` | The tile is drawn by a delegate through EntityCard's own tile face. The card slot is that delegate, or an override of tile_of. |
 | entity-multi-picker | complete | `entity-multi-picker.tsx`, `entity-multi-picker.svelte`, `Demo.tsx`, `entity-multi-picker.mdx`, `entity-multi-picker.ts` |  |
 | entity-picker | complete | `entity-picker.tsx`, `entity-picker.svelte`, `Demo.tsx`, `entity-picker.mdx`, `entity-picker.ts` |  |
-| entity-table | complete | `entity-table.tsx`, `entity-table.ts` | Pin left is a second view of the same model over the body's left edge; the drawn order and the pinned paths are the table's own and never write back through `columns_changed`. The row, cell and groupHeader slots are the delegate. |
+| entity-table | complete | `entity-table.tsx`, `entity-table.ts` | Pin left is a second view of the same model over the body's left edge, with a rule and a shadow at its trailing edge; the drawn order and the pinned paths are the table's own and never write back through columns_changed, as upstream holds them in the table. A re-read draws as many blank rows as the rows that stood there, where upstream always draws eight. The row, cell and groupHeader slots are the delegate. |
 | entity-tree | complete | `entity-tree.tsx`, `entity-tree.ts` | A QTreeView over the rows the engine says are visible, drawn by picker_row's delegate with the chevron in front. The row slot is that delegate. |
 | entity-type-multi-picker | complete | `entity-type-multi-picker.tsx`, `entity-type-multi-picker.svelte`, `Demo.tsx`, `entity-type-multi-picker.mdx`, `entity-type-multi-picker.ts` |  |
 | entity-type-picker | complete | `entity-type-picker.tsx`, `entity-type-picker.svelte`, `Demo.tsx`, `entity-type-picker.mdx`, `entity-type-picker.ts` |  |

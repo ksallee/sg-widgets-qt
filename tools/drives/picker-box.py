@@ -4,7 +4,8 @@ Rule 3 of `docs/design-rules.md`: a filled control's leading inset matches the r
 below the chip, and an empty one gives that inset back and reads as a plain input. Either way
 the ink — a chip's label, a plain-text value, the caret's placeholder — sits on the control's
 own centre line. The inset is what the chip and the border leave under the ladder, halved, so
-the border counts: 20 and 2 under 28 at sm, 24 and 2 under 32 at md, 32 and 2 under 36 at lg.
+the border counts: 20 and 2 under 28 at sm, 24 and 2 under 32 at md, and md's 24 and 2 under 36
+at lg.
 
 Rule 1: `bg-background hover:bg-muted/30`. `muted` is a translucent overlay in several
 palettes, so the wash is that alpha taken to 30% of itself and laid over the surface, never a

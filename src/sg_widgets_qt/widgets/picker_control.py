@@ -71,10 +71,13 @@ PICKER_SIZE_VALUES: tuple[str, ...] = ("sm", "md", "lg")
 
 #: `PICKER_BOX` in pixels: the trailing, leading and vertical inset a filled control takes. The
 #: leading inset matches the room above and below the chip, so the chip sits evenly in the border.
+#: It is what the chip and the control's own border leave under the ladder, halved: 20 and 2 under
+#: 28 at sm and 24 and 2 under 32 at md leave 3 each. lg keeps md's 24px chip, which leaves 5 under
+#: 36, where a 32px chip would leave 1. Each step is then exact on one line.
 PICKER_BOX: dict[str, tuple[int, int, int]] = {
     "sm": (8, 3, 3),
     "md": (12, 3, 3),
-    "lg": (12, 1, 1),
+    "lg": (12, 5, 5),
 }
 
 #: `data-empty`: an empty control gives that inset back and reads as a plain input.
@@ -89,8 +92,9 @@ TRAILING_READONLY = 12
 TRAILING_OPEN = 32
 TRAILING_CLEAR = 56
 
-#: A chip or a badge sits inside the control, so it takes the step below it.
-PICKER_CHIP: dict[str, str] = {"sm": "xs", "md": "sm", "lg": "md"}
+#: A chip or a badge sits a step under the control; lg keeps md's, so a 36px control has room
+#: round it.
+PICKER_CHIP: dict[str, str] = {"sm": "xs", "md": "sm", "lg": "sm"}
 
 #: The glyphs inside a control.
 PICKER_GLYPH: dict[str, int] = {"sm": 16, "md": 16, "lg": 20}

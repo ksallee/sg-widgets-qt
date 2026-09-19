@@ -5,7 +5,7 @@ from qtpy.QtCore import QPoint, Qt
 from qtpy.QtGui import QColor
 from qtpy.QtTest import QTest
 
-from sg_widgets_qt.primitives.base import CONTROL_HEIGHT, ICON_HIT_BOX
+from sg_widgets_qt.primitives.base import CHIP_HEIGHT, CONTROL_HEIGHT, ICON_HIT_BOX
 from sg_widgets_qt.primitives.popover import MIN_WIDTH as POPUP_MIN_WIDTH
 from sg_widgets_qt.theme import theme_of, with_alpha
 from sg_widgets_qt.widgets.picker_control import (
@@ -14,6 +14,7 @@ from sg_widgets_qt.widgets.picker_control import (
     OVERFLOW_RESERVE,
     PICKER_BOX,
     PICKER_BOX_EMPTY,
+    PICKER_CHIP,
     PICKER_TEXT_BOX,
     POPUP_WIDTH,
     SEARCH_ROW_HEIGHT,
@@ -26,10 +27,31 @@ from .test_picker_contract import DEPARTMENTS, _settle, build_static, spin
 
 def test_the_box_ladder_is_the_upstream_one():
     # `PICKER_BOX` of picker-classes.ts, in pixels.
-    assert PICKER_BOX == {"sm": (8, 3, 3), "md": (12, 3, 3), "lg": (12, 1, 1)}
+    assert PICKER_BOX == {"sm": (8, 3, 3), "md": (12, 3, 3), "lg": (12, 5, 5)}
     assert PICKER_BOX_EMPTY == {"sm": (6, 0), "md": (8, 0), "lg": (8, 0)}
     assert PICKER_TEXT_BOX == {"sm": (8, 8), "md": (12, 12), "lg": (12, 12)}
     assert (CHIP_GAP, OVERFLOW_RESERVE, POPUP_WIDTH) == (6, 40, 384)
+
+
+def test_a_large_control_keeps_mds_chip_so_it_has_room_inside_36px(qtbot):
+    # Rule 3: a chip sits a step under the control, except at lg, where a 32 chip leaves 1 above
+    # and below under 36. lg keeps md's 24 chip, inset 5, so the control holds 36 exactly.
+    assert PICKER_CHIP == {"sm": "xs", "md": "sm", "lg": "sm"}
+    for size in ("sm", "md", "lg"):
+        inset = PICKER_BOX[size][2]
+        chip = CHIP_HEIGHT[PICKER_CHIP[size]]
+        assert BORDER + inset + chip + inset + BORDER == CONTROL_HEIGHT[size]
+    # The leading inset matches the room above and below, so the chip sits evenly in the border.
+    assert PICKER_BOX["lg"][1] == PICKER_BOX["lg"][2] == 5
+    control = build_static(qtbot, size="lg")
+    control.setFixedHeight(CONTROL_HEIGHT["lg"])
+    _settle(control, ["layout"], dict(DEPARTMENTS))
+    spin(qtbot, 10)
+    control._relayout()
+    chip = control.chips()[0]
+    assert chip.size_step == "sm"
+    assert chip.height() == CHIP_HEIGHT["sm"]
+    assert chip.y() == BORDER + PICKER_BOX["lg"][2]
 
 
 def test_an_empty_control_gives_its_leading_inset_back(qtbot):
@@ -224,7 +246,7 @@ def test_the_ink_sits_on_the_controls_own_centre_line(qtbot):
         _settle(control, ["layout"], dict(DEPARTMENTS))
         spin(qtbot, 10)
         chip = control.chips()[0].geometry()
-        # 20 and 2 under 28 at sm, 24 and 2 under 32 at md, 32 and 2 under 36 at lg.
+        # 20 and 2 under 28 at sm, 24 and 2 under 32 at md, and md's 24 and 2 under 36 at lg.
         assert chip.y() == BORDER + PICKER_BOX[size][2]
         assert chip.y() + chip.height() + BORDER + PICKER_BOX[size][2] == CONTROL_HEIGHT[size]
         assert abs(chip.y() + chip.height() / 2.0 - control.height() / 2.0) <= 1.0
