@@ -80,7 +80,7 @@ class EntityTableDemo(QtWidgets.QWidget):
         self._ready = False
         # The mock's rows are one project's already; a real site's are not.
         scope = (
-            condition("project", "is", {"type": "Project", "id": context.project_id})
+            group("and", [condition("project", "is", {"type": "Project", "id": context.project_id})])
             if context.live
             else None
         )
