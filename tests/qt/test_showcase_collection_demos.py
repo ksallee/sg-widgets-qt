@@ -190,3 +190,19 @@ def test_the_wire_block_reads_in_dark(qtbot):
         1 for x in range(shot.width()) for y in range(shot.height()) if shot.pixelColor(x, y).lightness() > 180
     )
     assert light > 50, "the text is drawn light on the dark ground"
+
+
+def test_the_table_demo_scopes_a_live_site_with_a_group_the_filter_bar_takes(qtbot):
+    """The bar's `base_filter` is a group or a wire group; a bare condition cannot be counted on."""
+    from sg_widgets_core.filter import FilterGroup
+    from sg_widgets_core.picker import as_filter_group
+    from sg_widgets_qt.showcase.context import DemoContext
+    from sg_widgets_qt.showcase.demos.entity_table import EntityTableDemo
+
+    context = DemoContext(demo_context().context, live=True, project_id=7)
+    demo = EntityTableDemo(context)
+    qtbot.addWidget(demo)
+    scope = as_filter_group(demo._scope)
+    assert isinstance(scope, FilterGroup)
+    assert [c.path for c in scope.conditions] == ["project"]
+    settle(demo, *_bindings(demo))
