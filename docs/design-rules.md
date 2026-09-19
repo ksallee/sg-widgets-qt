@@ -85,10 +85,11 @@ copied. The docs page names what was read.
 - Controls come in `sm`, `md` (default), `lg`: heights 28, 32, 36. Icons inside controls are 16 for
   sm and md, 20 for lg. Thumbnails in list rows are 24 (sm), 32 (md), 40 (lg); cards and detail
   panes use 64 and 96. Avatars follow the first three.
-- A chip or a badge sits one step under the control it is in: 20 high in sm, 24 in md, 32 in lg,
-  medium weight, with a 12, 14 or 16 glyph. The edge beside a glyph takes a step less inset than a
-  bare text edge (20: 6 bare, 4 beside a glyph), and the edge beside a cross matches the room above
-  the cross. The glyph sits 4 from the label at the two small steps and 6 above; the cross a step
+- A chip or a badge sits one step under the control it is in: 20 high in sm and 24 in md. An lg
+  picker keeps md's 24 chip, since a 32 chip would leave 1 above and below its 36 control. A chip
+  reads at medium weight, with a 12 or 14 glyph. The edge beside a glyph takes a step less inset
+  than a bare text edge (20: 6 bare, 4 beside a glyph), and the edge beside a cross matches the room
+  above the cross. The glyph sits 4 from the label at the two small steps and 6 above; the cross a step
   closer. The cross grows with the chip, 12 at the smallest to 18 at the largest.
 - A picker control insets its leading edge to match the room above and below the chip it holds. An
   empty control gives that inset back (md: 8 left, 0 vertical) so it reads as a plain input. The

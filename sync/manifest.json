@@ -2,7 +2,7 @@
   "upstream": {
     "path": "~/dev/sg-widgets",
     "branch": "dev",
-    "commit": "356391d7354acffb816a24d6a56cb668d5658dd4"
+    "commit": "882c450c0574d6ce002aa4e1c1dd654054599f09"
   },
   "items": {
     "core/client": {
@@ -1290,13 +1290,13 @@
       "upstream": {
         "packages/react/src/registry/sg/components/control-classes.ts": "2480811ee7be785c7460d96ea69f899321be0605d8c8ba7a659cdb0f37693a74",
         "packages/react/src/registry/sg/components/leaf-classes.ts": "633c3bc111e74cfcc39112c4871ae292fffcb29fda8bdde07c7ea6fb18445468",
-        "packages/react/src/registry/sg/components/picker-classes.ts": "9f653879cf7ae20e7fe43e7aec684fad4ec3076b90b824f3a1fa633c5249994e"
+        "packages/react/src/registry/sg/components/picker-classes.ts": "c65f3894ec1297df85d967fb5fcb1670e87762b2b7e69b2416f1fa5493c5f5db"
       },
       "ported": [
         "src/sg_widgets_qt/primitives/base.py",
         "tests/qt/test_primitives_leaf.py"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "commit": "882c450c0574d6ce002aa4e1c1dd654054599f09",
       "note": "The ladders in pixels, with the states, the motion and the chrome the painted leaves share."
     },
     "primitives/button": {
@@ -1438,13 +1438,13 @@
     "primitives/list-view": {
       "status": "complete",
       "upstream": {
-        "packages/react/src/registry/sg/components/picker-classes.ts": "9f653879cf7ae20e7fe43e7aec684fad4ec3076b90b824f3a1fa633c5249994e",
+        "packages/react/src/registry/sg/components/picker-classes.ts": "c65f3894ec1297df85d967fb5fcb1670e87762b2b7e69b2416f1fa5493c5f5db",
         "packages/react/src/components/ui/command.tsx": "41faa024186f01cd0bf1ac985f174921ba47f1f5ec302ecea75d9943b9600083"
       },
       "ported": [
         "src/sg_widgets_qt/primitives/list_view.py"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "commit": "882c450c0574d6ce002aa4e1c1dd654054599f09",
       "note": "PICKER_LIST as a QListView: max-h-72, p-1, the 24px edge fade from core's overflow_edges, loop off. The mask becomes a painted gradient."
     },
     "primitives/popover": {
@@ -1463,24 +1463,24 @@
       "status": "partial",
       "upstream": {
         "packages/react/src/registry/sg/components/picker-row.tsx": "91feeb45c0942ced44472204d93cd76fb6bc9712dad6b6ffd366a211e0af8417",
-        "packages/react/src/registry/sg/components/picker-classes.ts": "9f653879cf7ae20e7fe43e7aec684fad4ec3076b90b824f3a1fa633c5249994e"
+        "packages/react/src/registry/sg/components/picker-classes.ts": "c65f3894ec1297df85d967fb5fcb1670e87762b2b7e69b2416f1fa5493c5f5db"
       },
       "ported": [
         "src/sg_widgets_qt/primitives/row_delegate.py",
         "src/sg_widgets_qt/primitives/roles.py"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "commit": "882c450c0574d6ce002aa4e1c1dd654054599f09",
       "note": "The secondary renders as text or through a painter role; field_value and the status sprite land later. Matched runs come from a model role until core's match_runs is ported."
     },
     "primitives/scrollbar": {
       "status": "complete",
       "upstream": {
-        "packages/react/src/registry/sg/components/picker-classes.ts": "9f653879cf7ae20e7fe43e7aec684fad4ec3076b90b824f3a1fa633c5249994e"
+        "packages/react/src/registry/sg/components/picker-classes.ts": "c65f3894ec1297df85d967fb5fcb1670e87762b2b7e69b2416f1fa5493c5f5db"
       },
       "ported": [
         "src/sg_widgets_qt/primitives/scrollbar.py"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "commit": "882c450c0574d6ce002aa4e1c1dd654054599f09",
       "note": "The overlay bar replaces the stock scrollbar on any QAbstractScrollArea; upstream hides it with no-scrollbar and keeps a stable gutter."
     },
     "primitives/select": {
@@ -1641,8 +1641,8 @@
     "widgets/context-selector": {
       "status": "complete",
       "upstream": {
-        "packages/react/src/registry/sg/components/context-selector.tsx": "c9540bc219c65dcd958725466419f9a9295fcaf8b214ac099431ece686f8f2d7",
-        "packages/svelte/src/lib/registry/components/context-selector.svelte": "d4d53ea5e03433e0dc486d7b6e1f4c9d6f8729bc0914cbfc2d91bbc0ee3a7b78",
+        "packages/react/src/registry/sg/components/context-selector.tsx": "14b8ab566b1793a4f44e42a796c8bb47f858209cf219d4b283582dbdbbecbf2f",
+        "packages/svelte/src/lib/registry/components/context-selector.svelte": "6aa4bb409f544bbb0038b183479a335f29e213fa32939a13c1fa74d8da59b257",
         "apps/site/src/demos/context-selector/Demo.tsx": "dcde367ab715e0fe87dc6200821280240d817c81abfea98ee471a8ebdaba3056",
         "apps/site/src/content/docs/widgets/context-selector.mdx": "9c37b912df8c3c96207bc64748b83b6b2bbc6380a3f82ecbfffb6f12e2199051",
         "apps/site/src/props/context-selector.ts": "ad50c3093dc5dcd7b8e74c143bd4a0f8a7fc528772da312f06ca4921c437d52d"
@@ -1653,7 +1653,7 @@
         "docs/widgets/context-selector.md",
         "tests/qt/test_context_selector.py"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "commit": "882c450c0574d6ce002aa4e1c1dd654054599f09",
       "note": ""
     },
     "widgets/date-editor": {
@@ -2151,8 +2151,8 @@
       "upstream": {
         "packages/react/src/registry/sg/components/picker-control.tsx": "8ac54740708ad5e65c29590973d48e5cad96dad890c335dcb382f8b187b412a3",
         "packages/svelte/src/lib/registry/components/picker-control.svelte": "ce2bc39c26214df0a121c2bee9c4f6d625f171539b3dcd1a26bc7dcfaa0ee6cf",
-        "packages/react/src/registry/sg/components/picker-classes.ts": "9f653879cf7ae20e7fe43e7aec684fad4ec3076b90b824f3a1fa633c5249994e",
-        "packages/svelte/src/lib/registry/components/picker-classes.ts": "22f06db0dba2b2d6a4c7a6bfad40a9cba7d6b49e78f1e8dba8918d75d7923676",
+        "packages/react/src/registry/sg/components/picker-classes.ts": "c65f3894ec1297df85d967fb5fcb1670e87762b2b7e69b2416f1fa5493c5f5db",
+        "packages/svelte/src/lib/registry/components/picker-classes.ts": "201e11c3fff85f412c7321b76bf1bb813032eaf4da9fc7fcc3edc080f4d0701d",
         "apps/site/src/demos/picker-control/Demo.tsx": "84b9a7b2ed879aa9b258afbc6e0640acdba4df79306d7852c1d13a69fe18f80f",
         "apps/site/src/content/docs/widgets/picker-control.mdx": "a219e3aabaefb7e560b4bb568844a0812d672b8984be55e8f290b7c22489fc71",
         "apps/site/src/props/picker-control.ts": "de0de3e87b7cdbff3e95e0118418b86b9d5e4eb1c98353324be29f79f58c3afa"
@@ -2164,7 +2164,7 @@
         "tests/qt/test_picker_control.py",
         "tests/qt/test_picker_contract.py"
       ],
-      "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
+      "commit": "882c450c0574d6ce002aa4e1c1dd654054599f09",
       "note": ""
     },
     "widgets/picker-row": {

@@ -9,10 +9,13 @@ from qtpy.QtGui import QKeyEvent
 from qtpy.QtWidgets import QWidget
 
 from sg_widgets_core.filter import EntityRef
+from sg_widgets_qt.primitives.badge import Chip
+from sg_widgets_qt.primitives.base import CHIP_HEIGHT, CONTROL_HEIGHT
 from sg_widgets_qt.primitives.roles import Roles
 from sg_widgets_qt.showcase.context import demo_context
 from sg_widgets_qt.theme import apply_theme, theme_for
 from sg_widgets_qt.widgets.context_selector import (
+    CHIP_STEP,
     ContextSelector,
     MyTask,
     WorkContext,
@@ -95,6 +98,22 @@ def test_the_trigger_carries_the_three_parts_as_chips(host, qtbot, context):
     selector.set_work_context(WorkContext())
     assert selector.trigger().refs == []
     assert selector.label == "No context"
+
+
+def test_a_large_trigger_keeps_mds_chip_so_it_has_room_inside_36px(host, qtbot, context):
+    # Rule 3: a chip sits a step under the control, except at lg, where a 32 chip leaves 1 above
+    # and below under 36. lg keeps md's 24 chip, inset 5, so the trigger holds 36 exactly.
+    assert CHIP_STEP == {"sm": "xs", "md": "sm", "lg": "sm"}
+    for size, inset in (("sm", 3), ("md", 3), ("lg", 5)):
+        selector = make(host, qtbot, context, size=size)
+        trigger = selector.trigger()
+        assert trigger.minimumSizeHint().height() == CONTROL_HEIGHT[size]
+        margins = trigger._row.contentsMargins()
+        # The leading inset matches the room above and below, so the chip sits evenly.
+        assert (margins.left(), margins.top(), margins.bottom()) == (inset, inset, inset)
+        assert 1 + inset + CHIP_HEIGHT[CHIP_STEP[size]] + inset + 1 == CONTROL_HEIGHT[size]
+        chip = trigger.findChildren(Chip)[0]
+        assert chip.size_step == CHIP_STEP[size]
 
 
 def test_the_assigned_tasks_are_read_and_grouped_by_project(host, qtbot, context):
