@@ -228,7 +228,16 @@ class Dialog(QtWidgets.QDialog):
         # is the popover one, which is the ground its stylesheet names for everything inside it.
         self._wear_host_theme()
         if parent is not None:
-            watch_theme(parent, lambda _theme: self._wear_host_theme())
+            watch_theme(parent, lambda _theme: self._follow_host_theme())
+
+    def _follow_host_theme(self) -> None:
+        """Follow a theme that lands while the dialog is up; a closed one waits for its open.
+
+        Dressing a hidden top-level polishes its whole tree for nobody, and `open` wears the
+        host's theme every time.
+        """
+        if self.isVisible():
+            self._wear_host_theme()
 
     def _wear_host_theme(self) -> None:
         """Wear the theme of the widget the dialog was opened from, on the popover surface."""

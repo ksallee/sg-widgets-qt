@@ -111,8 +111,26 @@ class _Prose(QtWidgets.QTextBrowser):
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed
         )
         self.viewport().setAutoFillBackground(True)
-        watch_theme(self, self.restyle)
+        self._owed = False
+        watch_theme(self, self._on_theme)
         self.restyle(theme_of(self))
+
+    def _on_theme(self, theme: Theme) -> None:
+        """Dress the document, or leave it for the next show where nobody is reading it.
+
+        Laying a document out again is the most a page pays for a switch of theme, and a page the
+        reader left behind pays it for nothing.
+        """
+        if self.isVisible():
+            self.restyle(theme)
+            return
+        self._owed = True
+
+    def showEvent(self, event: QtGui.QShowEvent) -> None:  # noqa: N802
+        super().showEvent(event)
+        if self._owed:
+            self._owed = False
+            self.restyle(theme_of(self))
 
     def restyle(self, theme: Theme) -> None:
         """Dress the document from the theme and lay it out again."""

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
@@ -33,6 +34,7 @@ __all__ = [
     "ThemeBus",
     "apply_theme",
     "contrast_ratio",
+    "dress",
     "generate_qss",
     "host_theme",
     "initials_tint",
@@ -613,11 +615,36 @@ class ThemeBus(QtCore.QObject):
 theme_bus = ThemeBus()
 
 
-def apply_theme(root: QtWidgets.QWidget, theme: Theme, surface: str = "background") -> None:
+def dress(widget: QtWidgets.QWidget, theme: Theme, surface: str = "background") -> None:
+    """Put the generated stylesheet on one widget, and nothing else.
+
+    Qt polishes every widget under the one a stylesheet lands on, whether it is on screen or not,
+    and the polish is what a theme switch costs. A root holding more than the reader is looking at
+    dresses the parts being looked at, and dresses the rest when they are next shown. A sheet Qt
+    is handed again polishes that tree again even where the text is the one it already wears, so
+    the text it wears is read first: a view that changes no colour, a motion flag or a density,
+    leaves the tree alone.
+    """
+    sheet = generate_qss(theme, surface)
+    if widget.styleSheet() == sheet:
+        return
+    ensure_fonts()
+    widget.setStyleSheet(sheet)
+
+
+def apply_theme(
+    root: QtWidgets.QWidget,
+    theme: Theme,
+    surface: str = "background",
+    on: Sequence[QtWidgets.QWidget] | None = None,
+) -> None:
     """Put a theme on one root widget: the widgets under it read it, and it wears the stylesheet.
 
     `surface` names the token the root stands on, so a floating window passes `popover` and every
-    ground and ink the stylesheet names is the surface the reader is looking at.
+    ground and ink the stylesheet names is the surface the reader is looking at. `on` names the
+    widgets the stylesheet lands on instead of the root, for a root that holds more than one
+    screenful; the theme itself stays on the root, which is what `theme_of` walks up to, and the
+    switch is one `theme_bus.changed` either way.
 
     A `QPalette` is not what carries this: a stylesheet anywhere above a widget makes Qt rebuild
     that widget's palette from the application's own, so a ground handed down from a root would be
@@ -626,7 +653,8 @@ def apply_theme(root: QtWidgets.QWidget, theme: Theme, surface: str = "backgroun
     """
     ensure_fonts()
     root.setProperty(_PROPERTY, theme)
-    root.setStyleSheet(generate_qss(theme, surface))
+    for widget in (root,) if on is None else on:
+        dress(widget, theme, surface)
     theme_bus.changed.emit(root)
 
 

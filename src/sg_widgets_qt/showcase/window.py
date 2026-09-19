@@ -13,7 +13,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 
 from sg_widgets_core.filter import EntityRef
 
-from ..theme import Theme, mix, theme_of, watch_theme, with_alpha
+from ..theme import Theme, dress, mix, theme_of, watch_theme, with_alpha
 from ..widgets.project_picker import ProjectPicker
 from . import chrome
 from .context import DemoContext, demo_context, live_available
@@ -440,7 +440,7 @@ class ShowcaseWindow(QtWidgets.QMainWindow):
 
         self.prefs.changed.connect(self._on_prefs)
         self._source = self.prefs.source
-        self.prefs.apply(self)
+        self._wear_theme()
         self._paint_ground(self.prefs.theme_object())
         first = self.page_names()
         self.open_page(self.default_page() or (first[0] if first else ""))
@@ -493,6 +493,7 @@ class ShowcaseWindow(QtWidgets.QMainWindow):
         current = self.page
         if current is not None and current is not page:
             current.hide()
+        dress(page, self.prefs.theme_object())
         page.show()
         self._current = resolved
         self.sidebar.set_current(resolved)
@@ -523,9 +524,25 @@ class ShowcaseWindow(QtWidgets.QMainWindow):
                 for stage in page.stages:
                     stage.set_context(self.context)
         theme = self.prefs.theme_object()
-        self.prefs.apply(self)
+        self._wear_theme()
         self._paint_ground(theme)
         self.update()
+
+    def _wear_theme(self) -> None:
+        """Put the view's theme on the window, and its stylesheet where it is being read.
+
+        Qt polishes every widget under the root a stylesheet lands on, and the window holds every
+        page built so far and a popover for every control on them, so one sheet on the window is a
+        polish of the whole showcase for a switch the reader sees in one page. The theme lands on
+        the window, which is what `theme_of` walks up to; the sheet lands on the rail, the header
+        and the page on show. A page built earlier wears it when it is next opened, and a popover
+        wears its anchor's when it opens.
+        """
+        page = self.page
+        worn = [self.sidebar, self.header]
+        if page is not None:
+            worn.append(page)
+        self.prefs.apply(self, on=worn)
 
     def _paint_ground(self, theme: Theme) -> None:
         """The window's own ground, so the area around a page is the theme's background."""
