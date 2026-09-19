@@ -232,8 +232,20 @@ class DemoStage(QtWidgets.QWidget):
         if any(was.get(key) != self._view.get(key) for key in REBUILD_KEYS):
             self._context = None if was.get("source") != self._view.get("source") else self._context
             self.build()
-        self._prefs.apply(self)
+        self._wear_theme()
         self.update()
+
+    def _wear_theme(self) -> None:
+        """Dress the stage, unless something above it already stands in the same theme.
+
+        A stylesheet makes Qt polish every widget under it, so a second sheet per stage inside
+        the showcase window polishes the same tree twice for one switch. A stage on its own, in
+        a test or a host, has nothing above it and dresses itself.
+        """
+        parent = self.parentWidget()
+        if parent is not None and theme_of(parent) == self._prefs.theme_object():
+            return
+        self._prefs.apply(self)
 
     def set_context(self, context: DemoContext) -> None:
         """Read from another context from here on, and rebuild."""

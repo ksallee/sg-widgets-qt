@@ -32,6 +32,11 @@ copied. The docs page names what was read.
   `QApplication.setStyleSheet`. A host's own stylesheet survives. `surface` names the token that
   root stands on: a floating window passes `popover`, so every ground and ink the stylesheet
   names is the surface the reader is looking at.
+- A stylesheet makes Qt polish every widget under the root it lands on, on screen or not, and
+  that polish is what a switch of theme costs. A root that holds more than one screenful, as the
+  showcase window holds every page built and a popover per control, names the widgets the sheet
+  lands on with `apply_theme(root, theme, on=[...])`; the rest wear theirs through
+  `dress(widget, theme)` when they are next shown, and a hidden top-level wears its own on open.
 - The stylesheet is what carries the tokens to the widgets Qt draws, never a `QPalette` handed
   down from the root: a stylesheet anywhere above a widget makes Qt rebuild that widget's palette
   from the *application's* every time it polishes it, which is on the first show and on every
