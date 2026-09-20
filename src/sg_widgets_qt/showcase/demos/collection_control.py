@@ -135,7 +135,9 @@ class _Rows(QtWidgets.QListView):
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setViewportMargins(0, 0, GUTTER, 0)
-        self._latch = WheelLatch(self, more=lambda: self._demo.control.snapshot().has_more)
+        self._latch = WheelLatch(
+            self, loading=lambda: self._demo.control.snapshot().status in ("loading", "loadingMore")
+        )
         install_overlay_scrollbars(self)
 
     def wheelEvent(self, event: QtGui.QWheelEvent) -> None:  # noqa: N802
