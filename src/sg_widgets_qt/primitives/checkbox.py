@@ -40,6 +40,14 @@ CHECKBOX_SLOT = 24
 LABEL_GAP = 8
 LABEL_SIZE = 14
 
+#: `dark:bg-input/30` of `checkbox.tsx`: the wash an unticked box wears on a dark page. The
+#: `input` token carries its own alpha, so the fraction is of that, as it is for a field.
+REST_WASH_DARK = 0.3
+
+#: The wash the pointer lays over it, which the upstream checkbox has no class for and the
+#: Qt port gives every control: `muted` at a share of itself.
+HOVER_WASH = 0.6
+
 #: The two steps of `switch.tsx`: the track, then the thumb that slides inside it.
 #: `data-[size=default]` is 32 by 18.4 with a `size-4` thumb, `data-[size=sm]` 24 by 14 with a
 #: `size-3` one. A step the table does not name wears the default, as `SWITCH` upstream does.
@@ -165,11 +173,19 @@ class Checkbox(ThemedWidget):
         radius = float(theme.radius_px("sm"))
         amount = self._fill.value
 
-        surface = mix(
-            mix(theme.background, theme.muted, 0.6 * self._hover_wash.value), theme.primary, amount
+        # `checkbox.tsx` carries no ground of its own on a light page and `dark:bg-input/30` on
+        # a dark one, then `data-checked:bg-primary` over it. Each is laid on the surface the
+        # box stands on rather than blended into `background`, so a checkbox in a dark popover
+        # or card is that surface lifted and not a hole of the page's own colour.
+        washes = (
+            with_alpha(theme.input, REST_WASH_DARK) if theme.dark else None,
+            with_alpha(theme.muted, HOVER_WASH * self._hover_wash.value),
+            with_alpha(theme.primary, amount),
         )
-        border = mix(theme.input, theme.primary, amount)
-        fill_round_rect(painter, box, radius, surface, border)
+        for wash in washes:
+            if wash is not None and wash.alpha():
+                fill_round_rect(painter, box, radius, wash)
+        fill_round_rect(painter, box, radius, border=mix(theme.input, theme.primary, amount))
 
         if amount > 0.0:
             glyph = QtCore.QRect(0, 0, CHECKBOX_SIZE - 3, CHECKBOX_SIZE - 3)
