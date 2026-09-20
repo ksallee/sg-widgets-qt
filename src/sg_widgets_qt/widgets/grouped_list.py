@@ -240,7 +240,9 @@ class _ListView(QtWidgets.QListView):
     def __init__(self, listing: GroupedList) -> None:
         self._listing = listing
         super().__init__(listing)
-        self._latch = WheelLatch(self, more=lambda: self._listing.control.snapshot().has_more)
+        self._latch = WheelLatch(
+            self, loading=lambda: self._listing.control.snapshot().status in ("loading", "loadingMore")
+        )
         self.setObjectName("grouped-list-rows")
         self.setFrameShape(QtWidgets.QListView.Shape.NoFrame)
         self.setSpacing(0)
@@ -499,6 +501,12 @@ class GroupedList(QtWidgets.QWidget):
         bar = self.view.verticalScrollBar()
         if bar is not None:
             bar.valueChanged.connect(self._on_scrolled)
+            bar.rangeChanged.connect(self._on_range)
+        self._fill_timer = QtCore.QTimer(self)
+        self._fill_timer.setSingleShot(True)
+        self._fill_timer.timeout.connect(self._ask_if_unfilled)
+        self.control.changed.connect(lambda: self._fill_timer.start(0))
+        self.control.binding.idle.connect(lambda: self._fill_timer.start(0))
         self._lead_sort()
         self._sync()
 
@@ -967,6 +975,21 @@ class GroupedList(QtWidgets.QWidget):
         last = self.view.indexAt(self.view.viewport().rect().bottomLeft())
         line = last.row() if last.isValid() else self.model.rowCount() - 1
         self.control.on_last_visible(self.model.last_row_of_line(line))
+
+    def _on_range(self, _low: int, _high: int) -> None:
+        self._fill_timer.start(0)
+
+    def _ask_if_unfilled(self) -> None:
+        """Rows that do not fill the view leave its end in sight, so it asks as a scroll would.
+
+        Upstream's sentinel fires whenever it is visible, scrolled to or not. The check runs a
+        turn after the rows landed or the range moved, once the view has laid them out.
+        """
+        bar = self.view.verticalScrollBar()
+        if bar is None or not self.model.rows or not self.view.isVisible():
+            return
+        if bar.maximum() <= bar.minimum():
+            self._on_scrolled(0)
 
     # --- internals ------------------------------------------------------------------------
 

@@ -271,3 +271,17 @@ def test_a_re_read_stands_behind_tiles_that_keep_the_grids_height(qtbot):
     assert abs(grid.height() - before) <= 2
     settle(grid, grid.control.binding)
     assert grid.view.isVisible() and abs(grid.height() - before) <= 2
+
+
+def test_a_first_page_that_fits_the_view_asks_for_the_next_on_its_own(context, qtbot):
+    """Upstream's sentinel fires whenever it is visible; a view with no range has it in view."""
+    source = create_entity_source(
+        EntitySourceOptions(
+            client=context.client, entity_type="Version", fields=list(FIELDS), page_size=4
+        )
+    )
+    grid = _grid(context, qtbot, source=source, paging="scroll")
+    settle(grid, grid.control.binding, rounds=12)
+    bar = grid.view.verticalScrollBar()
+    assert len(grid.control.rows) > 4
+    assert bar.maximum() > bar.minimum() or not grid.control.snapshot().has_more

@@ -138,9 +138,12 @@ class SerialRunner:
     a queue give the same order without tying a thread's life to a widget's.
     """
 
-    def __init__(self, pool: JobPool | None = None, on_error: Any = None) -> None:
+    def __init__(
+        self, pool: JobPool | None = None, on_error: Any = None, on_idle: Any = None
+    ) -> None:
         self._pool = pool if pool is not None else default_pool()
         self._on_error = on_error
+        self._on_idle = on_idle
         self._queue: deque = deque()
         self._live: Job | None = None
         # Raised before the pool is asked, not once `submit` answers: the job may have run and
@@ -203,6 +206,8 @@ class SerialRunner:
         self._in_flight = False
         self._live = None
         self._pump()
+        if not self.running and self._on_idle is not None:
+            self._on_idle()
 
 
 class CollectionSource(QObject):
@@ -210,6 +215,8 @@ class CollectionSource(QObject):
 
     #: The source published a new snapshot.
     changed = Signal()
+    #: Every call asked of the source has answered; a widget that was told "busy" may ask again.
+    idle = Signal()
     #: The source's sort moved. Carries `list[SortSpec]`.
     sort_changed = Signal(object)
     #: The source's filter moved. Carries the wire group, or None.
@@ -233,7 +240,7 @@ class CollectionSource(QObject):
         # The flag is what every callback the pool still holds reads before it emits.
         self.destroyed.connect(self._alive.stop)
         # One call at a time, so the source is never mutated by two reads at once.
-        self._runner = SerialRunner(on_error=quietly(self.failed.emit, self._alive))
+        self._runner = SerialRunner(on_error=quietly(self.failed.emit, self._alive), on_idle=self._on_idle)
         self._sort: list[SortSpec] | None = None if sort is None else list(sort)
         self._filters: SourceFilters = filters
         self._sort_seen = list(source.sort)
@@ -427,6 +434,14 @@ class CollectionSource(QObject):
 
     def _run(self, fn: Any, *args: Any) -> None:
         self._runner.submit(fn, *args)
+
+    def _on_idle(self) -> None:
+        if not self._alive.on:
+            return
+        try:
+            self.idle.emit()
+        except RuntimeError:  # The wrapper went while the last call was answering.
+            return
 
     def _on_published(self) -> None:
         """The source moved. Mirror the sort and the filter out, then tell the view."""

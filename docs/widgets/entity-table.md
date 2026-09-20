@@ -41,7 +41,7 @@ than two.
 |---|---|
 | `pages` | The footer's pager: rows per page, a page number, and `n to m of N` once the set is counted. |
 | `more` | A load-more row under the last row. The footer counts what is loaded. |
-| `scroll` | The next page arrives when the scroller reaches the last loaded row. A skeleton row sits at the bottom while it does, and the footer counts what is loaded. |
+| `scroll` | The next page arrives when the scroller reaches the last loaded row, or as soon as the rows loaded do not fill the view. A skeleton row sits at the bottom while it does, and the footer counts what is loaded. |
 
 `max_height` is pixels here, and a `rem` string is read at 16 pixels to the rem, so the upstream
 value still says the same thing.

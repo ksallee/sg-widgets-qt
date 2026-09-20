@@ -53,7 +53,7 @@ def test_a_page_on_its_way_keeps_the_wheel_even_on_a_new_gesture(qtbot):
     view = _view(qtbot)
     more = [True]
     now = [0.0]
-    latch = WheelLatch(view, more=lambda: more[0], clock=lambda: now[0])
+    latch = WheelLatch(view, loading=lambda: more[0], clock=lambda: now[0])
     view.verticalScrollBar().setValue(view.verticalScrollBar().maximum())
     assert latch.keeps(_Wheel(-120)) is True
     more[0] = False
@@ -64,7 +64,7 @@ def test_a_page_on_its_way_keeps_the_wheel_even_on_a_new_gesture(qtbot):
 def test_scrolling_up_at_the_top_follows_the_same_rule(qtbot):
     view = _view(qtbot)
     now = [0.0]
-    latch = WheelLatch(view, more=lambda: True, clock=lambda: now[0])
+    latch = WheelLatch(view, loading=lambda: True, clock=lambda: now[0])
     bar = view.verticalScrollBar()
     bar.setValue(bar.maximum())
     assert latch.keeps(_Wheel(120)) is False  # the view scrolls up: the gesture is its own

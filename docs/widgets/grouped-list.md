@@ -6,8 +6,8 @@ description: Dense Flow Production Tracking rows under collapsible group headers
 Renders rows from an entity source as one line each, under collapsible headers of a shared value.
 
 `paging` says how the set is walked, and the source follows it: `more` puts a load-more row under
-the rows, `scroll` loads the next page when the scroller reaches the last loaded row, and `pages`
-draws the pagination footer. The list defaults to `more`. A group's count is the rows loaded under
+the rows, `scroll` loads the next page when the scroller reaches the last loaded row or when the
+rows loaded do not fill the view, and `pages` draws the pagination footer. The list defaults to `more`. A group's count is the rows loaded under
 it, so a boundary a reader can see is worth more here than one that passes under them while they
 read.
 

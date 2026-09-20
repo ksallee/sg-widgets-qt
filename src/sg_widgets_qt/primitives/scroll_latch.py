@@ -4,7 +4,8 @@ A browser hands the wheel to the page only when a new gesture starts on a view a
 edge; the gesture that reached the edge stays on the view. Qt's scroll areas ignore a wheel event
 the moment the bar cannot move, so the page under a collection scrolls in the same gesture that
 loaded its next page. `WheelLatch` restores the browser's rule, and keeps the wheel on the view
-while more rows are on their way.
+while a page is on its way. Rows the site still holds are not a reason to keep it: a view that
+never asked for them would hold the page still for nothing.
 """
 from __future__ import annotations
 
@@ -25,12 +26,12 @@ class WheelLatch:
     def __init__(
         self,
         view: QtWidgets.QAbstractScrollArea,
-        more: Callable[[], bool] | None = None,
+        loading: Callable[[], bool] | None = None,
         pause_ms: int = GESTURE_PAUSE_MS,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._view = view
-        self._more = more
+        self._loading = loading
         self._pause = pause_ms / 1000.0
         self._clock = clock
         self._last = -1.0
@@ -57,7 +58,7 @@ class WheelLatch:
             # The view scrolls this event, so the gesture is its own from here.
             self._last = now
             return False
-        if moving < 0 and self._more is not None and self._more():
+        if moving < 0 and self._loading is not None and self._loading():
             return True
         owned = self._last >= 0 and (now - self._last) < self._pause
         if owned:

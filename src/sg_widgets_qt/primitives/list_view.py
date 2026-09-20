@@ -213,7 +213,8 @@ class ListSurface(QListView):
         delegate: RowDelegate | None = None,
     ) -> None:
         super().__init__(parent)
-        self._latch = WheelLatch(self, more=lambda: self.load_more_visible)
+        # A popup list keeps the wheel while its load-more row shows: nothing under it should scroll.
+        self._latch = WheelLatch(self, loading=lambda: self.load_more_visible)
         self._max_height = int(max_height)
         self._loop = bool(loop)
         self._proxy = _LoadMoreProxy(self)
