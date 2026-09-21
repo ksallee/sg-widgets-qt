@@ -209,6 +209,16 @@ class TestGroupsAcrossAPageBoundary:
         assert second[1].key == 'group:1:"tree"'
         assert len(second[1].rows) == 2
 
+    def test_keys_a_row_value_in_the_order_the_row_carries_it(self) -> None:
+        # A collapse state keyed by an entity ref is the same string in both ports.
+        link = {"type": "Shot", "id": 12, "name": "sh010"}
+
+        def link_of(row: EntityRow) -> Any:
+            return (row.values.get("note_links") or [None])[0]
+
+        keyed = group_rows_keyed([EntityRow(type="Note", id=1, values={"note_links": [link]})], link_of)
+        assert keyed[0].key == 'group:0:{"type":"Shot","id":12,"name":"sh010"}'
+
     def test_keys_an_empty_value_and_reads_no_rows_as_no_groups(self) -> None:
         assert group_rows_keyed([], "sg_status_list") == []
         none = group_rows_keyed(
