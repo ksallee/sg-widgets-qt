@@ -6,6 +6,18 @@ release may change a name, a prop or a signal.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-21
+
+### Fixed
+
+- The install lines name a Qt binding: `sg-widgets-qt[pyside6]` first, `[pyqt5]` beside it, PyQt6
+  and PySide2 by name, and no PySide2 wheel for Apple Silicon. The first example runs as printed on
+  the mock, and the packaging suite runs every Python block in the README.
+- A showcase run with no Qt binding prints one line naming the two extras and exits 1, where qtpy's
+  `QtBindingsNotFoundError` used to reach the terminal as a traceback.
+- The README status line counts the widgets, core modules and pages the wheel ships, and the two
+  pages left behind by `list-select` and `list-multi-select` are gone.
+
 ## [0.1.0] - 2026-09-20
 
 First release, from the port of [sg-widgets](https://github.com/ksallee/sg-widgets).
@@ -26,5 +38,6 @@ First release, from the port of [sg-widgets](https://github.com/ksallee/sg-widge
   PySide6 and on PyQt5, on Python 3.9.
 - Release to PyPI by trusted publishing when a GitHub release is published.
 
-[Unreleased]: https://github.com/ksallee/sg-widgets-qt/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ksallee/sg-widgets-qt/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/ksallee/sg-widgets-qt/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ksallee/sg-widgets-qt/releases/tag/v0.1.0
