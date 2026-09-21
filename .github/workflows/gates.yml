@@ -17,6 +17,13 @@
 # Qt draws nothing here: `QT_QPA_PLATFORM=offscreen` picks the platform plugin that paints into memory.
 # It still links the Qt libraries below, which a GitHub runner does not carry, and a missing one reads
 # as "could not load the Qt platform plugin" with no name in it.
+#
+# Fontconfig on a runner asks for subpixel (RGB) antialiasing. A widget painting itself and
+# the same value painted by the delegate then rasterise the same glyphs differently, because the glyph
+# format follows the paint device, and `test_the_two_faces_draw_the_same_pixels` reads that as drift:
+# same positions, coverage off by as much as 82 of 255. Grayscale is what comparing two drawings of one
+# string needs. Hinting stays as fontconfig has it: turning it off rounds a bold advance down onto the
+# regular one, and the tests that measure a match as wider than its plain text then fail.
 
 name: Gates
 
@@ -83,6 +90,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libdbus-1-3 libfontconfig1 libfreetype6
+
+      - name: Grayscale antialiasing, so two drawings of one string agree
+        run: |
+          sudo mkdir -p /etc/fonts
+          sudo tee /etc/fonts/local.conf >/dev/null <<'EOF'
+          <?xml version="1.0"?>
+          <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+          <fontconfig>
+            <match target="font">
+              <edit name="rgba" mode="assign"><const>none</const></edit>
+              <edit name="antialias" mode="assign"><bool>true</bool></edit>
+            </match>
+          </fontconfig>
+          EOF
+          fc-cache -f >/dev/null 2>&1 || true
 
       - uses: astral-sh/setup-uv@v7
         with:

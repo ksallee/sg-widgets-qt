@@ -26,7 +26,10 @@ nothing else: the screenshots under `shots/` and the qa drives under `tools/driv
 the tree and none of them is needed to build.
 
 `.github/workflows/gates.yml` runs ruff and the suite on both bindings on every pull request and on
-pushes to `dev` and `main`. `.github/workflows/release.yml` builds, installs the wheel into a fresh
+pushes to `dev` and `main`. It asks fontconfig for grayscale antialiasing first: where
+fontconfig asks for subpixel rendering, a widget painting itself and the delegate painting the same
+value rasterise one string two ways, and the face parity test reads that as drift. A Linux checkout
+wants the same setting. `.github/workflows/release.yml` builds, installs the wheel into a fresh
 environment, imports both packages offscreen and uploads to PyPI by trusted publishing when a
 GitHub release is published. No token is stored anywhere.
 
