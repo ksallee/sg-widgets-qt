@@ -25,6 +25,7 @@ from .base import (
     keep_themed,
     painter_for,
 )
+from .scrollbar import install_overlay_scrollbars
 
 __all__ = ["GLYPH_GAP", "TEXTAREA_MIN_HEIGHT", "Input", "Textarea", "apply_field_ink"]
 
@@ -316,8 +317,9 @@ class Textarea(_Field, QtWidgets.QPlainTextEdit):
         self.setReadOnly(readonly)
         self.viewport().setAutoFillBackground(False)
         self.document().setDocumentMargin(TEXTAREA_PAD_Y)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # The thin overlay pair, as every other scroll area here wears, rule 0: the bars turn
+        # both native policies off and draw themselves over the viewport.
+        install_overlay_scrollbars(self)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred
         )

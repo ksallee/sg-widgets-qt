@@ -468,3 +468,20 @@ def test_textarea_grows_with_its_text_and_holds_a_dragged_height(root):
     area.set_dragged_height(None)
     assert area.content_height() < 64 < grown
     assert area.sizeHint().height() == 64, "back on the floor once the hand-set height is let go"
+
+
+def test_the_textarea_scrolls_on_the_overlay_bars(root):
+    """Rule 0: every scroll area here wears the thin overlay bars, the textarea included."""
+    from sg_widgets_qt.primitives.scrollbar import overlay_scrollbars_of
+
+    area = place(root, Textarea(placeholder="A note"))
+    bars = overlay_scrollbars_of(area)
+    assert bars is not None, "the textarea is drawn by the host's own scrollbar"
+    assert area.verticalScrollBarPolicy() == QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    # A box held under its text is scrollable, and the overlay bar is what stands for it.
+    area.setPlainText("\n".join(f"line {i}" for i in range(40)))
+    area.set_dragged_height(80)
+    area.resize(area.width(), 80)
+    QtWidgets.QApplication.processEvents()
+    assert bars[0].scrollable()
+    assert bars[0].isVisible()
