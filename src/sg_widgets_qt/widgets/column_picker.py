@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from qtpy import QtCore, QtGui, QtWidgets
+from qtpy import QT5, QtCore, QtGui, QtWidgets
 from qtpy.QtCore import QModelIndex, Qt, Signal
 
 from sg_widgets_core.pickers import (
@@ -1330,6 +1330,31 @@ class ColumnPicker(QtWidgets.QWidget):
             self._column.addWidget(self._count)
         self._chosen.set_readonly(self._readonly)
         self._chosen.set_editable(self._editable())
+        self._order_tabs()
+
+    def _order_tabs(self) -> None:
+        """Walk the two panes the way they are read, not the order they were built in.
+
+        The chosen list is built before the pane beside it, so the chain construction leaves
+        runs backwards: the chosen columns first, then the controls that fill them. The list
+        layout needs none of this, its picker being built before its list.
+
+        Qt 5 is left alone. A pane there lands in a focus chain of its own as it is stacked and
+        unstacked, the Tab key never reaches its controls, and an order set here is undone by
+        the next layout pass and takes the chosen list out of the chain with it.
+        """
+        if self._layout_kind != "dual" or QT5:
+            return
+        run = [
+            self._crumbs.back_button,
+            self._crumbs.reset_button,
+            self._command.input(),
+            self._chosen,
+        ]
+        # A link through a widget that takes no focus is refused and drops the rest of the run
+        # with it, so only the controls the Tab key stops on are named here.
+        for before, after in zip(run, run[1:]):
+            QtWidgets.QWidget.setTabOrder(before, after)
 
     # --- the chosen columns ------------------------------------------------------------------
 
