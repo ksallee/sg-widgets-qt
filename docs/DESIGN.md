@@ -18,6 +18,18 @@ Dev: `uv`, `pytest`, `pytest-qt`, `pytest-timeout`, `ruff`. PySide6 6.7 is the l
 `pytest-timeout` carries the two-minute per-test timeout in `pyproject.toml`: a widget waiting on
 a signal that never comes fails rather than hanging a run.
 
+## Publishing
+
+`py.typed` in both packages, so a consumer's type checker reads the annotations. The wheel carries
+the two packages, the icons and the fonts. The sdist carries what builds and checks that wheel and
+nothing else: the screenshots under `shots/` and the qa drives under `tools/drives/` are most of
+the tree and none of them is needed to build.
+
+`.github/workflows/gates.yml` runs ruff and the suite on both bindings on every pull request and on
+pushes to `dev` and `main`. `.github/workflows/release.yml` builds, installs the wheel into a fresh
+environment, imports both packages offscreen and uploads to PyPI by trusted publishing when a
+GitHub release is published. No token is stored anywhere.
+
 ## Two packages, one distribution
 
 `sg_widgets_core` has no Qt import, so a farm script or a test can use the filter tree, the

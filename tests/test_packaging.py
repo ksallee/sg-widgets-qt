@@ -1,4 +1,4 @@
-"""What a published distribution owes a consumer: types, a small sdist, a timeout."""
+"""What a published distribution owes a consumer: types, a small sdist, a README, a changelog."""
 from __future__ import annotations
 
 import re
@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = ("sg_widgets_core", "sg_widgets_qt")
 
 PYPROJECT = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+README = (ROOT / "README.md").read_text(encoding="utf-8")
 
 
 def test_both_packages_carry_py_typed() -> None:
@@ -56,6 +57,34 @@ def test_the_project_names_its_pages() -> None:
 
 def test_the_readme_is_the_long_description() -> None:
     assert 'readme = "README.md"' in PYPROJECT
+
+
+def test_the_readme_screenshot_is_in_the_checkout() -> None:
+    shots = re.findall(r"shots/states/[\w.-]+\.png", README)
+    assert shots
+    for shot in shots:
+        assert (ROOT / shot).is_file()
+
+
+def test_the_readme_links_resolve_away_from_the_checkout() -> None:
+    for name in ("CLAUDE.md", "STATUS.md", "porting-conventions"):
+        assert name not in README
+
+
+def test_the_changelog_covers_the_version_being_published() -> None:
+    version = re.search(r'^version = "([^"]+)"', PYPROJECT, re.MULTILINE)
+    assert version
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert f"## [{version.group(1)}]" in changelog
+
+
+def test_the_workflows_are_there() -> None:
+    gates = (ROOT / ".github" / "workflows" / "gates.yml").read_text(encoding="utf-8")
+    release = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    assert "ruff" in gates and "pytest" in gates
+    assert "pyqt5" in gates and "PySide6" in gates
+    assert "id-token: write" in release and "pypa/gh-action-pypi-publish" in release
+    assert "password" not in release
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git is not on PATH")
