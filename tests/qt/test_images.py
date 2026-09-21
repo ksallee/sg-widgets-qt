@@ -15,8 +15,8 @@ from qtpy.QtCore import QSize, QThread
 from qtpy.QtGui import QPixmap
 
 from sg_widgets_qt import images
-from sg_widgets_qt.images import ImageLoader
-from sg_widgets_qt.workers import JobPool
+from sg_widgets_qt.images import ImageLoader, image_loader, image_pool
+from sg_widgets_qt.workers import JobPool, default_pool
 
 #: An 8 by 8 block, as a self-contained data URI.
 RED_PNG = (
@@ -35,6 +35,13 @@ URL = "https://site.example.com/thumbs/one.png"
 
 #: How long a read may hold the GUI thread. A read runs on a worker, so this is the whole budget.
 BLOCKING_BUDGET_MS = 50
+
+#: Urls a table of thumbnails asks for at once. More than any pool has threads.
+PAGE_OF_THUMBNAILS = 25
+
+#: How long a write may wait while a page of thumbnails is out. Far under a single read's own
+#: time, so a write that queued behind one cannot pass.
+WRITE_BUDGET_MS = 1000
 
 
 @pytest.fixture
@@ -142,3 +149,36 @@ def test_a_load_never_holds_the_loop(qtbot, loader, monkeypatch):
 
     qtbot.waitUntil(lambda: bool(seen), timeout=5000)
     assert seen[0] is not None
+
+
+def test_the_pictures_read_on_a_pool_of_their_own(qapp):
+    """A loader that names no pool takes the image pool, never the one the reads and writes hold."""
+    assert image_pool() is image_pool()
+    assert image_pool() is not default_pool()
+    assert image_loader().pool is image_pool()
+    assert ImageLoader().pool is image_pool()
+
+
+def test_a_page_of_thumbnails_never_queues_a_write_behind_it(qtbot, monkeypatch):
+    """Every image thread held, and a write submitted after them still lands inside its budget."""
+    release = threading.Event()
+
+    def reader(url: str, timeout: int) -> bytes:
+        release.wait(10.0)
+        return RED_BYTES
+
+    monkeypatch.setattr(images, "_read", reader)
+    loader = ImageLoader()
+    try:
+        for number in range(PAGE_OF_THUMBNAILS):
+            loader.load(f"{URL}?n={number}", lambda _pixmap: None)
+        assert loader.pending == PAGE_OF_THUMBNAILS
+
+        written: list = []
+        before = time.monotonic()
+        default_pool().submit(lambda: "written", on_result=written.append)
+        qtbot.waitUntil(lambda: bool(written), timeout=WRITE_BUDGET_MS)
+        assert (time.monotonic() - before) * 1000.0 < WRITE_BUDGET_MS
+    finally:
+        release.set()
+        image_pool().wait(10000)
