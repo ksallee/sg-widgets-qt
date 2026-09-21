@@ -21,13 +21,27 @@ HERE = Path(__file__).resolve().parent.parent
 MANIFEST = HERE / "sync" / "manifest.json"
 UPSTREAM = Path(os.environ.get("SG_WIDGETS_UPSTREAM", os.path.expanduser("~/dev/sg-widgets")))
 
-# Where the upstream keeps each kind of item, and how an item name is read off a path.
-KINDS = {
-    "core": ("packages/core/src", re.compile(r"^(?!index\.ts$)([a-z0-9-]+)\.ts$")),
-    "primitives": ("packages/react/src/components/ui", re.compile(r"^([a-z0-9-]+)\.tsx?$")),
-    "widgets": ("packages/react/src/registry/sg/components", re.compile(r"^([a-z0-9-]+)\.tsx?$")),
-    "demos": ("apps/site/src/demos", re.compile(r"^(?!_)([a-z0-9-]+)$")),
-    "docs": ("apps/site/src/content/docs/widgets", re.compile(r"^(?!index\.mdx$)([a-z0-9-]+)\.mdx$")),
+# Every upstream folder the layout table calls ported: where it is, how an item name is read off a
+# path, and the name that item takes in the manifest. The first entry to claim a name keeps it, so
+# a module is named after its source rather than its test, and a docs page after its prose rather
+# than its props file.
+SCAN: tuple[tuple[str, re.Pattern[str], str], ...] = (
+    ("packages/core/src", re.compile(r"^(?!index\.ts$)([a-z0-9-]+)\.ts$"), "core/{}"),
+    ("packages/core/test", re.compile(r"^([a-z0-9-]+)\.test\.ts$"), "core/{}"),
+    ("packages/react/src/components/ui", re.compile(r"^([a-z0-9-]+)\.tsx?$"), "primitives/{}"),
+    ("packages/react/src/registry/sg/components", re.compile(r"^([a-z0-9-]+)\.tsx?$"), "widgets/{}"),
+    ("apps/site/src/theme", re.compile(r"^([a-z0-9-]+)\.ts$"), "theme/{}"),
+    ("apps/site/src/demos", re.compile(r"^(?!_)([a-z0-9-]+)$"), "demos/{}"),
+    ("apps/site/src/content/docs/widgets", re.compile(r"^(?!index\.mdx$)([a-z0-9-]+)\.mdx$"), "docs/{}"),
+    ("apps/site/src/content/docs/start", re.compile(r"^([a-z0-9-]+)\.mdx$"), "docs/start-{}"),
+    ("apps/site/src/content/docs/core", re.compile(r"^([a-z0-9-]+)\.mdx$"), "docs/core-{}"),
+    ("apps/site/src/props", re.compile(r"^(?!_)([a-z0-9-]+)\.ts$"), "docs/{}"),
+)
+
+# The rest of the theme feature, which is one page and one editor rather than a folder of items.
+SINGLES: dict[str, str] = {
+    "theme/page": "apps/site/src/pages/themes.astro",
+    "theme/editor": "apps/site/src/pages/_themes/ThemeEditor.tsx",
 }
 
 
@@ -36,17 +50,20 @@ def sha256(path: Path) -> str:
 
 
 def upstream_items() -> dict[str, str]:
-    """Every item the upstream has, keyed `kind/name`, valued by its main path."""
+    """Every item the upstream has, keyed by its manifest name, valued by its main path."""
     out: dict[str, str] = {}
-    for kind, (folder, pattern) in KINDS.items():
+    for folder, pattern, template in SCAN:
         root = UPSTREAM / folder
         if not root.exists():
             continue
         for entry in sorted(root.iterdir()):
             m = pattern.match(entry.name)
             if m:
-                out[f"{kind}/{m.group(1)}"] = str(entry.relative_to(UPSTREAM))
-    return out
+                out.setdefault(template.format(m.group(1)), str(entry.relative_to(UPSTREAM)))
+    for name, path in SINGLES.items():
+        if (UPSTREAM / path).exists():
+            out.setdefault(name, path)
+    return dict(sorted(out.items()))
 
 
 def upstream_log(since: str | None) -> list[str]:
