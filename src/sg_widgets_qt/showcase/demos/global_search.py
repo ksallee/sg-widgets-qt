@@ -10,12 +10,11 @@ from typing import Any
 
 from qtpy import QtWidgets
 
-from sg_widgets_core.filter import EntityRef
-
 from ...widgets.global_search import GlobalSearch
 from .. import chrome
 from ..context import DemoContext
 from . import _layout as lay
+from . import _rows
 
 __all__ = ["build"]
 
@@ -27,11 +26,7 @@ SIZES = ("sm", "md", "lg")
 HOTKEY = "."
 
 #: Prefilled, so the palette has something to show before a word is typed.
-RECENTS = (
-    EntityRef(type="Shot", id=862, name="sh010_0010"),
-    EntityRef(type="Asset", id=1226, name="charAda"),
-    EntityRef(type="Project", id=70, name="Blue Moon Rising"),
-)
+RECENTS = (_rows.ref("Shot", 862), _rows.ref("Asset", 1226), _rows.ref("Project", 70))
 
 
 class GlobalSearchDemo(QtWidgets.QWidget):

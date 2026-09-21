@@ -163,6 +163,19 @@ class DemoStage(QtWidgets.QWidget):
 
     def build(self) -> None:
         """Build the demo, replacing whatever stood here."""
+        self._build()
+        self._offer_density()
+        self._built_at = time.monotonic()
+        self.built.emit()
+
+    def _offer_density(self) -> None:
+        """Density is drawn only where the demo takes one. Elsewhere the control does nothing."""
+        control = self.toolbar.controls.get("density")
+        if control is not None:
+            control.setVisible(callable(getattr(self._widget, "set_density", None)))
+
+    def _build(self) -> None:
+        """Put the demo on the stage, or the line saying why it is not there."""
         self._clear()
         self._error = ""
         if self._context is None:
@@ -174,8 +187,6 @@ class DemoStage(QtWidgets.QWidget):
         except ModuleNotFoundError as error:
             if error.name == module_name:
                 self._body.addWidget(_Line(f"No demo for {self.data_name} yet", "muted", self._stage))
-                self._built_at = time.monotonic()
-                self.built.emit()
                 return
             module = None  # The demo exists and fails to import: a broken demo, shown below.
             import_error: Exception = error
@@ -186,8 +197,6 @@ class DemoStage(QtWidgets.QWidget):
             log.exception("demo %s failed to import", self.data_name)
             self._error = f"{type(import_error).__name__}: {import_error}"
             self._body.addWidget(_Line(self._error, "destructive", self._stage))
-            self._built_at = time.monotonic()
-            self.built.emit()
             return
         try:
             widget = module.build(context, self._stage)
@@ -195,14 +204,10 @@ class DemoStage(QtWidgets.QWidget):
             log.exception("demo %s failed to build", self.data_name)
             self._error = f"{type(error).__name__}: {error}"
             self._body.addWidget(_Line(self._error, "destructive", self._stage))
-            self._built_at = time.monotonic()
-            self.built.emit()
             return
         self._apply_view(widget)
         self._widget = widget
         self._body.addWidget(widget)
-        self._built_at = time.monotonic()
-        self.built.emit()
 
     def _apply_view(self, widget: QtWidgets.QWidget) -> None:
         """Hand the widget the size and the density the toolbar holds, where it takes them."""

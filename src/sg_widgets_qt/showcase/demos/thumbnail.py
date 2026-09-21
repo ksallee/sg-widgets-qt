@@ -11,6 +11,7 @@ from typing import Any
 from qtpy import QtWidgets
 
 from sg_widgets_core.client import SearchOptions
+from sg_widgets_core.mock import THUMBNAIL_PENDING_URL
 
 from ...images import image_loader
 from ...widgets.state_line import StateLine
@@ -21,8 +22,8 @@ from . import _layout as lay
 
 __all__ = ["build"]
 
-#: The url Flow PT serves while a thumbnail is still transcoding (field_types/image).
-PENDING = "https://sg.example.com/images/status/transient/thumbnail_pending.png"
+#: The url served while a thumbnail is still transcoding, as the mock builds it.
+PENDING = THUMBNAIL_PENDING_URL
 
 #: A truncated PNG: it fails to decode, which is the load-failure fallback.
 BROKEN = "data:image/png;base64,iVBORw0KGgo="

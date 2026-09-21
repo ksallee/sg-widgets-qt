@@ -14,6 +14,7 @@ from ...theme import theme_of, watch_theme
 from ...workers import default_pool
 from .. import chrome
 from ..context import DemoContext
+from . import _leaf
 
 __all__ = ["build"]
 
@@ -63,9 +64,7 @@ class Hello(QtWidgets.QWidget):
         self.output.setObjectName("demo-output")
         column.addWidget(self.output)
 
-        leaf = _leaf(context, self)
-        if leaf is not None:
-            column.addWidget(leaf)
+        column.addWidget(_leaf.build(self))
 
     def set_size(self, size: str) -> None:
         """Wear the size step the toolbar holds. The leaf page under it names its own sizes."""
@@ -149,21 +148,6 @@ class _Output(QtWidgets.QWidget):
             self._text,
         )
         painter.end()
-
-
-def _leaf(context: DemoContext, parent: QtWidgets.QWidget) -> QtWidgets.QWidget | None:
-    """Every leaf primitive under the buttons, where `primitives/demo_leaf.py` carries them."""
-    try:
-        from ...primitives import demo_leaf  # type: ignore[attr-defined]
-    except Exception:
-        return None
-    builder = getattr(demo_leaf, "build", None)
-    if builder is None:
-        return None
-    try:
-        return builder(parent)
-    except Exception:  # The leaf page is a bonus; a demo never fails over it.
-        return None
 
 
 def build(context: DemoContext, parent: QtWidgets.QWidget | None = None) -> QtWidgets.QWidget:

@@ -1,21 +1,22 @@
 """Every leaf primitive at once: each variant, each step of each ladder, each state.
 
-`build` returns one widget the showcase's first page shows, and `tools/qa.py` screenshots.
+`build` returns the one widget the showcase's first page shows under the hello demo, and
+`tools/qa.py` screenshots.
 
-    from sg_widgets_qt.primitives.demo_leaf import build
+    from sg_widgets_qt.showcase.demos._leaf import build
     page.setWidget(build())
 """
 from __future__ import annotations
 
 from qtpy import QtCore, QtWidgets
 
-from .badge import Badge, Chip
-from .base import CHIP_HEIGHT
-from .button import BUTTON_VARIANT_VALUES, Button
-from .checkbox import Checkbox, Switch, Toggle, ToggleGroup
-from .input import Input, Textarea
-from .label import Kbd, Label, Separator
-from .skeleton import Skeleton
+from ...primitives.badge import Badge, Chip
+from ...primitives.base import CHIP_HEIGHT
+from ...primitives.button import BUTTON_VARIANT_VALUES, Button
+from ...primitives.checkbox import Checkbox, Switch, Toggle, ToggleGroup
+from ...primitives.input import Input, Textarea
+from ...primitives.label import Kbd, Label, Separator
+from ...primitives.skeleton import Skeleton
 
 __all__ = ["build"]
 
@@ -145,6 +146,7 @@ def _skeletons() -> list[QtWidgets.QWidget]:
 def build(parent: QtWidgets.QWidget | None = None) -> QtWidgets.QWidget:
     """Every leaf primitive, laid out in one column."""
     page = QtWidgets.QWidget(parent)
+    page.setObjectName("leaf-gallery")
     column = QtWidgets.QVBoxLayout(page)
     column.setContentsMargins(16, 16, 16, 16)
     column.setSpacing(FIELD_GAP)

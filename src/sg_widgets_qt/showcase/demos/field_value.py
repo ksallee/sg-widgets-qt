@@ -29,6 +29,7 @@ from ...widgets.state_line import StateLine
 from ...workers import default_pool
 from ..context import DemoContext
 from . import _layout as lay
+from . import _rows
 
 __all__ = ["build"]
 
@@ -65,10 +66,7 @@ def samples(shot: dict, image: str | None) -> list[tuple[str, str, Any, dict]]:
         (
             "multi_entity",
             "multi_entity",
-            [
-                {"type": "Asset", "id": 1226, "name": "charAda"},
-                {"type": "Asset", "id": 1227, "name": "charBabbage"},
-            ],
+            [_rows.value("Asset", 1226), _rows.value("Asset", 1227)],
             {},
         ),
         ("image", "image", image, {}),

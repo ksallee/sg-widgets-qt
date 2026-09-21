@@ -26,7 +26,12 @@ from sg_widgets_core.client import (
     hierarchy_entity,
 )
 from sg_widgets_core.filter import EntityRef, WireGroup
-from sg_widgets_core.mock import MOCK_NOW, MockClient, MockFailure
+from sg_widgets_core.mock import (
+    MOCK_NOW,
+    THUMBNAIL_PENDING_URL,
+    MockClient,
+    MockFailure,
+)
 from sg_widgets_core.schema import status_field_for
 from sg_widgets_core.status import parse_bg_color, usable_statuses
 
@@ -1191,6 +1196,7 @@ class TestUpload:
         shot = c.search("Shot", SearchOptions(filters=only("id", "is", 862), fields=["image"])).data[0]
         # Absolute, on the site root (013_upload_media).
         assert re.match(r"^https://[^/]+/images/status/transient/", str(shot.values["image"]))
+        assert shot.values["image"] == THUMBNAIL_PENDING_URL
 
     def test_leaves_the_size_and_the_extension_unset_as_an_uploaded_row_reads_them(self) -> None:
         c = client()

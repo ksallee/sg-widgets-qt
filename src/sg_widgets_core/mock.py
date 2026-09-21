@@ -62,7 +62,7 @@ from .field_types import (
     operators_for,
 )
 from .filter import EntityRef, TextSearchFilter, WireCondition, WireGroup, _is_number, to_filter_array
-from .render import _js_round
+from .render import THUMBNAIL_PENDING_PATH, _js_round
 from .schema import FieldSchema, display_name_of, field_schema_override
 from .status import HtmlIcon, ImageIcon, ImageMapIcon, StatusIcon, StatusRecord
 
@@ -601,6 +601,9 @@ def _thumb(slug: str, w: int = 96, h: int = 54) -> str:
 
 #: The web root of the mock site, which is where a transcoding placeholder lives.
 MOCK_SITE_URL = "https://mock.example.studio"
+
+#: What a media field answers while the transcode runs (013_upload_media, field_types/image).
+THUMBNAIL_PENDING_URL = MOCK_SITE_URL + THUMBNAIL_PENDING_PATH + "thumbnail_pending.png"
 
 _UNRESERVED = "".join(chr(c) for c in range(128) if chr(c).isalnum()) + "-_.!~*'()"
 
@@ -2086,7 +2089,7 @@ class MockClient:
                     # A media field is not readable yet: it answers an absolute placeholder
                     # on the site root under `/images/status/transient/` until the transcode
                     # lands (013_upload_media, field_types/image).
-                    target.values[link_field] = f"{MOCK_SITE_URL}/images/status/transient/thumbnail_pending.png"
+                    target.values[link_field] = THUMBNAIL_PENDING_URL
                 else:
                     target.values[link_field] = str(attachment.values["this_file"]["url"])
             upload_type = "Thumbnail" if file.field == "image" else "Attachment"

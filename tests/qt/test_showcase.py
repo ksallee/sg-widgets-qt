@@ -420,3 +420,42 @@ def test_a_demo_rebuilt_with_its_palette_open_takes_the_dialog_with_it(qtbot, qa
         if one.isVisible() and one.objectName() == "dialog-content"
     ]
     assert not strays, f"the rebuilt demo left its dialog standing: {strays}"
+
+
+def test_the_density_control_is_offered_only_where_the_demo_takes_one(qtbot):
+    """A stage whose demo has no `set_density` hides the control rather than drawing a no-op."""
+    from sg_widgets_qt.showcase.stage import DemoStage
+
+    bare = DemoStage("hello", prefs=Prefs(persist=False), context=demo_context())
+    qtbot.addWidget(bare)
+    assert bare.widget is not None
+    assert bare.toolbar.controls["density"].isHidden()
+
+    dense = DemoStage("search-control", prefs=Prefs(persist=False), context=demo_context())
+    qtbot.addWidget(dense)
+    assert dense.widget is not None
+    assert not dense.toolbar.controls["density"].isHidden()
+
+
+def test_the_hello_demo_shows_the_leaf_gallery(window, qapp):
+    """The gallery of leaf primitives stands under the buttons, reached by a plain import."""
+    page = window.open_page("hello")
+    qapp.processEvents()
+    assert page.stages[0].findChild(QtWidgets.QWidget, "leaf-gallery") is not None
+
+
+@pytest.mark.parametrize("module_name", ("entity_picker", "entity_multi_picker"))
+def test_a_picker_demo_waits_for_its_bare_references_through_the_shared_helper(module_name, qtbot):
+    """Both demos hold the page back until every value has a name, and both do it the one way."""
+    import importlib
+
+    from sg_widgets_qt.showcase.demos import _pickers
+
+    module = importlib.import_module(f"sg_widgets_qt.showcase.demos.{module_name}")
+    assert module.names_pending is _pickers.names_pending
+    assert module.poll_ready is _pickers.poll_ready
+
+    demo = module.build(demo_context())
+    qtbot.addWidget(demo)
+    assert demo.demo_ready is False
+    qtbot.waitUntil(lambda: demo.demo_ready, timeout=8000)
