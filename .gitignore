@@ -6,7 +6,7 @@ __pycache__/
 dist/
 build/
 *.egg-info/
-shots/*.png
+shots/**/*.png
 .qa/
 .idea/
 .DS_Store
