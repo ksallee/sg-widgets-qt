@@ -16,6 +16,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 
 from ..icons import paint_icon
 from ..theme import mix, with_alpha
+from .accessible import AccessibleControl
 from .base import (
     CONTROL_HEIGHT,
     DURATION,
@@ -72,7 +73,7 @@ TOGGLE_GLYPH = 16
 TOGGLE_GROUP_SPACING = 8
 
 
-class Checkbox(ThemedWidget):
+class Checkbox(AccessibleControl, ThemedWidget):
     """A 16px rounded square in `input`, filled `primary` with a tick when it is on."""
 
     toggled = QtCore.Signal(bool)
@@ -93,6 +94,19 @@ class Checkbox(ThemedWidget):
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.name_after_label()
+
+    # --- accessibility ---
+
+    accessible_role = "checkbox"
+
+    def accessible_states(self) -> dict[str, bool]:
+        return {
+            "checkable": True,
+            "checked": self._state == 2,
+            "checkStateMixed": self._state == 1,
+            "pressed": self.pressed,
+        }
 
     # --- props ---
 
@@ -102,6 +116,7 @@ class Checkbox(ThemedWidget):
 
     def set_text(self, value: str) -> None:
         self._text = value
+        self.name_after_label()
         self.updateGeometry()
         self.update()
 
@@ -239,7 +254,7 @@ class Checkbox(ThemedWidget):
         super().keyPressEvent(event)
 
 
-class Switch(ThemedWidget):
+class Switch(AccessibleControl, ThemedWidget):
     """A track in `input` off and `primary` on, with a thumb that slides over 150ms.
 
     Two steps, as `switch.tsx` has: 32 by 18 with a 16 thumb, and 24 by 14 with a 12 one.
@@ -260,6 +275,14 @@ class Switch(ThemedWidget):
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+    # --- accessibility ---
+
+    #: A switch has no role of its own in Qt: it reports the check box it behaves as.
+    accessible_role = "checkbox"
+
+    def accessible_states(self) -> dict[str, bool]:
+        return {"checkable": True, "checked": self._checked, "pressed": self.pressed}
 
     @property
     def size(self) -> str:
@@ -349,7 +372,7 @@ class Switch(ThemedWidget):
         super().keyPressEvent(event)
 
 
-class Toggle(ThemedWidget):
+class Toggle(AccessibleControl, ThemedWidget):
     """A button that stays down: ghost until it is on, `accent` once it is.
 
     `variant='outline'` is `toggleVariants`' second look: a `border-input` box of its own, which
@@ -379,6 +402,15 @@ class Toggle(ThemedWidget):
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.name_after_label()
+
+    # --- accessibility ---
+
+    #: Upstream's `aria-pressed` button: a button that stays down is a checkable one here.
+    accessible_role = "button"
+
+    def accessible_states(self) -> dict[str, bool]:
+        return {"checkable": True, "checked": self._checked, "pressed": self.pressed}
 
     # --- props ---
 
@@ -388,6 +420,7 @@ class Toggle(ThemedWidget):
 
     def set_text(self, value: str) -> None:
         self._text = value
+        self.name_after_label()
         self.updateGeometry()
         self.update()
 

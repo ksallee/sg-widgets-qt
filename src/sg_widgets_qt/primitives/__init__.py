@@ -7,6 +7,8 @@ style. `base` carries the ladders, the states, the motion and the chrome they sh
 """
 from __future__ import annotations
 
+from .accessible import *  # noqa: F403
+from .accessible import __all__ as _accessible_all
 from .badge import *  # noqa: F403
 from .badge import __all__ as _badge_all
 from .base import *  # noqa: F403
@@ -51,6 +53,7 @@ from .tooltip import *  # noqa: F403
 from .tooltip import __all__ as _tooltip_all
 
 __all__ = [
+    *_accessible_all,
     *_base_all,
     *_button_all,
     *_input_all,
