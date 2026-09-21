@@ -15,7 +15,6 @@ a worker thread while another writes.
 from __future__ import annotations
 
 import json
-import math
 import re
 import threading
 import time
@@ -62,7 +61,8 @@ from .field_types import (
     is_numeric_type,
     operators_for,
 )
-from .filter import EntityRef, TextSearchFilter, WireCondition, WireGroup, to_filter_array
+from .filter import EntityRef, TextSearchFilter, WireCondition, WireGroup, _is_number, to_filter_array
+from .render import _js_round
 from .schema import FieldSchema, display_name_of, field_schema_override
 from .status import HtmlIcon, ImageIcon, ImageMapIcon, StatusIcon, StatusRecord
 
@@ -727,11 +727,6 @@ ASSET_SEEDS = [
 
 def _pick(rng: Callable[[], float], items: Sequence[Any]) -> Any:
     return items[int(rng() * len(items))]
-
-
-def _js_round(value: float) -> int:
-    """`Math.round`: halves go up, never to even."""
-    return math.floor(value + 0.5)
 
 
 def _build_fixtures(seed: int, counts: MockCounts | None = None) -> _Fixtures:
@@ -2648,10 +2643,6 @@ def _compare(a: Any, b: Any) -> float | None:
     x_s = _js_string(a)
     y_s = _js_string(b)
     return -1 if x_s < y_s else 1 if x_s > y_s else 0
-
-
-def _is_number(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
 def _sort_compare(a: Any, b: Any) -> float:

@@ -4,9 +4,12 @@ from __future__ import annotations
 import dataclasses
 from typing import Any
 
+from sg_widgets_core.client import _entity_ref_of
+from sg_widgets_core.filter import EntityRef
 from sg_widgets_core.search import (
     MatchRun,
     SearchViewState,
+    _as_entity_ref,
     has_more_page,
     match_runs,
     matches_every_word,
@@ -172,3 +175,12 @@ class TestPressGate:
         stale = press_gate(0)
         stale.mark()
         assert stale.takes() is False
+
+
+class TestTheRefReading:
+    def test_takes_a_ref_the_row_already_holds_and_reads_a_dict_as_one(self) -> None:
+        ref = EntityRef(type="Shot", id=7, name="sh010")
+        assert _as_entity_ref({"type": "Shot", "id": 7, "name": "sh010"}) == ref
+        assert _as_entity_ref(ref) is ref
+        # The change log reads the dict the API answers and nothing else.
+        assert _entity_ref_of(ref) is None

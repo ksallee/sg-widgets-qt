@@ -1,6 +1,12 @@
 """Port of `packages/core/test/render.test.ts`."""
 from __future__ import annotations
 
+import math
+
+from sg_widgets_core.edit import _as_finite_number as edit_as_finite_number
+from sg_widgets_core.filter import _is_number as filter_is_number
+from sg_widgets_core.mock import _is_number as mock_is_number
+from sg_widgets_core.mock import _js_round as mock_js_round
 from sg_widgets_core.render import (
     COLOR_SENTINEL,
     NAME_HUES,
@@ -11,6 +17,9 @@ from sg_widgets_core.render import (
     LocalPaths,
     TimecodeOptions,
     UrlLinkInfo,
+    _as_finite_number,
+    _as_number,
+    _js_round,
     field_text,
     file_href,
     file_name_from_url,
@@ -375,3 +384,17 @@ class TestFieldText:
     def test_takes_the_label_of_a_url_and_the_file_name_of_an_image(self) -> None:
         assert field_text({"link_type": "web", "url": "https://example.com/a.mov", "name": "a.mov"}, "url") == "a.mov"
         assert field_text("https://example.com/x/thumb.jpg?sig=1", "image") == "thumb.jpg"
+
+
+class TestTheNumberReadingsTheModulesShare:
+    def test_reads_a_number_once_and_rounds_once(self) -> None:
+        # One definition each, in the module that owns the reading.
+        assert mock_js_round is _js_round
+        assert mock_is_number is filter_is_number
+        assert edit_as_finite_number is _as_finite_number
+
+    def test_keeps_the_editors_reading_apart_from_the_renderers(self) -> None:
+        assert _as_number("1e400") == math.inf
+        assert _as_finite_number("1e400") is None
+        assert _as_number(" 12 ") == 12.0
+        assert _as_finite_number(" 12 ") == 12.0
