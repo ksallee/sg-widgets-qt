@@ -26,7 +26,6 @@ classifiers = [
 dependencies = [
     "qtpy>=2.4",
     "shotgun_api3>=3.5",
-    "typing_extensions>=4.4; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
@@ -37,16 +36,44 @@ pyqt5 = ["PyQt5"]
 sg-widgets-showcase = "sg_widgets_qt.showcase.__main__:main"
 
 [project.urls]
+Homepage = "https://github.com/ksallee/sg-widgets-qt"
+Documentation = "https://github.com/ksallee/sg-widgets-qt/tree/main/docs"
+Issues = "https://github.com/ksallee/sg-widgets-qt/issues"
+Changelog = "https://github.com/ksallee/sg-widgets-qt/blob/main/CHANGELOG.md"
 Source = "https://github.com/ksallee/sg-widgets-qt"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sg_widgets_core", "src/sg_widgets_qt"]
+
+# The sdist carries what builds the wheel and what checks it: the two packages, the suites, the
+# docs the showcase reads, and the tools. The screenshots, the qa drives and the live reads are
+# none of those, and they are most of the tree.
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/",
+    "tests/",
+    "docs/",
+    "tools/",
+    "sync/manifest.json",
+    "CHANGELOG.md",
+    "README.md",
+    "LICENSE",
+]
+exclude = [
+    "tools/drives/",
+    "tests/live/",
+    "**/__pycache__/",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
 filterwarnings = ["ignore::DeprecationWarning"]
 markers = ["live: reads the test site over the network, skipped without .env.local"]
+# A widget test that waits on a signal that never comes hangs the whole run. Nothing here takes
+# more than a few seconds, so a test still going after two minutes has stopped waiting for
+# anything a rerun would fix.
+timeout = 120
 
 [dependency-groups]
 dev = [

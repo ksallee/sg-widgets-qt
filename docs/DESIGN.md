@@ -10,11 +10,13 @@ Nuke need the same widgets, in the Python and Qt those hosts ship.
 
 Python 3.9 as the floor: Maya 2023, Houdini 19.5 and Nuke 14 ship it. `qtpy` so one source runs
 on PySide2 5.15, PySide6, PyQt5 and PyQt6. `shotgun_api3` because it is BSD licensed and runs on
-every host Python; `fpt-api` is AGPL and stays out. `typing_extensions` on 3.9 and 3.10 for
-`Self` and `TypeAlias`.
+every host Python; `fpt-api` is AGPL and stays out. Those two are the whole runtime: annotations
+are strings under `from __future__ import annotations`, so nothing here needs `typing_extensions`.
 
 Dev: `uv`, `pytest`, `pytest-qt`, `pytest-timeout`, `ruff`. PySide6 6.7 is the last release for
 3.9. PyQt5 stands in for PySide2 in the second environment because PySide2 ships no arm64 wheel.
+`pytest-timeout` carries the two-minute per-test timeout in `pyproject.toml`: a widget waiting on
+a signal that never comes fails rather than hanging a run.
 
 ## Two packages, one distribution
 

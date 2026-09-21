@@ -331,7 +331,6 @@ source = { editable = "." }
 dependencies = [
     { name = "qtpy" },
     { name = "shotgun-api3" },
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 
 [package.optional-dependencies]
@@ -365,7 +364,6 @@ requires-dist = [
     { name = "pyside6", marker = "extra == 'pyside6'" },
     { name = "qtpy", specifier = ">=2.4" },
     { name = "shotgun-api3", specifier = ">=3.5" },
-    { name = "typing-extensions", marker = "python_full_version < '3.11'", specifier = ">=4.4" },
 ]
 provides-extras = ["pyside6", "pyqt5"]
 
