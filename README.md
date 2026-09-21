@@ -23,8 +23,10 @@ props, signals and keyboard tables, and the docs.
 
     python -m sg_widgets_qt.showcase
 
-Demos run on a generated mock site. `.env.local` with `FPT_API_SITE_URL`, `FPT_API_SCRIPT_NAME` and
-`FPT_API_API_KEY` beside the checkout lets the showcase read a live site instead.
+The pages ship inside the package, so an installed showcase opens the same sidebar a checkout
+does. Demos run on a generated mock site. `.env.local` with `FPT_API_SITE_URL`,
+`FPT_API_SCRIPT_NAME` and `FPT_API_API_KEY`, in the working directory or above it, lets the
+showcase read a live site instead.
 
 ## Develop
 

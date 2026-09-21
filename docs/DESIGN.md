@@ -22,6 +22,13 @@ Dev: `uv`, `pytest`, `pytest-qt`, `pytest-timeout`, `ruff`. PySide6 6.7 is the l
 formatters and the client. `sg_widgets_qt` holds the theme, the primitives, the widgets and the
 showcase. One wheel, because a DCC install is one `pip install`.
 
+The showcase draws its pages from `docs/`, which is where they are written and where
+`tools/export_docs.py` writes them. The wheel copies `docs/widgets`, `docs/core` and `docs/start`
+to `sg_widgets_qt/_docs`, so an installed showcase opens the sidebar a checkout opens.
+`sg_widgets_qt.showcase.paths` reads the package copy through `importlib.resources` and falls back
+to the checkout's `docs/`. It also resolves `.env.local` from the working directory upward, because
+nothing above `site-packages` belongs to the person running the showcase.
+
 ## Threads
 
 `shotgun_api3.Shotgun` is not thread-safe. `ShotgunClient` keeps one connection per thread. The Qt
