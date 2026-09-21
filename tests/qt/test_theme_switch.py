@@ -6,6 +6,10 @@ already wearing the theme, are dressed when they next need it rather than on the
 """
 from __future__ import annotations
 
+import subprocess
+import sys
+import textwrap
+
 import pytest
 from qtpy import QtCore, QtWidgets
 
@@ -21,6 +25,7 @@ from sg_widgets_qt.theme import (
     theme_bus,
     theme_for,
     theme_of,
+    watch_theme,
 )
 
 
@@ -169,3 +174,52 @@ def test_a_sheet_that_has_not_changed_leaves_the_tree_alone(qapp):
     qapp.processEvents()
     assert leaf.styles == polished
     root.deleteLater()
+
+
+#: A watched widget built, dressed and dropped, then the interpreter torn down.
+TEARDOWN = """
+import gc
+from qtpy import QtWidgets
+from sg_widgets_qt.theme import apply_theme, theme_for, watch_theme
+
+app = QtWidgets.QApplication([])
+seen = []
+widget = QtWidgets.QWidget()
+watch_theme(widget, seen.append)
+apply_theme(widget, theme_for("default"))
+assert len(seen) == 1
+del widget
+gc.collect()
+"""
+
+
+def test_a_watched_widget_is_torn_down_without_a_callback(qapp):
+    """Nothing of the subscription runs from a destructor, which is what a binding may refuse."""
+    done = subprocess.run(
+        [sys.executable, "-c", textwrap.dedent(TEARDOWN)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert done.returncode == 0, done.stderr
+    noise = [
+        line
+        for line in done.stderr.splitlines()
+        if "Skipping callback call" in line or "Failed to disconnect" in line
+    ]
+    assert noise == []
+
+
+def test_a_theme_reaches_every_widget_watching_under_the_root(qapp):
+    seen: list = []
+    root = QtWidgets.QWidget()
+    first = QtWidgets.QWidget(root)
+    second = QtWidgets.QWidget(root)
+    watch_theme(first, seen.append)
+    watch_theme(second, seen.append)
+    watch_theme(first, seen.append)
+    apply_theme(root, theme_for("default"))
+    assert len(seen) == 3, "a widget watching twice hears a theme twice, as it asked"
+    # A theme that lands somewhere else reaches none of them.
+    apply_theme(QtWidgets.QWidget(), theme_for("dark"))
+    assert len(seen) == 3
