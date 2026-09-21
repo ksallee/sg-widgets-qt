@@ -9,58 +9,68 @@ app.
 ## Install
 
 ```sh
-pip install sg-widgets-qt
-uv add sg-widgets-qt
-```
-
-Python 3.9 and up. The package brings `shotgun_api3` and `qtpy` and no Qt binding, because a DCC
-imports its own before your code runs. Outside a DCC, name a binding as an extra.
-
-```sh
 pip install "sg-widgets-qt[pyside6]"
-pip install "sg-widgets-qt[pyqt5]"
+uv add "sg-widgets-qt[pyside6]"
 ```
+
+Python 3.9 and up. `[pyqt5]` is the other extra; PyQt6 and PySide2 carry no extra and install by
+name beside the package. PySide2 has no Apple Silicon wheel, so on an M-series Mac name one of the
+other three.
+
+Inside a DCC, install `sg-widgets-qt` on its own. Maya, Houdini, Nuke and RV import their own Qt
+binding before your code runs, and a second binding in that interpreter breaks it. The package
+brings `shotgun_api3` and `qtpy` and, without an extra, no binding at all.
 
 Every Qt import here goes through [qtpy](https://github.com/spyder-ide/qtpy), so one widget runs on
-PySide2, PySide6, PyQt5 and PyQt6, and on whichever of them the host imported first.
-
-## A first widget
-
-Three environment values point at a site: `FPT_API_SITE_URL`, `FPT_API_SCRIPT_NAME` and
-`FPT_API_API_KEY`.
-
-```python
-from qtpy.QtWidgets import QApplication
-from sg_widgets_core import ShotgunClient, create_sg_context
-from sg_widgets_qt.widgets.entity_picker import EntityPicker
-
-app = QApplication([])
-context = create_sg_context(ShotgunClient.from_env())
-picker = EntityPicker(entity_types=["Shot"], context=context)
-picker.value_changed.connect(lambda ref, row: print(ref))
-picker.show()
-app.exec_()
-```
-
-The context is built once and handed to every widget. The same picker runs on a generated site,
-with no credentials and no network.
-
-```python
-from sg_widgets_core import MockClient, create_sg_context
-
-context = create_sg_context(MockClient())
-picker = EntityPicker(entity_types=["Shot"], context=context)
-```
+PySide2, PySide6, PyQt5 and PyQt6, and on whichever of them the host imported first. Where more than
+one is importable, `QT_API` picks.
 
 ## The showcase
 
 ```sh
+sg-widgets-showcase
 python -m sg_widgets_qt.showcase
 ```
 
-One page per widget, with a live demo, the props, signals, slots and keyboard tables, and the docs
-prose. The pages ship inside the package. The demos run on the mock, so the showcase needs no
-site; its toolbar offers Live where the three values above are set.
+Either line opens the same window: one page per widget, with a live demo, the props, signals, slots
+and keyboard tables, and the docs prose. The pages ship inside the package, so it needs no checkout.
+The demos run on the mock, so it needs no site; its toolbar offers Live where the three values below
+are set.
+
+## A first widget
+
+The mock site is generated in process, so this block runs on a fresh install with no credentials and
+no network.
+
+```python
+import os
+
+from qtpy.QtWidgets import QApplication
+
+from sg_widgets_core import MockClient, create_sg_context
+from sg_widgets_qt.widgets.entity_picker import EntityPicker
+
+app = QApplication([])
+context = create_sg_context(MockClient())
+picker = EntityPicker(entity_types=["Shot"], context=context)
+picker.value_changed.connect(lambda ref, row: print(ref))
+picker.show()
+if os.environ.get("QT_QPA_PLATFORM") != "offscreen":
+    app.exec()
+```
+
+The context is built once and handed to every widget. Swapping the mock for a site is the client
+line alone. `ShotgunClient.from_env()` needs three environment values: `FPT_API_SITE_URL`,
+`FPT_API_SCRIPT_NAME` and `FPT_API_API_KEY`.
+
+```python
+# Needs a site: FPT_API_SITE_URL, FPT_API_SCRIPT_NAME and FPT_API_API_KEY.
+from sg_widgets_core import ShotgunClient, create_sg_context
+from sg_widgets_qt.widgets.entity_picker import EntityPicker
+
+context = create_sg_context(ShotgunClient.from_env())
+picker = EntityPicker(entity_types=["Shot"], context=context)
+```
 
 ## The widgets
 
