@@ -1,54 +1,55 @@
 # sg-widgets-qt
 
 Flow Production Tracking (formerly ShotGrid) widgets for Qt: pickers, editors, tables, trees, grids
-and search, for Python 3.9 and up. Qt comes through [qtpy](https://github.com/spyder-ide/qtpy), so
-one widget runs on PySide2, PySide6, PyQt5 and PyQt6, and a site is read through `shotgun_api3`.
+and search. For pipeline developers writing tools inside Maya, Houdini, Nuke, RV or a standalone
+app.
 
-![The showcase, with an entity table grouped by status](https://raw.githubusercontent.com/ksallee/sg-widgets-qt/main/shots/states/entity-table-grouped.png)
-
-| package | what |
-|---|---|
-| `sg_widgets_core` | Headless. Field data types and operator vocabularies, the filter tree, status logic, formatters, parsers, the client protocol, the shotgun_api3 client and a mock site. No Qt. |
-| `sg_widgets_qt` | The theme (tokens, palettes, light and dark, host palette), the primitives, the widgets, and the showcase. |
-
-Both packages carry `py.typed`, so a type checker reads their annotations.
+![An entity table grouped by status, with status badges and thumbnails](https://raw.githubusercontent.com/ksallee/sg-widgets-qt/main/docs/screenshots/entity-table-light.png)
 
 ## Install
 
 ```sh
-pip install sg-widgets-qt              # brings qtpy and shotgun_api3; a DCC brings Qt
-pip install "sg-widgets-qt[pyside6]"   # outside a DCC
+pip install sg-widgets-qt
+uv add sg-widgets-qt
 ```
 
-A DCC imports its binding before your code runs and qtpy binds to that one, so installing a second
-binding into a DCC's interpreter is what breaks it.
+Python 3.9 and up. The package brings `shotgun_api3` and `qtpy` and no Qt binding, because a DCC
+imports its own before your code runs. Outside a DCC, name a binding as an extra.
 
-The pages ship inside the package, so an installed showcase opens the same sidebar a checkout
-does. Demos run on a generated mock site. `.env.local` with `FPT_API_SITE_URL`,
-`FPT_API_SCRIPT_NAME` and `FPT_API_API_KEY`, in the working directory or above it, lets the
-showcase read a live site instead.
+```sh
+pip install "sg-widgets-qt[pyside6]"
+pip install "sg-widgets-qt[pyqt5]"
+```
 
-## A widget
+Every Qt import here goes through [qtpy](https://github.com/spyder-ide/qtpy), so one widget runs on
+PySide2, PySide6, PyQt5 and PyQt6, and on whichever of them the host imported first.
+
+## A first widget
+
+Three environment values point at a site: `FPT_API_SITE_URL`, `FPT_API_SCRIPT_NAME` and
+`FPT_API_API_KEY`.
+
+```python
+from qtpy.QtWidgets import QApplication
+from sg_widgets_core import ShotgunClient, create_sg_context
+from sg_widgets_qt.widgets.entity_picker import EntityPicker
+
+app = QApplication([])
+context = create_sg_context(ShotgunClient.from_env())
+picker = EntityPicker(entity_types=["Shot"], context=context)
+picker.value_changed.connect(lambda ref, row: print(ref))
+picker.show()
+app.exec_()
+```
+
+The context is built once and handed to every widget. The same picker runs on a generated site,
+with no credentials and no network.
 
 ```python
 from sg_widgets_core import MockClient, create_sg_context
-from sg_widgets_qt.widgets.entity_picker import EntityPicker
 
 context = create_sg_context(MockClient())
 picker = EntityPicker(entity_types=["Shot"], context=context)
-picker.value_changed.connect(lambda ref, row: print(ref))
-```
-
-`create_sg_context` takes `ShotgunClient(site_url, script_name, api_key)` for a site. The context is
-built once and handed to every widget.
-
-## The core alone
-
-```python
-from sg_widgets_core.filter import condition, group, to_api3_hash
-
-active = group("and", [condition("sg_status_list", "is", "ip")])
-to_api3_hash(active)  # {'logical_operator': 'and', 'conditions': [['sg_status_list', 'is', 'ip']]}
 ```
 
 ## The showcase
@@ -57,28 +58,48 @@ to_api3_hash(active)  # {'logical_operator': 'and', 'conditions': [['sg_status_l
 python -m sg_widgets_qt.showcase
 ```
 
-One page per widget, with a demo, the props, signals, slots and keyboard tables, and the prose. The
-demos run on a generated mock site, so it needs no credentials.
+One page per widget, with a live demo, the props, signals, slots and keyboard tables, and the docs
+prose. The pages ship inside the package. The demos run on the mock, so the showcase needs no
+site; its toolbar offers Live where the three values above are set.
 
-## Where it comes from
+## The widgets
 
-A port of [sg-widgets](https://github.com/ksallee/sg-widgets), whose React and Svelte widgets carry
-the same names, props and behaviour. What the core claims about the API is measured in
-[sg-groundtruth](https://github.com/ksallee/sg-groundtruth), and every claim is cited where it is
-relied on.
+| | |
+|---|---|
+| ![An entity multi picker open on its results](https://raw.githubusercontent.com/ksallee/sg-widgets-qt/main/docs/screenshots/entity-multi-picker-light.png) | A picker searches the site, holds what was ticked as chips, and emits references. |
+| ![A filter editor holding one status condition](https://raw.githubusercontent.com/ksallee/sg-widgets-qt/main/docs/screenshots/filter-editor-light.png) | The filter editor builds a condition tree and serialises it for the API. |
+| ![A status picker open on the statuses of one project](https://raw.githubusercontent.com/ksallee/sg-widgets-qt/main/docs/screenshots/status-picker-light.png) | Statuses carry the site's own names, codes, colours and icons, per project. |
+| ![Global search, its results grouped by entity type](https://raw.githubusercontent.com/ksallee/sg-widgets-qt/main/docs/screenshots/global-search-light.png) | Global search reads across entity types and marks what matched. |
+| ![An entity grid of thumbnails](https://raw.githubusercontent.com/ksallee/sg-widgets-qt/main/docs/screenshots/entity-grid-light.png) | A table, a grid and a tree page a set, sort it, group it and edit a cell. |
+| ![The entity table in the dark theme](https://raw.githubusercontent.com/ksallee/sg-widgets-qt/main/docs/screenshots/entity-table-dark.png) | Every widget wears a light and a dark theme, or the host application's palette. |
 
-## Maturity
+Every shot above reads a live site. [One page per
+widget](https://github.com/ksallee/sg-widgets-qt/tree/main/docs/widgets) says what each one takes
+and emits, beside
+[the introduction](https://github.com/ksallee/sg-widgets-qt/blob/main/docs/start/introduction.md),
+[install](https://github.com/ksallee/sg-widgets-qt/blob/main/docs/start/install.md) and
+[the core](https://github.com/ksallee/sg-widgets-qt/blob/main/docs/core/index.md).
 
-Alpha. Names, props and signals can still change between 0.x releases. The
-[changelog](https://github.com/ksallee/sg-widgets-qt/blob/main/CHANGELOG.md) records what changed
-and the [issues](https://github.com/ksallee/sg-widgets-qt/issues) what is open.
+## How it relates to sg-widgets
 
-## Docs
+This is a port of [sg-widgets](https://github.com/ksallee/sg-widgets), whose React and Svelte
+widgets carry the same names, props and behaviour, and whose
+[documentation site](https://sg-widgets.vercel.app) is the reference for what a widget does; the
+pages here say where Qt or Python forced a difference. The framework-neutral half comes with it as
+`sg_widgets_core`, which holds the field data types, the operator vocabularies, the filter tree,
+status logic, the formatters, the parsers, the client protocol and a generated mock site, and
+imports no Qt, so it runs in a farm job as well as in a window. What either repo claims about the
+API is measured in [sg-groundtruth](https://github.com/ksallee/sg-groundtruth) and cited where it
+is relied on.
 
-[Introduction](https://github.com/ksallee/sg-widgets-qt/blob/main/docs/start/introduction.md),
-[install](https://github.com/ksallee/sg-widgets-qt/blob/main/docs/start/install.md),
-[the core](https://github.com/ksallee/sg-widgets-qt/blob/main/docs/core/index.md) and
-[one page per widget](https://github.com/ksallee/sg-widgets-qt/tree/main/docs/widgets).
+## Status
+
+Alpha. 52 widgets, 27 core modules and 55 documentation pages are complete, on Python 3.9 through
+3.13 and on Qt 5.15 and Qt 6. Both packages carry `py.typed`. Names, props and signals can still
+change between 0.x releases, and the
+[changelog](https://github.com/ksallee/sg-widgets-qt/blob/main/CHANGELOG.md) records what changed.
+Ask for a widget, report a defect or say what reads wrong in the
+[issues](https://github.com/ksallee/sg-widgets-qt/issues).
 
 ## Licence
 
