@@ -39,11 +39,31 @@ GitHub release is published. No token is stored anywhere.
 formatters and the client. `sg_widgets_qt` holds the theme, the primitives, the widgets and the
 showcase. One wheel, because a DCC install is one `pip install`.
 
+The showcase draws its pages from `docs/`, which is where they are written and where
+`tools/export_docs.py` writes them. The wheel copies `docs/widgets`, `docs/core` and `docs/start`
+to `sg_widgets_qt/_docs`, so an installed showcase opens the sidebar a checkout opens.
+`sg_widgets_qt.showcase.paths` reads the package copy through `importlib.resources` and falls back
+to the checkout's `docs/`. It also resolves `.env.local` from the working directory upward, because
+nothing above `site-packages` belongs to the person running the showcase.
+
 ## Threads
 
 `shotgun_api3.Shotgun` is not thread-safe. `ShotgunClient` keeps one connection per thread. The Qt
 layer runs every read on `QThreadPool` and hands the answer back through a signal; a ticket per
 query drops an answer a newer query replaced.
+
+Three pools, each four threads, so work of one kind never waits out work of another. Each stays
+small because a site rate limits, and none of them is `QThreadPool.globalInstance()`, so a host
+application's own work is untouched.
+
+| pool | carries |
+|---|---|
+| `workers.default_pool()` | Schema reads, facet counts, field writes, the demos. |
+| `entity_picker.search_pool()` | What a picker or a search types into. |
+| `images.image_pool()` | Thumbnails, avatars and the status sprite. |
+
+A page of rows asks for more pictures than any pool has threads, so the pictures read in a lane
+of their own: a field write submitted behind a table of thumbnails still lands at once.
 
 ## Sync
 

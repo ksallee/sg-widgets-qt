@@ -10,16 +10,15 @@ the same thing, which is what the `same_*` predicates answer.
 """
 from __future__ import annotations
 
-import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from dataclasses import field as dc_field
-from typing import Any
 
 from .client import EntityRow
 from .collection import SortSpec, SourceFilters, row_key, to_wire_group
 from .filter import EntityRef
 from .filter_ux import SortKey
+from .query import _stable
 
 __all__ = [
     "CollapseState",
@@ -164,10 +163,6 @@ def same_filters(a: SourceFilters, b: SourceFilters) -> bool:
     the other.
     """
     return _stable(to_wire_group(a)) == _stable(to_wire_group(b))
-
-
-def _stable(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, default=str)
 
 
 def to_sort_specs(keys: Sequence[SortKey]) -> list[SortSpec]:

@@ -23,6 +23,11 @@ pip install "sg-widgets-qt[pyside6]"   # outside a DCC
 A DCC imports its binding before your code runs and qtpy binds to that one, so installing a second
 binding into a DCC's interpreter is what breaks it.
 
+The pages ship inside the package, so an installed showcase opens the same sidebar a checkout
+does. Demos run on a generated mock site. `.env.local` with `FPT_API_SITE_URL`,
+`FPT_API_SCRIPT_NAME` and `FPT_API_API_KEY`, in the working directory or above it, lets the
+showcase read a live site instead.
+
 ## A widget
 
 ```python

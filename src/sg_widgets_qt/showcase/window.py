@@ -7,6 +7,7 @@ Qt control: the rail, its rows, the wordmark and the header band are painted fro
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from qtpy import QtCore, QtGui, QtWidgets
@@ -32,6 +33,8 @@ ROW_HEIGHT = 32
 #: The window's title, and the wordmark's.
 TITLE = "SG Widgets"
 
+_log = logging.getLogger(__name__)
+
 
 class SidebarEntry:
     """One row of the rail, or one heading above a run of them."""
@@ -43,12 +46,13 @@ class SidebarEntry:
 
 
 def read_index(root: Path | None = None) -> dict:
-    """`docs/widgets/_index.json`, or an empty sidebar where it has not landed."""
+    """`docs/widgets/_index.json`, or an empty sidebar and a line saying what was missing."""
     base = root if root is not None else docs_dir()
     path = base / "widgets" / "_index.json"
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except (OSError, ValueError) as error:
+        _log.warning("No page index at %s, so the sidebar is empty: %s", path, error)
         return {}
 
 

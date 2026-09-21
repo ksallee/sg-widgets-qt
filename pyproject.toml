@@ -65,6 +65,13 @@ exclude = [
     "**/__pycache__/",
 ]
 
+# The showcase draws its pages from docs/. They are written there and copied into the package, so
+# an installed showcase has them and `sg_widgets_qt.showcase.paths` reads them from either place.
+[tool.hatch.build.targets.wheel.force-include]
+"docs/core" = "sg_widgets_qt/_docs/core"
+"docs/start" = "sg_widgets_qt/_docs/start"
+"docs/widgets" = "sg_widgets_qt/_docs/widgets"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
@@ -74,6 +81,11 @@ markers = ["live: reads the test site over the network, skipped without .env.loc
 # more than a few seconds, so a test still going after two minutes has stopped waiting for
 # anything a rerun would fix.
 timeout = 120
+
+markers = [
+    "live: reads the test site over the network, skipped without .env.local",
+    "slow: builds a wheel and a venv of its own",
+]
 
 [dependency-groups]
 dev = [

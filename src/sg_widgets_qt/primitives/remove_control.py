@@ -22,6 +22,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 from qtpy.QtCore import Qt, Signal
 
 from ..icons import paint_icon
+from .accessible import AccessibleControl
 from .base import (
     CHIP_CROSS,
     DURATION,
@@ -41,8 +42,10 @@ CROSS_PAD = 2
 REST_OPACITY = 0.7
 
 
-class RemoveControl(ThemedWidget):
+class RemoveControl(AccessibleControl, ThemedWidget):
     """A cross on the chip ladder, with the hit box rule 3 asks for centred on it."""
+
+    accessible_role = "button"
 
     #: The control was pressed, by the pointer or by Space and Enter. Named as the button's own
     #: signal is, so a caller swapping one for the other changes nothing else.

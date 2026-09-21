@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import time
 
+import pytest
+from qtpy import QT5
 from qtpy.QtCore import QPoint, Qt
 from qtpy.QtTest import QTest
 from qtpy.QtWidgets import QApplication, QWidget
@@ -186,6 +188,62 @@ def test_the_dual_layout_checks_the_chosen_fields(qtbot):
     # A second press on the same row takes it off again.
     picker.available.activated.emit(row)
     assert seen[-1] == ["code"]
+
+
+def tab_chain(picker, wanted: list[QWidget]) -> list[QWidget]:
+    """The widgets of `wanted` in the order the Tab key would walk them."""
+    walked: list[QWidget] = []
+    seen = set()
+    widget = picker.nextInFocusChain()
+    for _ in range(400):
+        if widget is None or id(widget) in seen:
+            break
+        seen.add(id(widget))
+        if widget in wanted and widget not in walked:
+            walked.append(widget)
+        widget = widget.nextInFocusChain()
+    return walked
+
+
+@pytest.mark.skipif(
+    QT5, reason="Qt 5 leaves a reparented pane in a focus chain of its own"
+)
+def test_the_dual_layout_tabs_from_the_available_pane_to_the_chosen_one(qtbot):
+    """The chosen list is built before the pane beside it, so the chain is set, not inherited."""
+    picker = build(qtbot, entity_type="Shot", layout="dual", value=["code"])
+    settled(qtbot, picker)
+    spin(qtbot, 200)
+    crumbs = picker.breadcrumb
+    wanted = [
+        crumbs.back_button,
+        crumbs.reset_button,
+        picker.available.input(),
+        picker.chosen_list,
+    ]
+    assert tab_chain(picker, wanted) == wanted
+    # The panes are reparented as they stack and unstack, which is where a chain is easily lost.
+    picker.setFixedWidth(DUAL_BREAKPOINT - 120)
+    spin(qtbot, 30)
+    assert tab_chain(picker, wanted) == wanted
+    picker.setFixedWidth(DUAL_BREAKPOINT + 80)
+    spin(qtbot, 30)
+    assert tab_chain(picker, wanted) == wanted
+
+
+def test_the_chosen_list_is_always_in_the_tab_chain(qtbot):
+    """Ordering the panes never costs the chosen list its place, on either Qt."""
+    for layout in ("dual", "list"):
+        picker = build(qtbot, entity_type="Shot", layout=layout, value=["code"])
+        settled(qtbot, picker)
+        spin(qtbot, 200)
+        assert tab_chain(picker, [picker.chosen_list]) == [picker.chosen_list], layout
+
+
+def test_the_list_layout_tabs_from_the_picker_to_the_chosen_list(qtbot):
+    picker = build(qtbot, entity_type="Shot", layout="list", value=["code"])
+    settled(qtbot, picker)
+    wanted = [picker.field_picker.control, picker.chosen_list]
+    assert tab_chain(picker, wanted) == wanted
 
 
 def test_the_panes_stack_under_the_breakpoint(qtbot):

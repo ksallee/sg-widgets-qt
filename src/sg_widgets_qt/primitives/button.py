@@ -15,6 +15,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 
 from ..icons import paint_icon
 from ..theme import mix, with_alpha
+from .accessible import AccessibleControl
 from .base import (
     CHIP_HEIGHT,
     CHIP_PAD,
@@ -112,7 +113,7 @@ SPINNER_MS = 900
 COUNT_CHIP_DEFAULT = "sm"
 
 
-class Button(ThemedWidget):
+class Button(AccessibleControl, ThemedWidget):
     """A button with a label, a leading glyph, a trailing glyph, or any pair of them.
 
     A trigger that carries a count — the filter dialog's applied conditions, the sort picker's
@@ -142,6 +143,7 @@ class Button(ThemedWidget):
         self._variant = variant if variant in BUTTON_VARIANT_VALUES else "default"
         self._size = size if size in BUTTON_SIZE_VALUES else "default"
         self._expanded = False
+        self._expandable = False
         self._busy = False
 
         self._hover = self.animated(DURATION["hover"])
@@ -152,6 +154,7 @@ class Button(ThemedWidget):
         self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_Hover, True)
+        self.name_after_label()
 
     # --- props ---
 
@@ -161,6 +164,7 @@ class Button(ThemedWidget):
 
     def set_text(self, value: str) -> None:
         self._text = value
+        self.name_after_label()
         self.updateGeometry()
         self.update()
 
@@ -224,8 +228,12 @@ class Button(ThemedWidget):
         return self._expanded
 
     def set_expanded(self, value: bool) -> None:
-        """The `aria-expanded` look: the trigger of an open popup keeps its hover background."""
+        """The `aria-expanded` look: the trigger of an open popup keeps its hover background.
+
+        A button whose owner drives this is a trigger, and reports a popup a reader can open.
+        """
         value = bool(value)
+        self._expandable = True
         if value != self._expanded:
             self._expanded = value
             self.update()
@@ -246,6 +254,20 @@ class Button(ThemedWidget):
             self._spin.stop()
         self.updateGeometry()
         self.update()
+
+    # --- accessibility ---
+
+    accessible_role = "button"
+
+    def accessible_states(self) -> dict[str, bool]:
+        return {
+            "pressed": self.pressed,
+            "busy": self._busy,
+            "expandable": self._expandable,
+            "expanded": self._expanded,
+            "collapsed": self._expandable and not self._expanded,
+            "hasPopup": self._expandable,
+        }
 
     # --- geometry ---
 
