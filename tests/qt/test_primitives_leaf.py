@@ -60,9 +60,28 @@ def image(widget: QtWidgets.QWidget) -> QtGui.QImage:
 
 
 def centre_colour(widget: QtWidgets.QWidget) -> QtGui.QColor:
-    """The fill at mid-height, 5px in from the left edge: inside the surface, never on a glyph."""
+    """The fill at mid-height, 5px in from the left edge: inside the surface, never on a glyph.
+
+    A label starts at the button's own inset, which is 10px at every step that carries text, so
+    nothing a glyph or its antialiasing reaches is read here.
+    """
     shot = image(widget)
     return shot.pixelColor(5, shot.height() // 2)
+
+
+def at_rest(widget: QtWidgets.QWidget, qtbot) -> QtWidgets.QWidget:
+    """The leaf with nothing over it and every hover it started settled.
+
+    The offscreen pointer sits a few pixels into the window, so a leaf placed at the origin is
+    under it, enters its hover on some platforms, and a shot taken straight after catches the
+    fill part way into the blend. Moving the leaf out from under the pointer and letting the
+    animation land reads the colour the variant wears at rest.
+    """
+    widget.move(120, 120)
+    QtWidgets.QApplication.sendEvent(widget, QtCore.QEvent(QtCore.QEvent.Type.Leave))
+    qtbot.wait(DURATION["hover"] * 2)
+    QtWidgets.QApplication.processEvents()
+    return widget
 
 
 def counts(shot: QtGui.QImage) -> dict:
@@ -143,8 +162,8 @@ def test_every_leaf_of_the_demo_paints(root):
 # --- the painted colours -----------------------------------------------------------------------
 
 
-def test_a_filled_button_paints_primary_at_its_centre(root):
-    button = place(root, Button("Save"))
+def test_a_filled_button_paints_primary_at_its_centre(root, qtbot):
+    button = at_rest(place(root, Button("Save")), qtbot)
     assert centre_colour(button).name() == theme_for("default").primary
 
 
@@ -356,21 +375,36 @@ def test_an_inert_field_wears_the_input_wash(root):
     assert inert.grab().toImage().pixelColor(*middle) != live.grab().toImage().pixelColor(*middle)
 
 
-def _ink_of(page: QtGui.QImage, field: QtWidgets.QWidget, background: str) -> str:
+def _ink_of(page: QtGui.QImage, field: QtWidgets.QWidget) -> QtGui.QColor:
     """The colour a field's text is drawn in, read off a shot of the page it stands on.
 
-    The run of pixels the glyphs cover is a minority of the band, so the reading is the commonest
-    colour in it that is neither the page nor the field's own surface.
+    The darkest pixel of the band, not the commonest one. Antialiasing only carries the ink
+    toward the surface under it, so the extreme of the band is the ink itself wherever a glyph
+    covers a pixel whole, and the nearest thing to it where the rasteriser covers none.
     """
-    import collections
-
     box = field.geometry()
-    counted: collections.Counter = collections.Counter()
+    darkest = None
     for y in range(box.top() + 6, box.top() + 26):
         for x in range(box.left() + 14, box.left() + 130):
-            counted[page.pixelColor(x, y).name()] += 1
-    surface = counted.most_common(1)[0][0]
-    return next(name for name, _ in counted.most_common() if name not in (background, surface))
+            colour = page.pixelColor(x, y)
+            if darkest is None or colour.lightness() < darkest.lightness():
+                darkest = colour
+    assert darkest is not None
+    return darkest
+
+
+def _nearest(colour: QtGui.QColor, inks: dict) -> str:
+    """Which of a handful of named colours a reading stands closest to."""
+
+    def apart(name: str) -> int:
+        other = inks[name]
+        return (
+            (colour.red() - other.red()) ** 2
+            + (colour.green() - other.green()) ** 2
+            + (colour.blue() - other.blue()) ** 2
+        )
+
+    return min(inks, key=apart)
 
 
 def test_the_ink_qt_draws_itself_is_the_theme_s_on_both_bindings(qtbot):
@@ -404,23 +438,31 @@ def test_the_ink_qt_draws_itself_is_the_theme_s_on_both_bindings(qtbot):
     root.resize(300, 340)
     root.show()
     QtWidgets.QApplication.processEvents()
+    # The field holding the keyboard draws a caret, which is the surface under it inverted and
+    # so darker than any ink in the palette. Nothing read here holds the keyboard.
+    focused = QtWidgets.QApplication.focusWidget()
+    if focused is not None:
+        focused.clearFocus()
+    QtWidgets.QApplication.processEvents()
 
     page = root.grab().toImage()
-    background = theme.color("background").name()
-    assert _ink_of(page, empty, background) == theme.color("muted_foreground").name()
-    assert _ink_of(page, typed, background) == theme.color("foreground").name()
-    assert _ink_of(page, area, background) == theme.color("foreground").name()
+    background = theme.color("background")
+    inks = {
+        "background": background,
+        "foreground": theme.color("foreground"),
+        "muted_foreground": theme.color("muted_foreground"),
+    }
+    assert _nearest(_ink_of(page, empty), inks) == "muted_foreground"
+    assert _nearest(_ink_of(page, typed), inks) == "foreground"
+    assert _nearest(_ink_of(page, area), inks) == "foreground"
     # The inert pair is the same two inks at half strength over the inert wash, so what is read
     # is that they are neither the full ink nor the page.
-    faded = _ink_of(page, inert, background)
-    faded_empty = _ink_of(page, inert_empty, background)
-    assert faded not in (theme.color("foreground").name(), background)
-    assert faded_empty not in (theme.color("muted_foreground").name(), background)
-    assert QtGui.QColor(faded).lightness() > QtGui.QColor(theme.color("foreground")).lightness()
-    assert (
-        QtGui.QColor(faded_empty).lightness()
-        > QtGui.QColor(theme.color("muted_foreground")).lightness()
-    )
+    faded = _ink_of(page, inert)
+    faded_empty = _ink_of(page, inert_empty)
+    assert faded.name() not in (theme.color("foreground").name(), background.name())
+    assert faded_empty.name() not in (theme.color("muted_foreground").name(), background.name())
+    assert faded.lightness() > QtGui.QColor(theme.color("foreground")).lightness()
+    assert faded_empty.lightness() > QtGui.QColor(theme.color("muted_foreground")).lightness()
 
 
 def test_the_switch_thumb_is_the_glyph_step(root):

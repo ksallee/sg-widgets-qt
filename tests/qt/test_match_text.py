@@ -86,10 +86,16 @@ def test_the_runs_rebuild_the_label_exactly(root):
 
 
 def test_a_match_is_drawn_heavier(root):
+    # The weight the painter is given, not the pixels that come back: a family whose DemiBold
+    # face the platform cannot supply draws the two runs at one advance, and the label still
+    # asks for the heavier face and never for a narrower box.
     plain = place(root, MatchText(text="Ada Lovelace", query=""))
     marked = place(root, MatchText(text="Ada Lovelace", query="ada lovelace"))
-    assert marked.sizeHint().width() > plain.sizeHint().width()
-    assert ink(image(marked)) > ink(image(plain))
+    quiet, heavy = marked.run_font(False), marked.run_font(True)
+    assert heavy.weight() > quiet.weight()
+    assert (heavy.family(), heavy.pixelSize()) == (quiet.family(), quiet.pixelSize())
+    assert marked.sizeHint().width() >= plain.sizeHint().width()
+    assert ink(image(marked)) >= ink(image(plain)) > 0
 
 
 def test_a_match_is_weight_and_never_colour(root):

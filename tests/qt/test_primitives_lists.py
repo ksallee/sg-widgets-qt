@@ -265,14 +265,20 @@ def test_the_row_delegate_paints_a_picture_runs_and_a_secondary(themed):
 
 
 def test_the_matched_run_is_bolder_than_the_plain_label(themed):
+    # The weight the delegate hands the painter, not the pixels that come back: a family whose
+    # DemiBold face the platform cannot supply draws the two runs alike, and the row asks for
+    # the heavier face and never puts less ink down for a match.
     view = themed(ListSurface())
     plain = RowModel(["Lovelace"], runs={0: [("Lovelace", False)]})
     matched = RowModel(["Lovelace"], runs={0: [("Lovelace", True)]})
     delegate = RowDelegate(view, thumbnail=False)
 
+    quiet, bold = delegate.run_font(False), delegate.run_font(True)
+    assert bold.weight() > quiet.weight()
+    assert (bold.family(), bold.pixelSize()) == (quiet.family(), quiet.pixelSize())
     light = ink(paint_row(delegate, plain, 0, widget=view))
     heavy = ink(paint_row(delegate, matched, 0, widget=view))
-    assert heavy > light
+    assert heavy >= light > 0
 
 
 def test_a_row_with_a_sub_label_takes_the_tighter_inset(themed):
