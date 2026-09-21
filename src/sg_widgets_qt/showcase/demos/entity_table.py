@@ -237,7 +237,7 @@ class EntityTableDemo(QtWidgets.QWidget):
     def _failed(self, error: BaseException) -> None:
         if lay.alive(self):
             self._ready = True
-            self.table.failed.emit(error)
+            self.table.error.emit(error)
 
     def _on_picking(self, on: bool) -> None:
         self._picker.setVisible(bool(on))

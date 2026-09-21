@@ -359,7 +359,7 @@ class GroupedList(QtWidgets.QWidget):
     #: The source's filter moved. Carries the wire group, or None.
     filters_changed = Signal(object)
     #: A read or a count raised. Carries the exception.
-    failed = Signal(object)
+    error = Signal(object)
 
     def __init__(
         self,
@@ -497,7 +497,7 @@ class GroupedList(QtWidgets.QWidget):
         self.control.selection_changed.connect(self.selection_changed.emit)
         self.control.sort_changed.connect(self.sort_changed.emit)
         self.control.filters_changed.connect(self.filters_changed.emit)
-        self.control.failed.connect(self.failed.emit)
+        self.control.failed.connect(self.error.emit)
         bar = self.view.verticalScrollBar()
         if bar is not None:
             bar.valueChanged.connect(self._on_scrolled)

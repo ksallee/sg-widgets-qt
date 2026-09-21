@@ -676,7 +676,7 @@ class EntityTable(QtWidgets.QWidget):
     #: A row was opened: a double-click or Enter on a cell that does not edit.
     row_activated = Signal(object)
     #: A read, a write or a count raised. Carries the exception.
-    failed = Signal(object)
+    error = Signal(object)
 
     def __init__(
         self,
@@ -850,7 +850,7 @@ class EntityTable(QtWidgets.QWidget):
         self.control.selection_changed.connect(self._on_selection)
         self.control.sort_changed.connect(self._on_sort_moved)
         self.control.filters_changed.connect(self.filters_changed.emit)
-        self.control.failed.connect(self.failed.emit)
+        self.control.failed.connect(self.error.emit)
         self.model.modelReset.connect(self._apply_spans)
         bar_ = self.view.verticalScrollBar()
         if bar_ is not None:
