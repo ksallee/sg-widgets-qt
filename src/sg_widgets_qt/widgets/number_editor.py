@@ -308,6 +308,7 @@ class NumberEditor(ValueEditor):
         self._decrement = Button(icon="minus", variant="outline", size=STEPPER_SIZE[self.size])
         self._decrement.setObjectName("number-editor-decrement")
         self._decrement.setToolTip("Decrease")
+        self._decrement.setAccessibleName("Decrease")
         self._decrement.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         _Hold(self._decrement, self).stepped.connect(lambda m: self._step_by(-1, m))
         row.addWidget(self._decrement)
@@ -338,6 +339,7 @@ class NumberEditor(ValueEditor):
             width=INLINE_STEPPER_WIDTH,
         )
         self._inline_up.setObjectName("number-editor-increment")
+        self._inline_up.setAccessibleName("Increase")
         self._inline_down = IconButton(
             "minus",
             self._inline_steppers,
@@ -346,6 +348,7 @@ class NumberEditor(ValueEditor):
             width=INLINE_STEPPER_WIDTH,
         )
         self._inline_down.setObjectName("number-editor-decrement")
+        self._inline_down.setAccessibleName("Decrease")
         for button in (self._inline_up, self._inline_down):
             button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             stack.addWidget(button)
@@ -356,6 +359,7 @@ class NumberEditor(ValueEditor):
         self._increment = Button(icon="plus", variant="outline", size=STEPPER_SIZE[self.size])
         self._increment.setObjectName("number-editor-increment")
         self._increment.setToolTip("Increase")
+        self._increment.setAccessibleName("Increase")
         self._increment.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         _Hold(self._increment, self).stepped.connect(lambda m: self._step_by(1, m))
         row.addWidget(self._increment)

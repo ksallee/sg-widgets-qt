@@ -1041,6 +1041,7 @@ class _GroupNode(_Moved):
         )
         self._logic = logic
         logic.setObjectName("filter-logic")
+        logic.set_accessible_names({"and": "Match all", "or": "Match any"})
         logic.slot_path = (tuple(self._path), "logic")
         logic.setEnabled(not owner.disabled)
         logic.value_changed.connect(self._on_logic)

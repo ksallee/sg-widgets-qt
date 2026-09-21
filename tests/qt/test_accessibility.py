@@ -5,10 +5,15 @@ interface half runs where the binding wraps `QAccessible`, which PyQt5 does not.
 """
 from __future__ import annotations
 
+import importlib
+from pathlib import Path
+
 import pytest
 from qtpy import QtGui, QtWidgets
 
-from sg_widgets_qt.primitives import Button, Checkbox, Select, Switch, Toggle
+from sg_widgets_qt.primitives import Button, Checkbox, IconButton, Select, Switch, Toggle
+from sg_widgets_qt.primitives.remove_control import RemoveControl
+from sg_widgets_qt.showcase.context import demo_context
 from sg_widgets_qt.theme import apply_theme, theme_for
 
 QAccessible = getattr(QtGui, "QAccessible", None)
@@ -188,3 +193,55 @@ def test_a_readonly_select_reports_read_only(root):
     select = place(root, Select([("ip", "In progress")]))
     select.set_readonly(True)
     assert interface(select).state().readOnly
+
+
+# --- the name every icon-only control in a widget carries ------------------------------------
+
+SRC = Path(__file__).resolve().parents[2] / "src" / "sg_widgets_qt"
+
+
+def widget_demos() -> list[str]:
+    """Every demo that stands a widget up, which is where its controls can be walked."""
+    widgets = sorted(p.stem for p in (SRC / "widgets").glob("*.py") if not p.stem.startswith("_"))
+    demos = sorted(p.stem for p in (SRC / "showcase" / "demos").glob("*.py") if not p.stem.startswith("_"))
+    return [
+        demo
+        for demo in demos
+        if any(demo == name or demo.startswith(name + "_") for name in widgets)
+    ]
+
+
+#: The controls that can stand as a glyph and nothing else.
+GLYPH_CONTROLS = (Button, Toggle, IconButton, RemoveControl)
+
+
+def unnamed(parent: QtWidgets.QWidget) -> list[str]:
+    """Every control under `parent` that reads as a glyph alone and says nothing."""
+    found = []
+    for child in parent.findChildren(QtWidgets.QWidget):
+        if not isinstance(child, GLYPH_CONTROLS):
+            continue
+        if getattr(child, "text", ""):
+            continue
+        glyph = (
+            isinstance(child, (IconButton, RemoveControl))
+            or child.icon
+            or getattr(child, "trailing_icon", None)
+        )
+        if glyph and not child.accessibleName().strip():
+            found.append(f"{type(child).__name__} {child.objectName() or '(unnamed slot)'}")
+    return found
+
+
+@pytest.mark.parametrize("demo", widget_demos())
+def test_every_icon_only_control_in_a_widget_is_named(demo, qtbot, qapp):
+    root = QtWidgets.QWidget()
+    apply_theme(root, theme_for("default"))
+    qtbot.addWidget(root)
+    root.resize(1200, 900)
+    module = importlib.import_module(f"sg_widgets_qt.showcase.demos.{demo}")
+    built = module.build(demo_context(), root)
+    built.setParent(root)
+    root.show()
+    qapp.processEvents()
+    assert unnamed(root) == []

@@ -578,6 +578,7 @@ class ToggleGroup(ThemedWidget):
         self._variant = variant if variant in TOGGLE_VARIANT_VALUES else "default"
         self._toggles: list[Toggle] = []
         self._values: list[str] = []
+        self._names: dict[str, str] = {}
         self.set_size_step(size if size in CONTROL_HEIGHT else "md")
 
         row = QtWidgets.QHBoxLayout(self)
@@ -608,10 +609,22 @@ class ToggleGroup(ThemedWidget):
                 label, icon=icon, size=self.size_step, variant=self._variant, parent=self
             )
             toggle.toggled.connect(self._on_toggled)
+            if value in self._names:
+                toggle.setAccessibleName(self._names[value])
             self._row.addWidget(toggle)
             self._toggles.append(toggle)
             self._values.append(value)
         self.updateGeometry()
+
+    def set_accessible_names(self, names: dict[str, str]) -> None:
+        """Name each toggle by its value, for a row of glyphs that reads as nothing.
+
+        The names outlive a new `items`, so a group rebuilt from its values keeps them.
+        """
+        self._names = dict(names)
+        for value, toggle in zip(self._values, self._toggles):
+            if value in self._names:
+                toggle.setAccessibleName(self._names[value])
 
     @staticmethod
     def _split(item: object) -> tuple[str, str, str | None]:
