@@ -545,6 +545,7 @@ class _SortKeyRow(ThemedWidget):
             parent=self,
         )
         self._direction.setObjectName("sort-direction")
+        self._direction.set_accessible_names({"asc": "Ascending", "desc": "Descending"})
         self._direction.setEnabled(not owner.disabled)
         self._direction.value_changed.connect(self._on_direction)
         line.addWidget(self._direction)
