@@ -420,3 +420,18 @@ def test_a_demo_rebuilt_with_its_palette_open_takes_the_dialog_with_it(qtbot, qa
         if one.isVisible() and one.objectName() == "dialog-content"
     ]
     assert not strays, f"the rebuilt demo left its dialog standing: {strays}"
+
+
+def test_the_density_control_is_offered_only_where_the_demo_takes_one(qtbot):
+    """A stage whose demo has no `set_density` hides the control rather than drawing a no-op."""
+    from sg_widgets_qt.showcase.stage import DemoStage
+
+    bare = DemoStage("hello", prefs=Prefs(persist=False), context=demo_context())
+    qtbot.addWidget(bare)
+    assert bare.widget is not None
+    assert bare.toolbar.controls["density"].isHidden()
+
+    dense = DemoStage("search-control", prefs=Prefs(persist=False), context=demo_context())
+    qtbot.addWidget(dense)
+    assert dense.widget is not None
+    assert not dense.toolbar.controls["density"].isHidden()
