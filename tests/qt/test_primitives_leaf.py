@@ -60,9 +60,28 @@ def image(widget: QtWidgets.QWidget) -> QtGui.QImage:
 
 
 def centre_colour(widget: QtWidgets.QWidget) -> QtGui.QColor:
-    """The fill at mid-height, 5px in from the left edge: inside the surface, never on a glyph."""
+    """The fill at mid-height, 5px in from the left edge: inside the surface, never on a glyph.
+
+    A label starts at the button's own inset, which is 10px at every step that carries text, so
+    nothing a glyph or its antialiasing reaches is read here.
+    """
     shot = image(widget)
     return shot.pixelColor(5, shot.height() // 2)
+
+
+def at_rest(widget: QtWidgets.QWidget, qtbot) -> QtWidgets.QWidget:
+    """The leaf with nothing over it and every hover it started settled.
+
+    The offscreen pointer sits a few pixels into the window, so a leaf placed at the origin is
+    under it, enters its hover on some platforms, and a shot taken straight after catches the
+    fill part way into the blend. Moving the leaf out from under the pointer and letting the
+    animation land reads the colour the variant wears at rest.
+    """
+    widget.move(120, 120)
+    QtWidgets.QApplication.sendEvent(widget, QtCore.QEvent(QtCore.QEvent.Type.Leave))
+    qtbot.wait(DURATION["hover"] * 2)
+    QtWidgets.QApplication.processEvents()
+    return widget
 
 
 def counts(shot: QtGui.QImage) -> dict:
@@ -143,8 +162,8 @@ def test_every_leaf_of_the_demo_paints(root):
 # --- the painted colours -----------------------------------------------------------------------
 
 
-def test_a_filled_button_paints_primary_at_its_centre(root):
-    button = place(root, Button("Save"))
+def test_a_filled_button_paints_primary_at_its_centre(root, qtbot):
+    button = at_rest(place(root, Button("Save")), qtbot)
     assert centre_colour(button).name() == theme_for("default").primary
 
 
@@ -356,21 +375,24 @@ def test_an_inert_field_wears_the_input_wash(root):
     assert inert.grab().toImage().pixelColor(*middle) != live.grab().toImage().pixelColor(*middle)
 
 
-def _ink_of(page: QtGui.QImage, field: QtWidgets.QWidget, background: str) -> str:
-    """The colour a field's text is drawn in, read off a shot of the page it stands on.
+def _rgb(colour: QtGui.QColor) -> tuple:
+    """A colour without its alpha, which is what a half-strength ink keeps its own in."""
+    return (colour.red(), colour.green(), colour.blue())
 
-    The run of pixels the glyphs cover is a minority of the band, so the reading is the commonest
-    colour in it that is neither the page nor the field's own surface.
+
+def _ink_of(page: QtGui.QImage, field: QtWidgets.QWidget) -> int:
+    """How dark a field's text stands on the page it is drawn on.
+
+    The lightness of the darkest pixel of the band. Antialiasing only carries the ink toward the
+    surface under it, so this is how far the ink got from that surface: how much of a glyph a
+    rasteriser covers moves the reading, and never past the ink itself.
     """
-    import collections
-
     box = field.geometry()
-    counted: collections.Counter = collections.Counter()
+    darkest = 255
     for y in range(box.top() + 6, box.top() + 26):
         for x in range(box.left() + 14, box.left() + 130):
-            counted[page.pixelColor(x, y).name()] += 1
-    surface = counted.most_common(1)[0][0]
-    return next(name for name, _ in counted.most_common() if name not in (background, surface))
+            darkest = min(darkest, page.pixelColor(x, y).lightness())
+    return darkest
 
 
 def test_the_ink_qt_draws_itself_is_the_theme_s_on_both_bindings(qtbot):
@@ -404,23 +426,41 @@ def test_the_ink_qt_draws_itself_is_the_theme_s_on_both_bindings(qtbot):
     root.resize(300, 340)
     root.show()
     QtWidgets.QApplication.processEvents()
+    # The field holding the keyboard draws a caret, which is the surface under it inverted and
+    # so darker than any ink in the palette. Nothing read here holds the keyboard.
+    focused = QtWidgets.QApplication.focusWidget()
+    if focused is not None:
+        focused.clearFocus()
+    QtWidgets.QApplication.processEvents()
 
+    # The ink is the palette's, and Qt draws a field's text and its placeholder from exactly
+    # these two entries, so this is the colour that reaches the glyphs. An inert field carries
+    # the same two at the half strength `disabled:opacity-50` asks for.
+    role = QtGui.QPalette.ColorRole
+    for field in (empty, typed, inert, inert_empty, area):
+        ink = field.palette().color(role.Text)
+        placeholder = field.palette().color(role.PlaceholderText)
+        assert _rgb(ink) == _rgb(theme.color("foreground"))
+        assert _rgb(placeholder) == _rgb(theme.color("muted_foreground"))
+        assert ink.alpha() == placeholder.alpha() == (255 if field.isEnabled() else 128)
+
+    # What the page shows of it, as relations a rasteriser's own coverage cancels out of: every
+    # field puts ink down, a placeholder stands lighter than a value, and the inert pair stands
+    # lighter again, at the half strength `disabled:opacity-50` asks for.
     page = root.grab().toImage()
-    background = theme.color("background").name()
-    assert _ink_of(page, empty, background) == theme.color("muted_foreground").name()
-    assert _ink_of(page, typed, background) == theme.color("foreground").name()
-    assert _ink_of(page, area, background) == theme.color("foreground").name()
-    # The inert pair is the same two inks at half strength over the inert wash, so what is read
-    # is that they are neither the full ink nor the page.
-    faded = _ink_of(page, inert, background)
-    faded_empty = _ink_of(page, inert_empty, background)
-    assert faded not in (theme.color("foreground").name(), background)
-    assert faded_empty not in (theme.color("muted_foreground").name(), background)
-    assert QtGui.QColor(faded).lightness() > QtGui.QColor(theme.color("foreground")).lightness()
-    assert (
-        QtGui.QColor(faded_empty).lightness()
-        > QtGui.QColor(theme.color("muted_foreground")).lightness()
-    )
+    ground = theme.color("background").lightness()
+    inks = {
+        "empty": _ink_of(page, empty),
+        "typed": _ink_of(page, typed),
+        "inert": _ink_of(page, inert),
+        "inert_empty": _ink_of(page, inert_empty),
+        "area": _ink_of(page, area),
+    }
+    assert max(inks.values()) < ground
+    assert inks["typed"] < inks["empty"]
+    assert inks["area"] < inks["empty"]
+    assert inks["typed"] < inks["inert"]
+    assert inks["empty"] < inks["inert_empty"]
 
 
 def test_the_switch_thumb_is_the_glyph_step(root):

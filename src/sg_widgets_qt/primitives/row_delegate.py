@@ -199,6 +199,16 @@ class RowDelegate(QStyledItemDelegate):
 
     # --- metrics -------------------------------------------------------------------------
 
+    def run_font(self, matched: bool, theme: Theme | None = None) -> QFont:
+        """The face a label run is drawn in: DemiBold where the query matched, else the body one.
+
+        The mark is the weight the painter is given. A family with no DemiBold face of its own
+        lands both runs on the same pixels, and the row asks for the heavier one either way.
+        """
+        theme = theme if theme is not None else theme_of(self.parent())
+        weight = QFont.Weight.DemiBold if matched else QFont.Weight.Normal
+        return theme.font(ROW_TEXT[self._size], weight)
+
     def _theme(self, option: QStyleOptionViewItem) -> Theme:
         widget = getattr(option, "widget", None)
         return theme_of(widget if widget is not None else self.parent())
@@ -423,8 +433,8 @@ class RowDelegate(QStyledItemDelegate):
         muted: QColor,
         sub: str,
     ) -> None:
-        base = theme.font(ROW_TEXT[self._size])
-        bold = theme.font(ROW_TEXT[self._size], QFont.Weight.DemiBold)
+        base = self.run_font(False, theme)
+        bold = self.run_font(True, theme)
         label_height = ROW_LINE[self._size]
         sub_height = CODE_LINE if sub else 0
         top = box.top() + max(0, (box.height() - label_height - sub_height) // 2)
