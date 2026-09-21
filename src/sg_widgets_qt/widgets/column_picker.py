@@ -42,7 +42,13 @@ from sg_widgets_core.sortable import (
 from sg_widgets_core.state import NO_MATCH_LABEL, NOTHING_CHOSEN_LABEL, StateLabels, state_line
 
 from .. import icons
-from ..primitives.base import CONTROL_HEIGHT, THUMB_SIZE, ThemedWidget, painter_for
+from ..primitives.base import (
+    CONTROL_HEIGHT,
+    THUMB_SIZE,
+    ThemedWidget,
+    event_point,
+    painter_for,
+)
 from ..primitives.command import Command
 from ..primitives.list_view import LIST_PAD, ListSurface
 from ..primitives.roles import Roles
@@ -451,11 +457,8 @@ class ChosenColumns(ListSurface):
         """The leading slot the grip sits in, which is where a drag starts."""
         return ROW_PAD_X + THUMB_SIZE[self.row_delegate().size] + GAP
 
-    def _point_of(self, event: QtGui.QMouseEvent) -> QtCore.QPoint:
-        return event.pos() if hasattr(event, "pos") else event.position().toPoint()
-
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = self._point_of(event)
+        point = event_point(event)
         index = self.indexAt(point)
         if self._editable and event.button() == Qt.MouseButton.LeftButton and index.isValid():
             rect = self.visualRect(index)
@@ -475,7 +478,7 @@ class ChosenColumns(ListSurface):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = self._point_of(event)
+        point = event_point(event)
         self._pointer = QtCore.QPoint(point)
         if self._press_at is not None and not self._dragging:
             if abs(point.y() - self._press_at.y()) >= DRAG_THRESHOLD:
@@ -1536,7 +1539,7 @@ class ColumnPicker(QtWidgets.QWidget):
         if event.button() != Qt.MouseButton.LeftButton:
             return False
         surface = self._command.list_surface()
-        point = event.pos() if hasattr(event, "pos") else event.position().toPoint()
+        point = event_point(event)
         index = surface.indexAt(point)
         if not index.isValid():
             return False

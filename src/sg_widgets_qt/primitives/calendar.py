@@ -22,7 +22,7 @@ from qtpy.QtGui import QFont, QKeyEvent, QPainter
 from qtpy.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
 
 from ..theme import with_alpha
-from .base import DURATION, ThemedWidget, fill_round_rect
+from .base import DURATION, ThemedWidget, event_point, fill_round_rect
 from .input_group import IconButton
 from .select import Select
 
@@ -349,7 +349,7 @@ class MonthGrid(ThemedWidget):
     # --- the pointer and the keys --------------------------------------------------------
 
     def mouseMoveEvent(self, event: QEvent) -> None:  # noqa: N802
-        day = self.date_at(_point(event))
+        day = self.date_at(event_point(event))
         if day != self._hover:
             self._hover = day
             self.update()
@@ -362,7 +362,7 @@ class MonthGrid(ThemedWidget):
     def mouseReleaseEvent(self, event: QEvent) -> None:  # noqa: N802
         if event.button() != Qt.MouseButton.LeftButton:
             return
-        day = self.date_at(_point(event))
+        day = self.date_at(event_point(event))
         if day is not None and self.enabled_day(day):
             self.set_cursor(day)
             self.picked.emit(day)
@@ -664,6 +664,3 @@ def _days_in(year: int, month: int) -> int:
     return (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)).day
 
 
-def _point(event: QEvent) -> QPoint:
-    """A mouse event's position, on either binding."""
-    return event.position().toPoint() if hasattr(event, "position") else event.pos()

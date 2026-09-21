@@ -47,6 +47,7 @@ from sg_widgets_core.schema import display_name_of, status_field_for, status_fie
 from sg_widgets_core.state import NO_ROWS_LABEL, StateLabels
 from sg_widgets_core.status import StatusRecord
 
+from ..primitives.base import event_point
 from ..primitives.roles import Roles
 from ..primitives.scroll_latch import WheelLatch
 from ..primitives.scrollbar import install_overlay_scrollbars
@@ -178,7 +179,7 @@ class _GridView(QtWidgets.QListView):
             return
         super().wheelEvent(event)
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         index = self.indexAt(point)
         if index.isValid():
             self.setCurrentIndex(index)
@@ -188,7 +189,7 @@ class _GridView(QtWidgets.QListView):
 
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         # One press already opened the tile; a second must not open it twice.
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         if self.indexAt(point).isValid():
             return
         super().mouseDoubleClickEvent(event)

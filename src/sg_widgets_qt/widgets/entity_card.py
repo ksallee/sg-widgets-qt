@@ -55,6 +55,7 @@ from ..primitives.base import (
     THUMB_SIZE,
     ThemedWidget,
     elide,
+    event_point,
     fill_round_rect,
     painter_for,
     text_width,
@@ -1853,7 +1854,7 @@ class _TilePane(ThemedWidget):
         painter.end()
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         if self._options.selectable and card_tile_checkbox_rect(self.rect()).contains(point):
             self.toggled.emit(not self._options.selected)
             return

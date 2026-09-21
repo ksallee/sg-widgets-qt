@@ -19,6 +19,7 @@ from sg_widgets_core.collection import (
 )
 from sg_widgets_core.filter import condition
 
+from ...primitives.base import event_point
 from ...primitives.checkbox import Checkbox
 from ...primitives.list_view import GUTTER
 from ...primitives.roles import Roles
@@ -149,7 +150,7 @@ class _Rows(QtWidgets.QListView):
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         index = self.indexAt(
-            event.position().toPoint() if hasattr(event, "position") else event.pos()
+            event_point(event)
         )
         if index.isValid():
             self.setCurrentIndex(index)

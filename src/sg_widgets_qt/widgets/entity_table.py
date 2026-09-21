@@ -58,7 +58,7 @@ from sg_widgets_core.state import NO_ROWS_LABEL, StateLabels, error_text, state_
 from sg_widgets_core.status import StatusRecord
 
 from .. import icons
-from ..primitives.base import SHADOW_INK, elide
+from ..primitives.base import SHADOW_INK, elide, event_point
 from ..primitives.button import Button
 from ..primitives.roles import Roles
 from ..primitives.scroll_latch import WheelLatch
@@ -298,7 +298,7 @@ class _Header(HeaderDelegate):
         return "" if not path or path == label else path
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         column = self.logicalIndexAt(point)
         rect = QRect(
             self.sectionViewportPosition(column), 0, self.sectionSize(column), self.height()
@@ -321,7 +321,7 @@ class _Header(HeaderDelegate):
             return
         if not event.buttons() & Qt.MouseButton.LeftButton:
             return
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         if self._drag < 0:
             if (point - self._press).manhattanLength() < DRAG_THRESHOLD:
                 return
@@ -558,14 +558,14 @@ class _Body(TableSurface):
         self._header = header
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         index = self.indexAt(point)
         if index.isValid() and self._table.on_cell_pressed(index):
             return
         super().mousePressEvent(event)
 
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         index = self.indexAt(point)
         if index.isValid():
             self._table.on_cell_activated(index)

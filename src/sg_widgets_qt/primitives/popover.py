@@ -25,6 +25,7 @@ from .base import (
     EASE_IN,
     EASE_OUT,
     ThemedWidget,
+    event_global_point,
     fill_round_rect,
     keep_themed,
     paint_shadow,
@@ -206,17 +207,6 @@ def paint_surface(
         brush=theme.color("popover"),
         border=with_alpha(theme.color("foreground"), 0.10),
     )
-
-
-def _event_global_pos(event: QtCore.QEvent) -> QPoint | None:
-    """The global position of a mouse event, on either Qt generation."""
-    getter = getattr(event, "globalPosition", None)
-    if getter is not None:
-        return getter().toPoint()
-    getter = getattr(event, "globalPos", None)
-    if getter is not None:
-        return getter()
-    return None
 
 
 class Popover(ThemedWidget):
@@ -648,7 +638,7 @@ class Popover(ThemedWidget):
     def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:
         kind = event.type()
         if kind == QEvent.Type.MouseButtonPress and self._open:
-            pos = _event_global_pos(event)
+            pos = event_global_point(event)
             if pos is not None and not self._claims(pos):
                 self._dismiss()
         elif obj in self._watched and self._open:

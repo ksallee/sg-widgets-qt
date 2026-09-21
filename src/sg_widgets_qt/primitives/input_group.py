@@ -19,6 +19,7 @@ from .base import (
     CONTROL_HEIGHT,
     DURATION,
     ThemedWidget,
+    event_point,
     fill_round_rect,
     keep_themed,
 )
@@ -223,7 +224,7 @@ class IconButton(AccessibleControl, ThemedWidget):
     def mouseReleaseEvent(self, event: QEvent) -> None:  # noqa: N802
         was = self.pressed
         self.set_pressed(False)
-        if was and self.rect().contains(_point(event)):
+        if was and self.rect().contains(event_point(event)):
             self.clicked.emit()
 
     def keyPressEvent(self, event: QEvent) -> None:  # noqa: N802
@@ -375,6 +376,3 @@ class InputGroup(ThemedWidget):
         painter.end()
 
 
-def _point(event: QEvent) -> object:
-    """A mouse event's position, on either binding."""
-    return event.position().toPoint() if hasattr(event, "position") else event.pos()

@@ -54,7 +54,7 @@ from sg_widgets_core.status import StatusRecord
 
 from .. import icons
 from ..images import ImageLoader, image_loader
-from ..primitives.base import THUMB_SIZE, elide
+from ..primitives.base import THUMB_SIZE, elide, event_point
 from ..primitives.list_view import GUTTER
 from ..primitives.roles import Roles
 from ..primitives.row_delegate import CODE_TEXT, ROW_PAD_X, ROW_PAD_Y, ROW_TEXT, RowDelegate
@@ -326,7 +326,7 @@ class _ListView(QtWidgets.QListView):
         self.viewport().update()
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         pinned = self.pinned_heading()
         if pinned is not None and pinned[1].contains(point):
             self.setCurrentIndex(pinned[0])

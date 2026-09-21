@@ -21,6 +21,7 @@ from .base import (
     CONTROL_PAD,
     DURATION,
     ThemedMixin,
+    event_global_point,
     fill_round_rect,
     keep_themed,
     painter_for,
@@ -412,7 +413,7 @@ class Textarea(_Field, QtWidgets.QPlainTextEdit):
             and self._grip_rect().contains(event.pos())
             and not self.isReadOnly()
         ):
-            self._drag_from = (int(event.globalPos().y()), self.height())
+            self._drag_from = (event_global_point(event).y(), self.height())
             event.accept()
             return
         super().mousePressEvent(event)
@@ -420,7 +421,7 @@ class Textarea(_Field, QtWidgets.QPlainTextEdit):
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         if self._drag_from is not None:
             start_y, start_height = self._drag_from
-            self.set_dragged_height(start_height + int(event.globalPos().y()) - start_y)
+            self.set_dragged_height(start_height + event_global_point(event).y() - start_y)
             event.accept()
             return
         over = self._grip_rect().contains(event.pos()) and not self.isReadOnly()

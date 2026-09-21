@@ -485,3 +485,40 @@ def test_the_textarea_scrolls_on_the_overlay_bars(root):
     QtWidgets.QApplication.processEvents()
     assert bars[0].scrollable()
     assert bars[0].isVisible()
+
+
+class _Qt5Event:
+    """A press the way Qt 5 carries one: integer points and no `position`."""
+
+    def __init__(self, x: int, y: int) -> None:
+        self._point = QtCore.QPoint(x, y)
+
+    def pos(self) -> QtCore.QPoint:
+        return self._point
+
+    def globalPos(self) -> QtCore.QPoint:  # noqa: N802
+        return self._point + QtCore.QPoint(100, 100)
+
+
+class _Qt6Event:
+    """A press the way Qt 6 carries one: `position` and `globalPosition`, both float."""
+
+    def __init__(self, x: int, y: int) -> None:
+        self._point = QtCore.QPointF(x + 0.4, y + 0.4)
+
+    def position(self) -> QtCore.QPointF:
+        return self._point
+
+    def globalPosition(self) -> QtCore.QPointF:  # noqa: N802
+        return self._point + QtCore.QPointF(100, 100)
+
+
+def test_a_pointer_event_reads_the_same_on_both_qt_generations():
+    from sg_widgets_qt.primitives.base import event_global_point, event_point
+
+    for event in (_Qt5Event(12, 30), _Qt6Event(12, 30)):
+        assert event_point(event) == QtCore.QPoint(12, 30)
+        assert event_global_point(event) == QtCore.QPoint(112, 130)
+    # An event carrying neither reads as the origin rather than raising.
+    assert event_point(QtCore.QEvent(QtCore.QEvent.Type.None_)) == QtCore.QPoint()
+    assert event_global_point(QtCore.QEvent(QtCore.QEvent.Type.None_)) == QtCore.QPoint()

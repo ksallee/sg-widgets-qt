@@ -37,6 +37,8 @@ from sg_widgets_core.sortable import (
     sortable_stride,
 )
 
+from ..primitives.base import event_global_point
+
 
 def _alive(widget: QtWidgets.QWidget) -> bool:
     """False once Qt has deleted the widget under the Python wrapper this object still holds."""
@@ -441,23 +443,17 @@ class SortableRows(QtCore.QObject):
             return self._on_key(event, index)
         return False
 
-    @staticmethod
-    def _global_of(event: QtCore.QEvent) -> QtCore.QPoint:
-        if hasattr(event, "globalPosition"):
-            return event.globalPosition().toPoint()  # type: ignore[attr-defined]
-        return event.globalPos()  # type: ignore[attr-defined]
-
     def _on_press(self, event: QtCore.QEvent, index: int) -> bool:
         if getattr(event, "button", lambda: None)() != Qt.MouseButton.LeftButton:
             return False
-        self._press_at = self._container.mapFromGlobal(self._global_of(event))
+        self._press_at = self._container.mapFromGlobal(event_global_point(event))
         self._press_index = index
         return False
 
     def _on_move(self, event: QtCore.QEvent) -> bool:
         if self._press_at is None:
             return False
-        point = self._container.mapFromGlobal(self._global_of(event))
+        point = self._container.mapFromGlobal(event_global_point(event))
         if not self._dragging:
             if abs(point.y() - self._press_at.y()) < DRAG_THRESHOLD:
                 return False

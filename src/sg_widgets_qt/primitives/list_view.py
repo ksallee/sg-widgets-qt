@@ -26,6 +26,7 @@ from qtpy.QtWidgets import QAbstractItemView, QListView, QWidget
 from sg_widgets_core.list_chrome import OverflowEdges, overflow_edges
 
 from ..theme import theme_of, watch_theme, with_alpha
+from .base import event_point
 from .roles import Roles
 from .row_delegate import RowDelegate
 from .scroll_latch import WheelLatch
@@ -443,7 +444,7 @@ class ListSurface(QListView):
     # --- the pointer ---------------------------------------------------------------------
 
     def mouseMoveEvent(self, event: QEvent) -> None:  # noqa: N802
-        index = self.indexAt(_point(event))
+        index = self.indexAt(event_point(event))
         if index.isValid():
             self.set_highlight(index.row())
         super().mouseMoveEvent(event)
@@ -460,7 +461,7 @@ class ListSurface(QListView):
         return not rect.isNull() and rect.contains(point)
 
     def mousePressEvent(self, event: QEvent) -> None:  # noqa: N802
-        point = _point(event)
+        point = event_point(event)
         index = self.indexAt(point)
         if event.button() == Qt.MouseButton.LeftButton and self._on_drill(index, point):
             event.accept()
@@ -468,7 +469,7 @@ class ListSurface(QListView):
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event: QEvent) -> None:  # noqa: N802
-        point = _point(event)
+        point = event_point(event)
         index = self.indexAt(point)
         if event.button() == Qt.MouseButton.LeftButton and self._on_drill(index, point):
             event.accept()
@@ -550,6 +551,3 @@ class ListSurface(QListView):
         return QSize(0, min(self._max_height, self.content_height()))
 
 
-def _point(event: QEvent) -> object:
-    """A mouse event's position, on either binding."""
-    return event.position().toPoint() if hasattr(event, "position") else event.pos()
