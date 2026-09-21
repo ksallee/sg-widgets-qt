@@ -18,7 +18,7 @@ from ...widgets.entity_multi_picker import EntityMultiPicker
 from .. import chrome
 from ..context import DemoContext
 from . import _rows
-from .entity_picker import _fail_next_of, _own_context, _Readiness
+from ._pickers import fail_next_of, names_pending, own_context, poll_ready
 
 __all__ = ["build"]
 
@@ -51,7 +51,7 @@ class EntityMultiPickerDemo(QtWidgets.QWidget):
         self.setObjectName("entity-multi-picker-demo")
         self._context = context
         self._pickers: list = []
-        #: False until every value handed in has a name. `_Readiness` flips it.
+        #: False until every value handed in has a name. `poll_ready` flips it.
         self.demo_ready = True
 
         column = QtWidgets.QVBoxLayout(self)
@@ -107,7 +107,7 @@ class EntityMultiPickerDemo(QtWidgets.QWidget):
             column, "more", "Five a page, with a load more row", entity_types=["Shot"], page_size=5
         )
 
-        self._failing = _own_context(context)
+        self._failing = own_context(context)
         broken = self._case(
             column,
             "error",
@@ -176,7 +176,7 @@ class EntityMultiPickerDemo(QtWidgets.QWidget):
                 self._picker(entity_types=["Asset"], value=list(PRESET), **{flag: True})
             )
         column.addStretch(1)
-        self._readiness = _Readiness(self, self._pickers)
+        self._timer = poll_ready(self, lambda: names_pending(self._pickers))
 
     # --- building ----------------------------------------------------------------------
 
@@ -210,7 +210,7 @@ class EntityMultiPickerDemo(QtWidgets.QWidget):
 
     def _arm_failure(self) -> None:
         """Arm the mock's next call. A live context has nothing to arm."""
-        arm = _fail_next_of(self._failing.client)
+        arm = fail_next_of(self._failing.client)
         if arm is not None:
             arm()
 

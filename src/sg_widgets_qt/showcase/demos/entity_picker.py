@@ -9,15 +9,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from qtpy import QtCore, QtWidgets
+from qtpy import QtWidgets
 
 from sg_widgets_core.filter import EntityRef
-from sg_widgets_core.picker import placeholder_name
 
 from ...widgets.entity_picker import EntityPicker
 from .. import chrome
-from ..context import MOCK_LATENCY_MS, DemoContext, demo_context
+from ..context import DemoContext
 from . import _rows
+from ._pickers import fail_next_of, names_pending, own_context, poll_ready
 
 __all__ = ["build"]
 
@@ -41,7 +41,7 @@ class EntityPickerDemo(QtWidgets.QWidget):
         self.setObjectName("entity-picker-demo")
         self._context = context
         self._pickers: list = []
-        #: False until every value handed in has a name. `_Readiness` flips it.
+        #: False until every value handed in has a name. `poll_ready` flips it.
         self.demo_ready = True
 
         column = QtWidgets.QVBoxLayout(self)
@@ -101,7 +101,7 @@ class EntityPickerDemo(QtWidgets.QWidget):
         )
 
         # Its own client, so arming a failure cannot land in another example on the page.
-        self._failing = _own_context(context)
+        self._failing = own_context(context)
         broken = self._case(
             column,
             "error",
@@ -154,7 +154,7 @@ class EntityPickerDemo(QtWidgets.QWidget):
                 self._picker(entity_types=["Asset"], value=PRESET, **{flag: True})
             )
         column.addStretch(1)
-        self._readiness = _Readiness(self, self._pickers)
+        self._timer = poll_ready(self, lambda: names_pending(self._pickers))
 
     # --- building ----------------------------------------------------------------------
 
@@ -188,7 +188,7 @@ class EntityPickerDemo(QtWidgets.QWidget):
 
     def _arm_failure(self) -> None:
         """Arm the mock's next call. A live context has nothing to arm."""
-        arm = _fail_next_of(self._failing.client)
+        arm = fail_next_of(self._failing.client)
         if arm is not None:
             arm()
 
@@ -196,70 +196,6 @@ class EntityPickerDemo(QtWidgets.QWidget):
         """Wear the size step the toolbar holds."""
         for picker in self._pickers:
             picker.set_size(size)
-
-
-class _Readiness(QtCore.QObject):
-    """Holds a demo not ready until every value it was given has a name.
-
-    A picker handed a bare reference reads it on a worker, so the first paint of the page would
-    otherwise catch `Asset 1226` rather than the row it resolves to.
-    """
-
-    #: How long the poll waits before it calls the page ready anyway.
-    LIMIT_MS = 4000
-    STEP_MS = 100
-
-    def __init__(self, demo: QtWidgets.QWidget, pickers: list) -> None:
-        super().__init__(demo)
-        self._demo = demo
-        self._pickers = pickers
-        self._waited = 0
-        self._timer = QtCore.QTimer(self)
-        self._timer.setInterval(self.STEP_MS)
-        self._timer.timeout.connect(self._poll)
-        demo.demo_ready = not self._pending()
-        if not demo.demo_ready:
-            self._timer.start()
-
-    def _pending(self) -> bool:
-        for picker in self._pickers:
-            for ref, label in zip(_refs_of(picker), picker.control.labels):
-                if not label or label == placeholder_name(ref):
-                    return True
-        return False
-
-    def _poll(self) -> None:
-        self._waited += self.STEP_MS
-        if not self._pending() or self._waited >= self.LIMIT_MS:
-            self._timer.stop()
-            self._demo.demo_ready = True
-
-
-def _refs_of(picker: object) -> list:
-    """The references a picker holds, whether its value is one or several."""
-    value = getattr(picker, "value", None)
-    if value is None:
-        return []
-    return list(value) if isinstance(value, list) else [value]
-
-
-def _own_context(context: DemoContext) -> DemoContext:
-    """A context of this example's own, so an armed failure stays in it."""
-    if context.live:
-        return context
-    return demo_context(project_id=context.project_id, latency_ms=MOCK_LATENCY_MS)
-
-
-def _fail_next_of(client: object):
-    """The mock's `fail_next`, through whatever caches and counters wrap it."""
-    seen = 0
-    while client is not None and seen < 8:
-        arm = getattr(client, "fail_next", None)
-        if callable(arm):
-            return arm
-        client = getattr(client, "_client", None)
-        seen += 1
-    return None
 
 
 def build(context: DemoContext, parent: QtWidgets.QWidget | None = None) -> QtWidgets.QWidget:

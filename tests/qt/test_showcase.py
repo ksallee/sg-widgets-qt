@@ -442,3 +442,20 @@ def test_the_hello_demo_shows_the_leaf_gallery(window, qapp):
     page = window.open_page("hello")
     qapp.processEvents()
     assert page.stages[0].findChild(QtWidgets.QWidget, "leaf-gallery") is not None
+
+
+@pytest.mark.parametrize("module_name", ("entity_picker", "entity_multi_picker"))
+def test_a_picker_demo_waits_for_its_bare_references_through_the_shared_helper(module_name, qtbot):
+    """Both demos hold the page back until every value has a name, and both do it the one way."""
+    import importlib
+
+    from sg_widgets_qt.showcase.demos import _pickers
+
+    module = importlib.import_module(f"sg_widgets_qt.showcase.demos.{module_name}")
+    assert module.names_pending is _pickers.names_pending
+    assert module.poll_ready is _pickers.poll_ready
+
+    demo = module.build(demo_context())
+    qtbot.addWidget(demo)
+    assert demo.demo_ready is False
+    qtbot.waitUntil(lambda: demo.demo_ready, timeout=8000)
