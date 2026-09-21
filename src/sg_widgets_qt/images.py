@@ -1,7 +1,7 @@
 """The pictures a widget draws, fetched once and kept by url.
 
 A thumbnail, an avatar and the stock status sprite are all images the site hands out as a url. A
-`data:` url is decoded where it stands; an `http` or `https` one is read on the job pool, so a
+`data:` url is decoded where it stands; an `http` or `https` one is read on the image pool, so a
 widget never blocks on a socket, and the bytes cross back to the thread that asked for them, where
 the `QPixmap` is built: a pixmap belongs to the GUI thread.
 
@@ -28,14 +28,16 @@ from qtpy import QtSvg
 from qtpy.QtCore import QByteArray, QObject, QRectF, QSize, Qt
 from qtpy.QtGui import QColor, QImage, QPainter, QPixmap
 
-from .workers import JobPool, default_pool
+from .workers import JobPool
 
 __all__ = [
     "DEFAULT_TIMEOUT_S",
+    "IMAGE_THREADS",
     "USER_AGENT",
     "ImageLoader",
     "grayscale",
     "image_loader",
+    "image_pool",
     "invert_lightness",
     "pixmap_cached",
     "pixmap_from_bytes",
@@ -50,8 +52,26 @@ USER_AGENT = "sg-widgets-qt"
 #: The schemes a url may be read over. Anything else is a failure, never a file read.
 SCHEMES = ("http", "https")
 
+#: Threads the pictures read on. Small, because a picture is worth less than the read beside it.
+IMAGE_THREADS = 4
+
 ReadyCallback = Callable[[Optional[QPixmap]], None]
 SizeLike = Union[QSize, int, None]
+
+_IMAGE_POOL: JobPool | None = None
+
+
+def image_pool() -> JobPool:
+    """The pool every picture is read on.
+
+    A pool of its own, never the one a schema read, a facet count or a field write runs on: a
+    table of thumbnails asks for more urls than any pool has threads, and a write behind them
+    would wait out every one.
+    """
+    global _IMAGE_POOL
+    if _IMAGE_POOL is None:
+        _IMAGE_POOL = JobPool(IMAGE_THREADS)
+    return _IMAGE_POOL
 
 
 def _as_size(size: SizeLike) -> QSize | None:
@@ -135,7 +155,7 @@ class ImageLoader(QObject):
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
-        self._pool = pool if pool is not None else default_pool()
+        self._pool = pool if pool is not None else image_pool()
         self._timeout = int(timeout)
         self._cache: dict[str, QPixmap | None] = {}
         self._scaled: dict[tuple[str, int, int], QPixmap] = {}
