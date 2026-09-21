@@ -482,3 +482,12 @@ def test_cancel_on_a_link_popover_closes_it_and_keeps_the_hash(qtbot, data_type,
     spin(qtbot, 60)
     assert editor.mode == "display" and modes == ["display"]
     assert editor.value == value, "a cancel restores the value the session opened on"
+
+
+def test_every_editor_the_dispatch_names_is_there():
+    """The pickers are written: the editor reaches them by name, with nothing to fall back to."""
+    from sg_widgets_qt.widgets import field_editor
+
+    assert field_editor.ListPicker is not None
+    assert field_editor.StatusPicker is not None
+    assert not hasattr(field_editor, "_import")

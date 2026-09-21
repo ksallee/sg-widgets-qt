@@ -43,7 +43,9 @@ from .entity_multi_picker import EntityMultiPicker
 from .entity_picker import EntityPicker
 from .field_error import FieldError
 from .field_value import FieldValue
+from .list_picker import ListPicker
 from .number_editor import NumberEditor
+from .status_picker import StatusPicker
 from .text_editor import TextEditor
 from .url_editor import UrlEditor
 
@@ -81,22 +83,6 @@ POPOVER_BUTTON: dict[str, str] = {"sm": "sm", "md": "default", "lg": "lg"}
 CHIP_GAP = 6
 
 
-def _import(name: str) -> Any:
-    """A picker written on the same base, or None while it has not landed."""
-    try:
-        module = __import__(f"sg_widgets_qt.widgets.{name}", fromlist=["*"])
-    except Exception:  # pragma: no cover - the pickers are the other half of this wave.
-        return None
-    return module
-
-
-_list_picker = _import("list_picker")
-_status_picker = _import("status_picker")
-
-ListPicker = getattr(_list_picker, "ListPicker", None) if _list_picker else None
-StatusPicker = getattr(_status_picker, "StatusPicker", None) if _status_picker else None
-
-
 def editor_for(data_type: str) -> EditorKind:
     """The editor a data type opens. Core's own dispatch."""
     return editor_kind_for(str(data_type))
@@ -109,10 +95,6 @@ def _can_draw(kind: str, data_type: str, context: Any, field: FieldSchema | None
     entity type, a link its valid types. Without either the field stays on the display half.
     """
     if kind == "none":
-        return False
-    if kind == "list" and ListPicker is None:
-        return False
-    if kind == "status_list" and StatusPicker is None:
         return False
     if not editor_needs_context(data_type):
         return True
@@ -965,7 +947,7 @@ class FieldEditor(QtWidgets.QWidget):
             made = UrlEditor(value=value if isinstance(value, dict) else None, **shared)
         elif kind == "color":
             made = ColorEditor(value=value if isinstance(value, str) else None, **shared)
-        elif kind == "list" and ListPicker is not None:
+        elif kind == "list":
             # Upstream hands the list picker the same `shared` every other editor gets,
             # so the caller's message and its renderer reach this one too.
             made = ListPicker(
@@ -973,7 +955,7 @@ class FieldEditor(QtWidgets.QWidget):
                 project_id=self._project_id,
                 **shared,
             )
-        elif kind == "status_list" and StatusPicker is not None:
+        elif kind == "status_list":
             made = StatusPicker(
                 context=self._context,
                 entity_type=(self._field.entity_type if self._field is not None else ""),
