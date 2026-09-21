@@ -435,3 +435,10 @@ def test_the_density_control_is_offered_only_where_the_demo_takes_one(qtbot):
     qtbot.addWidget(dense)
     assert dense.widget is not None
     assert not dense.toolbar.controls["density"].isHidden()
+
+
+def test_the_hello_demo_shows_the_leaf_gallery(window, qapp):
+    """The gallery of leaf primitives stands under the buttons, reached by a plain import."""
+    page = window.open_page("hello")
+    qapp.processEvents()
+    assert page.stages[0].findChild(QtWidgets.QWidget, "leaf-gallery") is not None

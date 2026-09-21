@@ -26,8 +26,8 @@ from sg_widgets_qt.primitives import (
     Toggle,
     ToggleGroup,
 )
-from sg_widgets_qt.primitives.demo_leaf import build
 from sg_widgets_qt.primitives.input import TEXTAREA_MIN_HEIGHT
+from sg_widgets_qt.showcase.demos._leaf import build
 from sg_widgets_qt.theme import apply_theme, theme_for
 
 BUTTON_VARIANTS = ("default", "outline", "secondary", "ghost", "destructive", "link")
