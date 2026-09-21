@@ -1,6 +1,7 @@
 """What a published distribution owes a consumer: types, a small sdist, a README, a changelog."""
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -156,3 +157,24 @@ def test_every_readme_example_runs_as_printed(index: int, tmp_path: Path) -> Non
         timeout=EXAMPLE_TIMEOUT_S,
     )
     assert done.returncode == 0, done.stderr
+
+
+def _packaged_counts() -> tuple[int, int, int]:
+    """The widgets the docs index lists, the core modules and the pages the wheel carries."""
+    index = json.loads((ROOT / "docs" / "widgets" / "_index.json").read_text(encoding="utf-8"))
+    widgets = sum(len(category["items"]) for category in index["widgets"])
+    core = len([p for p in (ROOT / "src" / "sg_widgets_core").glob("*.py") if p.name != "__init__.py"])
+    pages = len([p for s in ("start", "core", "widgets") for p in (ROOT / "docs" / s).rglob("*.md")])
+    return widgets, core, pages
+
+
+def test_the_status_line_counts_what_the_wheel_ships() -> None:
+    widgets, core, pages = _packaged_counts()
+    assert f"{widgets} widgets, {core} core modules and {pages} documentation pages" in README
+
+
+def test_every_widget_page_the_wheel_carries_is_in_the_sidebar_index() -> None:
+    index = json.loads((ROOT / "docs" / "widgets" / "_index.json").read_text(encoding="utf-8"))
+    listed = {index["overview"], *(name for c in index["widgets"] for name in c["items"])}
+    shipped = {page.stem for page in (ROOT / "docs" / "widgets").rglob("*.md")}
+    assert shipped - listed == set()

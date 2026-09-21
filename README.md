@@ -104,7 +104,7 @@ is relied on.
 
 ## Status
 
-Alpha. 52 widgets, 27 core modules and 55 documentation pages are complete, on Python 3.9 through
+Alpha. 45 widgets, 30 core modules and 51 documentation pages are complete, on Python 3.9 through
 3.13 and on Qt 5.15 and Qt 6. Both packages carry `py.typed`. Names, props and signals can still
 change between 0.x releases, and the
 [changelog](https://github.com/ksallee/sg-widgets-qt/blob/main/CHANGELOG.md) records what changed.
