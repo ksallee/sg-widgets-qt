@@ -12,13 +12,20 @@ from __future__ import annotations
 import argparse
 import sys
 
-from ..theme import PALETTES, RADII
-
 __all__ = ["main", "parser"]
+
+#: What a run with no Qt binding says, in place of the traceback qtpy raises out of the first
+#: import of QtWidgets.
+NO_BINDING = (
+    'No Qt binding is importable: install one with pip install "sg-widgets-qt[pyside6]" '
+    'or pip install "sg-widgets-qt[pyqt5]".'
+)
 
 
 def parser() -> argparse.ArgumentParser:
     """The command line."""
+    from ..theme import PALETTES, RADII
+
     made = argparse.ArgumentParser(
         prog="python -m sg_widgets_qt.showcase",
         description="The widget showcase: one page per widget, with a live demo.",
@@ -53,8 +60,21 @@ def overrides(args: argparse.Namespace) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Open the showcase and run it."""
-    args = parser().parse_args(sys.argv[1:] if argv is None else argv)
+    """Open the showcase and run it, or say which extra to install and stop."""
+    try:
+        return run(sys.argv[1:] if argv is None else argv)
+    except Exception as exc:
+        # qtpy raises this before its own exception class can be imported, so the name is the
+        # only handle on it.
+        if type(exc).__name__ != "QtBindingsNotFoundError":
+            raise
+        print(NO_BINDING, file=sys.stderr)
+        return 1
+
+
+def run(argv: list[str]) -> int:
+    """Open the showcase on a binding qtpy found."""
+    args = parser().parse_args(argv)
     from qtpy import QtWidgets
 
     from .prefs import Prefs
