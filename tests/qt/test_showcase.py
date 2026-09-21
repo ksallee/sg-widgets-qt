@@ -459,3 +459,40 @@ def test_a_picker_demo_waits_for_its_bare_references_through_the_shared_helper(m
     qtbot.addWidget(demo)
     assert demo.demo_ready is False
     qtbot.waitUntil(lambda: demo.demo_ready, timeout=8000)
+
+
+#: A run on a machine with no Qt binding: every one of the four is made unimportable first.
+NO_BINDINGS = """
+import sys
+
+BLOCKED = ("PySide6", "PySide2", "PyQt5", "PyQt6")
+
+
+class Absent:
+    def find_spec(self, name, path=None, target=None):
+        if name.split(".")[0] in BLOCKED:
+            raise ImportError(name)
+        return None
+
+
+sys.meta_path.insert(0, Absent())
+
+from sg_widgets_qt.showcase.__main__ import main
+
+raise SystemExit(main([]))
+"""
+
+
+def test_a_run_with_no_qt_binding_names_the_two_extras():
+    done = subprocess.run(
+        [sys.executable, "-c", NO_BINDINGS],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        timeout=QA_TIMEOUT_S,
+    )
+    said = [line for line in done.stderr.splitlines() if line.strip()]
+    assert done.returncode == 1, done.stderr
+    assert "Traceback" not in done.stderr
+    assert len(said) == 1
+    assert "[pyside6]" in said[0] and "[pyqt5]" in said[0]
