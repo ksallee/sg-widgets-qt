@@ -16,6 +16,14 @@ PACKAGES = ("sg_widgets_core", "sg_widgets_qt")
 PYPROJECT = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 
+#: Where a README image has to be served from for PyPI to draw it: an absolute raw URL on `main`.
+RAW = "https://raw.githubusercontent.com/ksallee/sg-widgets-qt/main/"
+
+
+def _readme_images() -> list[tuple[str, str]]:
+    """The alt text and the source of every image the README draws."""
+    return re.findall(r"!\[([^\]]*)\]\(([^)\s]+)\)", README)
+
 
 def test_both_packages_carry_py_typed() -> None:
     for package in PACKAGES:
@@ -59,11 +67,23 @@ def test_the_readme_is_the_long_description() -> None:
     assert 'readme = "README.md"' in PYPROJECT
 
 
-def test_the_readme_screenshot_is_in_the_checkout() -> None:
-    shots = re.findall(r"shots/states/[\w.-]+\.png", README)
-    assert shots
-    for shot in shots:
-        assert (ROOT / shot).is_file()
+def test_every_readme_screenshot_is_a_raw_url_on_main() -> None:
+    images = _readme_images()
+    assert len(images) >= 6
+    for _alt, url in images:
+        assert url.startswith(RAW + "docs/screenshots/")
+
+
+def test_every_readme_screenshot_is_in_the_checkout() -> None:
+    images = _readme_images()
+    assert images
+    for _alt, url in images:
+        assert (ROOT / url[len(RAW) :]).is_file()
+
+
+def test_every_readme_screenshot_carries_alt_text() -> None:
+    for alt, _url in _readme_images():
+        assert alt.strip()
 
 
 def test_the_readme_links_resolve_away_from_the_checkout() -> None:
