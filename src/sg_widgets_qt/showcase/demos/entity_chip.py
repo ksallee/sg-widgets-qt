@@ -1,7 +1,7 @@
 """The entity chip in its three variants, with glyphs, thumbnails, a hover card and a cross.
 
 The port of `apps/site/src/demos/entity-chip/Demo.tsx`. The chips with a thumbnail and the ones
-with a hover card are read through the demo context; the rest are invented rows, so the type
+with a hover card are read through the demo context; the rest name fixture rows, so the type
 glyphs and the remove control are always on show.
 """
 from __future__ import annotations
@@ -20,6 +20,7 @@ from ...workers import default_pool
 from .. import chrome
 from ..context import DemoContext
 from . import _layout as lay
+from . import _rows
 
 __all__ = ["build"]
 
@@ -41,17 +42,13 @@ TYPES = (
 )
 
 #: The rows the cross may take from.
-REMOVABLE = (
-    EntityRef(type="Asset", id=1226, name="charAda"),
-    EntityRef(type="Asset", id=1227, name="charBabbage"),
-    EntityRef(type="Asset", id=1228, name="envForest"),
-)
+REMOVABLE = tuple(_rows.refs("Asset", 1226, 1227, 1228))
 
 #: The row every plain example points at.
-SHOT = EntityRef(type="Shot", id=862, name="sh010_0010")
+SHOT = _rows.ref("Shot", 862)
 
 #: A task, for the link example.
-TASK = EntityRef(type="Task", id=5700, name="FX")
+TASK = _rows.ref("Task", 5700)
 
 #: A site to address rows on, so the link variant has somewhere to go.
 DEMO_SITE = "https://demo.example.com"

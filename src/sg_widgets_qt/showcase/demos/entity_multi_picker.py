@@ -17,20 +17,15 @@ from sg_widgets_core.filter import EntityRef
 from ...widgets.entity_multi_picker import EntityMultiPicker
 from .. import chrome
 from ..context import DemoContext
+from . import _rows
 from .entity_picker import _fail_next_of, _own_context, _Readiness
 
 __all__ = ["build"]
 
 #: Rows already on the team, kept out of the results by the server filter.
-ALREADY_THERE = [
-    EntityRef(type="Shot", id=862, name="sh010_0010"),
-    EntityRef(type="Shot", id=863, name="sh010_0020"),
-]
+ALREADY_THERE = _rows.refs("Shot", 862, 863)
 
-PRESET = [
-    EntityRef(type="Asset", id=1226, name="charAda"),
-    EntityRef(type="Asset", id=1227, name="charBruno"),
-]
+PRESET = _rows.refs("Asset", 1226, 1227)
 
 #: Five, so `ellipsis` has something to count and `max` something to cut.
 FIVE = [*PRESET, *(EntityRef(type="Asset", id=1228 + i) for i in range(3))]
@@ -106,7 +101,7 @@ class EntityMultiPickerDemo(QtWidgets.QWidget):
             "Two shots excluded from the results",
             entity_types=["Shot"],
             exclude=list(ALREADY_THERE),
-            placeholder="sh010_0010 and sh010_0020 are not offered…",
+            placeholder=f"{ALREADY_THERE[0].name} and {ALREADY_THERE[1].name} are not offered…",
         )
         self._case(
             column, "more", "Five a page, with a load more row", entity_types=["Shot"], page_size=5

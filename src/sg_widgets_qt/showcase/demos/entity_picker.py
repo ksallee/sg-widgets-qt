@@ -17,11 +17,12 @@ from sg_widgets_core.picker import placeholder_name
 from ...widgets.entity_picker import EntityPicker
 from .. import chrome
 from ..context import MOCK_LATENCY_MS, DemoContext, demo_context
+from . import _rows
 
 __all__ = ["build"]
 
 #: An asset the fixtures always carry, for the examples that come with a value.
-PRESET = EntityRef(type="Asset", id=1226, name="charAda")
+PRESET = _rows.ref("Asset", 1226)
 
 #: A bare reference: type and id, no name. Resolved on the way in by one id-in read.
 BARE = EntityRef(type="Shot", id=866)

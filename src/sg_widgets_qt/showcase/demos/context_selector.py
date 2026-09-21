@@ -16,11 +16,12 @@ from ...widgets.context_selector import ContextSelector, WorkContext
 from .. import chrome
 from ..context import DemoContext
 from . import _layout as lay
+from . import _rows
 
 __all__ = ["build"]
 
 #: The mock's first person, as the app would pass the signed-in user.
-CURRENT_USER = EntityRef(type="HumanUser", id=20, name="Ada Lovelace")
+CURRENT_USER = _rows.ref("HumanUser", 20)
 
 SIZES = ("sm", "md", "lg")
 
@@ -34,9 +35,9 @@ def start_context(context: DemoContext) -> WorkContext:
             )
         )
     return WorkContext(
-        project=EntityRef(type="Project", id=70, name="Blue Moon Rising"),
-        entity=EntityRef(type="Shot", id=862, name="sh010_0010"),
-        task=EntityRef(type="Task", id=5700, name="Comp"),
+        project=_rows.ref("Project", 70),
+        entity=_rows.ref("Shot", 862),
+        task=_rows.ref("Task", 5700),
     )
 
 
@@ -46,13 +47,13 @@ def start_recents(context: DemoContext) -> list[WorkContext]:
         return []
     return [
         WorkContext(
-            project=EntityRef(type="Project", id=70, name="Blue Moon Rising"),
-            entity=EntityRef(type="Asset", id=1226, name="charAda"),
-            task=EntityRef(type="Task", id=5730, name="Model"),
+            project=_rows.ref("Project", 70),
+            entity=_rows.ref("Asset", 1226),
+            task=_rows.ref("Task", 5730),
         ),
         WorkContext(
-            project=EntityRef(type="Project", id=71, name="Harbour Lights"),
-            entity=EntityRef(type="Shot", id=889, name="hb010_0010"),
+            project=_rows.ref("Project", 71),
+            entity=_rows.ref("Shot", 889),
         ),
     ]
 

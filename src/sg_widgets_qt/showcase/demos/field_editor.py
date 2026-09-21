@@ -16,7 +16,7 @@ from sg_widgets_core.schema import FieldSchema
 from ...widgets.field_editor import FieldEditor
 from .. import chrome
 from ..context import DemoContext
-from . import _layout
+from . import _layout, _rows
 
 __all__ = ["build"]
 
@@ -95,12 +95,12 @@ ROWS: list[dict[str, Any]] = [
     {
         "key": "entity",
         "field": schema("entity", "Link", "entity", valid_types=["Shot"]),
-        "value": {"type": "Shot", "id": 1234, "name": "sh010_0010"},
+        "value": _rows.value("Shot", 862),
     },
     {
         "key": "multi_entity",
         "field": schema("sg_shots", "Shots", "multi_entity", valid_types=["Shot"]),
-        "value": [{"type": "Shot", "id": 1234, "name": "sh010_0010"}],
+        "value": [_rows.value("Shot", 862)],
     },
 ]
 
