@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from dataclasses import field as dc_field
 from typing import Any, Literal, Protocol
 
-from .client import SgClient, TextSearchRow
+from .client import SgClient, TextSearchRow, _entity_ref_of
 from .filter import EntityRef, WireCondition
 from .schema import display_name_of
 
@@ -219,7 +219,7 @@ def hydrate(
         hit.values = values
         image = values.get("image")
         hit.image = image if isinstance(image, str) else None
-        hit.project = _entity_ref_of(values.get("project"))
+        hit.project = _as_entity_ref(values.get("project"))
         labelled = values.get(label_field) if label_field is not None else None
         name = labelled if isinstance(labelled, str) and len(labelled) > 0 else display_name_of(values)
         if name:
@@ -227,13 +227,11 @@ def hydrate(
     return hits
 
 
-def _entity_ref_of(value: Any) -> EntityRef | None:
+def _as_entity_ref(value: Any) -> EntityRef | None:
+    """A hit's link as a ref. The adapter and the mock answer a dict, a caller may hand a ref."""
     if isinstance(value, EntityRef):
         return value
-    if not isinstance(value, dict):
-        return None
-    name = value.get("name")
-    return EntityRef(type=value.get("type"), id=value.get("id"), name=name if isinstance(name, str) else None)
+    return _entity_ref_of(value)
 
 
 # -------------------------------------------------------------------------- #

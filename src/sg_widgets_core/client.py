@@ -539,10 +539,16 @@ def _child_path(parent_path: str, child: RawHierarchyNode) -> str:
 
 
 class SgApiError(Exception):
-    """What the API refused, with the status and the body it answered."""
+    """What the API refused, with the status and the body it answered.
 
-    def __init__(self, status: int, body: Any, message: str | None = None) -> None:
-        super().__init__(message if message is not None else f"Flow PT API error {status}")
+    `shotgun_api3` raises a fault with no HTTP status behind it, so `status` is `None`
+    where the upstream REST client always carries a number, and a reader that decides on
+    a status reads the wording instead when there is none.
+    """
+
+    def __init__(self, status: int | None, body: Any, message: str | None = None) -> None:
+        named = "Flow PT API error" if status is None else f"Flow PT API error {status}"
+        super().__init__(message if message is not None else named)
         self.status = status
         self.body = body
 

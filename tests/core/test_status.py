@@ -68,6 +68,9 @@ class TestColours:
     def test_parses_decimal_rgb_triples_and_rejects_hex(self) -> None:
         assert parse_bg_color("25,118,27") == Rgb(r=25, g=118, b=27)
         assert parse_bg_color("#19761b") is None
+        # An empty channel is 0, which is what `Number('')` answers upstream.
+        assert parse_bg_color("25,,27") == Rgb(r=25, g=0, b=27)
+        assert parse_bg_color("25,x,27") is None
         assert foreground_for(Rgb(r=25, g=118, b=27)) == "white"
         assert foreground_for(Rgb(r=240, g=240, b=240)) == "black"
 

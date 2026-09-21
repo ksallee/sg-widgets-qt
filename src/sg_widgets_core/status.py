@@ -121,7 +121,10 @@ class Rgb:
 
 
 def parse_bg_color(value: str | None) -> Rgb | None:
-    """Parse `"25,118,27"` into channels. Returns None for anything else, including hex."""
+    """Parse `"25,118,27"` into channels. Returns None for anything else, including hex.
+
+    A channel with nothing in it is 0, which is what `Number('')` reads it as upstream.
+    """
     if not value:
         return None
     parts = value.split(",")
@@ -129,8 +132,9 @@ def parse_bg_color(value: str | None) -> Rgb | None:
         return None
     channels: list[int] = []
     for p in parts:
+        text = p.strip()
         try:
-            n = float(p.strip())
+            n = 0.0 if text == "" else float(text)
         except ValueError:
             return None
         if not n.is_integer() or n < 0 or n > 255:

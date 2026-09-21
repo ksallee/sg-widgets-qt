@@ -307,6 +307,7 @@ def is_empty_value(value: Any) -> bool:
 
 
 def _as_number(value: Any) -> float | None:
+    """`Number(value)`: a boolean is 1 or 0, a string is parsed, anything else is nothing."""
     if isinstance(value, bool):
         return 1.0 if value else 0.0
     if isinstance(value, (int, float)):
@@ -315,6 +316,12 @@ def _as_number(value: Any) -> float | None:
         return float(str(value).strip())
     except (TypeError, ValueError):
         return None
+
+
+def _as_finite_number(value: Any) -> float | None:
+    """The same reading, without what an editor cannot store: `Infinity` and `NaN` are nothing."""
+    n = _as_number(value)
+    return n if n is not None and math.isfinite(n) else None
 
 
 def _to_fixed(n: float, decimals: int) -> str:

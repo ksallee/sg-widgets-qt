@@ -26,6 +26,7 @@ from sg_widgets_core.client import (
     UploadFile,
 )
 from sg_widgets_core.filter import EntityRef
+from sg_widgets_core.filter_ux import is_grouping_refusal
 from sg_widgets_core.shotgun_client import (
     ShotgunClient,
     from_api3_value,
@@ -844,6 +845,17 @@ class TestTheErrorMapping:
         assert str(caught.value) == "API read() invalid/missing string entity 'type'"
         assert caught.value.status is None
         assert caught.value.body is fault
+
+    def test_a_fault_with_no_code_carries_no_status_and_names_none_in_its_message(self) -> None:
+        # A refusal the site words rather than codes: the reader falls back to the wording.
+        fault = shotgun_api3.Fault("API summarize() grouping is not allowed for Note.read_by_current_user")
+        client = client_on(FakeShotgun(error=fault))
+        with pytest.raises(SgApiError) as caught:
+            client.summarize("Note", SummarizeOptions(grouping=[SummaryGrouping(field="read_by_current_user")]))
+        assert caught.value.status is None
+        assert is_grouping_refusal(caught.value) is True
+        assert str(SgApiError(None, None)) == "Flow PT API error"
+        assert str(SgApiError(404, None)) == "Flow PT API error 404"
 
     def test_a_protocol_error_carries_the_status_it_names(self) -> None:
         error = shotgun_api3.ProtocolError("studio.example.com", 503, "down for maintenance", {})

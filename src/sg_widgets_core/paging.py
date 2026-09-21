@@ -116,12 +116,16 @@ def group_rows_keyed(rows: Sequence[EntityRow], by: GroupBy) -> list[KeyedRowGro
     The key is the run's position and its value, so a page whose first rows carry the
     value the last run carries grows that run rather than opening a second one, and a
     group shut before the page arrived is still shut after it.
+
+    The value is spelled the way `JSON.stringify` spells it, keys in the order the row
+    carries them and no spaces, so a collapse state keyed by an entity ref is one string
+    in both ports.
     """
     return [
         KeyedRowGroup(
             value=bucket.value,
             rows=bucket.rows,
-            key=f"group:{at}:{json.dumps(bucket.value, sort_keys=True, default=str)}",
+            key=f"group:{at}:{json.dumps(bucket.value, separators=(',', ':'), default=str)}",
         )
         for at, bucket in enumerate(group_rows(rows, by))
     ]
