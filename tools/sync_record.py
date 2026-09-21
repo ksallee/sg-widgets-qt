@@ -5,8 +5,15 @@
         --ported src/sg_widgets_qt/widgets/entity_picker.py docs/widgets/entity-picker.props.json \
         --status complete --note "The row renderer is a keyword, not a snippet."
 
+    python tools/sync_record.py core/mock --add \
+        --upstream packages/core/test/hierarchy.test.ts --ported tests/core/test_hierarchy.py
+
 Upstream paths are relative to the upstream checkout, ported paths to this repo. The manifest keeps,
 per upstream file, the sha256 of its content at the time of the record and the upstream commit.
+
+`--add` names further files an item already recorded also ports. It hashes only those files and
+leaves the item's status, note and earlier hashes as they stand, so a record still says what
+drifted since it was made.
 """
 from __future__ import annotations
 
@@ -49,9 +56,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("item", help="core/<module>, primitives/<name>, widgets/<name>, demos/<name>, docs/<name>")
     p.add_argument("--upstream", nargs="+", required=True, help="upstream files this item ports")
     p.add_argument("--ported", nargs="+", required=True, help="files in this repo")
-    p.add_argument("--status", choices=["complete", "partial", "skipped"], required=True)
+    p.add_argument("--status", choices=["complete", "partial", "skipped"])
     p.add_argument("--note", default="")
+    p.add_argument("--add", action="store_true", help="add these files to an item already recorded")
     a = p.parse_args(argv)
+    if a.status is None and not a.add:
+        p.error("--status is required")
 
     missing = [f for f in a.upstream if not (UPSTREAM / f).exists()]
     if missing:
@@ -63,6 +73,17 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     data = load()
+    if a.add:
+        item = data["items"].get(a.item)
+        if item is None:
+            print(f"no item recorded under {a.item}", file=sys.stderr)
+            return 2
+        item["upstream"].update({f: sha256(UPSTREAM / f) for f in a.upstream})
+        item["ported"] = list(dict.fromkeys([*item.get("ported", []), *a.ported]))
+        save(data)
+        print(f"{a.item}: {len(a.upstream)} upstream file(s) added, {len(a.ported)} ported file(s) added")
+        return 0
+
     data["upstream"]["commit"] = upstream_commit()
     data["items"][a.item] = {
         "status": a.status,

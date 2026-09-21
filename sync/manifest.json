@@ -152,11 +152,13 @@
       "status": "complete",
       "upstream": {
         "packages/core/src/mock.ts": "e63cc57d599515c672e799d635cfdf11340128655c824f20f8b8d36ccfa97366",
-        "packages/core/test/mock.test.ts": "308bc2f2f91f6dc09f5af9c2d0102f4857973540658f0bce34025332a174d47f"
+        "packages/core/test/mock.test.ts": "308bc2f2f91f6dc09f5af9c2d0102f4857973540658f0bce34025332a174d47f",
+        "packages/core/test/hierarchy.test.ts": "514f17ee9eea7fee1fcebd8e7ab609043dad33b1ddd106cbd8280fe52a697b9e"
       },
       "ported": [
         "src/sg_widgets_core/mock.py",
-        "tests/core/test_mock.py"
+        "tests/core/test_mock.py",
+        "tests/core/test_hierarchy.py"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "Every method is ported. The mulberry32 PRNG is ported bit for bit, so seed 1 reproduces the upstream ids, codes, statuses and dates exactly. A row is EntityRow(type, id, values), one flat map with relationships as {type, id, name} dicts and dotted fields under their literal key, so the tests read row.values where upstream reads attributes and relationships. latency_ms is a time.sleep and mutable state is guarded by one threading.RLock."
@@ -320,11 +322,13 @@
       "status": "complete",
       "upstream": {
         "packages/core/src/search.ts": "424d93d61a8c3140f1e2c7c7bdb079b113812154971d97de490c23fcfe1c9c1b",
-        "packages/core/test/search.test.ts": "49279945a425bad1906a466464afd03e15ca20b5846b1ff9a85c3749b2deb14e"
+        "packages/core/test/search.test.ts": "49279945a425bad1906a466464afd03e15ca20b5846b1ff9a85c3749b2deb14e",
+        "packages/core/test/hierarchy.test.ts": "514f17ee9eea7fee1fcebd8e7ab609043dad33b1ddd106cbd8280fe52a697b9e"
       },
       "ported": [
         "src/sg_widgets_core/search.py",
-        "tests/core/test_search.py"
+        "tests/core/test_search.py",
+        "tests/core/test_hierarchy.py"
       ],
       "commit": "130d4633433cb26733fc5589c04dd56417afeeab",
       "note": "Timing is the Qt layer's: SEARCH_DEBOUNCE_MS is a constant here and sg_widgets_qt.workers.Debounce owns the timer; PressGate reads an injectable clock. hydrate reads the flat EntityRow.values instead of attributes and relationships."
