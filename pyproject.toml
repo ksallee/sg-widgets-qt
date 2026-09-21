@@ -76,7 +76,6 @@ exclude = [
 testpaths = ["tests"]
 addopts = "-q"
 filterwarnings = ["ignore::DeprecationWarning"]
-markers = ["live: reads the test site over the network, skipped without .env.local"]
 # A widget test that waits on a signal that never comes hangs the whole run. Nothing here takes
 # more than a few seconds, so a test still going after two minutes has stopped waiting for
 # anything a rerun would fix.
