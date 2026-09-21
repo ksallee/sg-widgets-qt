@@ -168,10 +168,6 @@ class _TreeBinding(QObject):
         """Call one of the engine's methods off the GUI thread, after the ones before it."""
         self._runner.submit(getattr(self.engine, name), *args)
 
-    def wait(self, timeout_ms: int = 5000) -> bool:
-        """Block until every call is answered, then deliver what they published. For a test."""
-        return self._runner.wait(timeout_ms)
-
     def close(self) -> None:
         """Stop following the engine and drop what is in flight."""
         self._alive.stop()

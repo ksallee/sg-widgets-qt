@@ -13,7 +13,7 @@ from sg_widgets_core.collection import EntitySourceOptions, create_entity_source
 from sg_widgets_core.filter import condition
 from sg_widgets_qt.widgets.collection_source import CollectionSource, SerialRunner
 
-from .collections import mock_context, source_for
+from .collections import drain, mock_context, source_for
 
 #: A status a few of the mock's Versions carry, so a filter on it matches fewer than the set.
 NARROW = condition("sg_status_list", "is", "na")
@@ -56,7 +56,7 @@ def test_the_runner_runs_one_call_at_a_time_in_the_order_it_was_asked(qtbot):
     for n in range(6):
         runner.submit(work, n, on_result=order.append)
     assert runner.running is True
-    runner.wait(5000)
+    drain(runner)
     assert order == [0, 1, 2, 3, 4, 5]
     assert most == 1, "two calls mutated the source at once"
     assert runner.running is False
@@ -67,7 +67,7 @@ def test_a_call_that_raises_leaves_the_queue_moving(qtbot):
     seen: list[Any] = []
     runner.submit(lambda: 1 / 0, on_error=seen.append)
     runner.submit(lambda: "after", on_result=seen.append)
-    runner.wait(5000)
+    drain(runner)
     assert isinstance(seen[0], ZeroDivisionError)
     assert seen[1] == "after"
 
@@ -90,7 +90,7 @@ def test_a_page_whose_ticket_moved_is_dropped(qtbot):
     # stale from here: `EntitySource.begin` is what says so.
     source.begin()
     gate.set()
-    binding.wait(5000)
+    drain(binding.runner)
     assert binding.snapshot().rows == []
     assert binding.snapshot().status == "loading"
     binding.close()
@@ -99,12 +99,12 @@ def test_a_page_whose_ticket_moved_is_dropped(qtbot):
 def test_a_count_whose_filter_moved_is_dropped(qtbot):
     context = mock_context()
     binding = CollectionSource(source_for(context, mode="pages"), paging="pages")
-    binding.wait(5000)
+    drain(binding.runner)
     whole = binding.snapshot().total
     assert whole
 
     narrowed = CollectionSource(source_for(context, mode="pages"), paging="pages", filters=NARROW)
-    narrowed.wait(5000)
+    drain(narrowed.runner)
     narrow_total = narrowed.snapshot().total
     assert narrow_total and narrow_total < whole
     narrowed.close()
@@ -113,7 +113,7 @@ def test_a_count_whose_filter_moved_is_dropped(qtbot):
     # and lands last. Writing it would put the old set's total against the new filter.
     binding.apply_filters(NARROW)
     binding.count()
-    binding.wait(5000)
+    drain(binding.runner)
     assert binding.snapshot().total == narrow_total
     binding.close()
 
@@ -123,7 +123,13 @@ def test_a_snapshot_the_source_published_reaches_the_gui_thread(qtbot):
     binding = CollectionSource(source_for(context, mode="pages"), paging="pages")
     changes: list[int] = []
     binding.changed.connect(lambda: changes.append(1))
-    binding.wait(5000)
+    drain(binding.runner)
     assert binding.snapshot().rows
     assert changes, "the source moved and the view was never told"
     binding.close()
+
+
+def test_the_binding_offers_no_blocking_wait(qtbot):
+    """A widget never blocks the thread it draws on: the spin lives in the tests alone."""
+    for owner in (CollectionSource, SerialRunner):
+        assert not hasattr(owner, "wait"), f"{owner.__name__} blocks the GUI thread"
