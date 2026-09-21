@@ -17,12 +17,10 @@ later read replaced, and `begin_count` is what drops a count whose filter has mo
 """
 from __future__ import annotations
 
-import time
 from collections import deque
 from collections.abc import Sequence
 from typing import Any
 
-from qtpy import QtCore
 from qtpy.QtCore import QObject, Qt, Signal
 
 from sg_widgets_core.collection import (
@@ -44,9 +42,6 @@ __all__ = [
     "CollectionSource",
     "SerialRunner",
 ]
-
-#: How long a `wait` sleeps on the pool between turns of the event loop.
-WAIT_STEP_MS = 20
 
 #: How a collection walks a set. Core's `PagingMode`.
 COLLECTION_PAGING_VALUES: tuple[str, ...] = PAGING_MODE_VALUES
@@ -138,9 +133,12 @@ class SerialRunner:
     a queue give the same order without tying a thread's life to a widget's.
     """
 
-    def __init__(self, pool: JobPool | None = None, on_error: Any = None) -> None:
+    def __init__(
+        self, pool: JobPool | None = None, on_error: Any = None, on_idle: Any = None
+    ) -> None:
         self._pool = pool if pool is not None else default_pool()
         self._on_error = on_error
+        self._on_idle = on_idle
         self._queue: deque = deque()
         self._live: Job | None = None
         # Raised before the pool is asked, not once `submit` answers: the job may have run and
@@ -169,15 +167,6 @@ class SerialRunner:
         if self._live is not None:
             self._live.cancel()
 
-    def wait(self, timeout_ms: int = 5000) -> bool:
-        """Block until the queue is empty, delivering each answer. For a test and for teardown."""
-        end = time.monotonic() + timeout_ms / 1000.0
-        while self.running and time.monotonic() < end:
-            self._pool.wait(WAIT_STEP_MS)
-            QtCore.QCoreApplication.processEvents()
-        QtCore.QCoreApplication.processEvents()
-        return not self.running
-
     def _pump(self) -> None:
         if self._in_flight or not self._queue:
             return
@@ -203,6 +192,8 @@ class SerialRunner:
         self._in_flight = False
         self._live = None
         self._pump()
+        if not self.running and self._on_idle is not None:
+            self._on_idle()
 
 
 class CollectionSource(QObject):
@@ -210,6 +201,8 @@ class CollectionSource(QObject):
 
     #: The source published a new snapshot.
     changed = Signal()
+    #: Every call asked of the source has answered; a widget that was told "busy" may ask again.
+    idle = Signal()
     #: The source's sort moved. Carries `list[SortSpec]`.
     sort_changed = Signal(object)
     #: The source's filter moved. Carries the wire group, or None.
@@ -233,7 +226,7 @@ class CollectionSource(QObject):
         # The flag is what every callback the pool still holds reads before it emits.
         self.destroyed.connect(self._alive.stop)
         # One call at a time, so the source is never mutated by two reads at once.
-        self._runner = SerialRunner(on_error=quietly(self.failed.emit, self._alive))
+        self._runner = SerialRunner(on_error=quietly(self.failed.emit, self._alive), on_idle=self._on_idle)
         self._sort: list[SortSpec] | None = None if sort is None else list(sort)
         self._filters: SourceFilters = filters
         self._sort_seen = list(source.sort)
@@ -411,13 +404,6 @@ class CollectionSource(QObject):
         """Read these rows again with the source's own projection and swap them in place."""
         self._run(self._source.reread_rows, list(ids))
 
-    def wait(self, timeout_ms: int = 5000) -> bool:
-        """Block until every call is answered, then deliver what they published.
-
-        For a test and for teardown. Never on a GUI thread that has a reader waiting.
-        """
-        return self._runner.wait(timeout_ms)
-
     # --- internals ------------------------------------------------------------------------
 
     def _apply_mode(self) -> None:
@@ -427,6 +413,14 @@ class CollectionSource(QObject):
 
     def _run(self, fn: Any, *args: Any) -> None:
         self._runner.submit(fn, *args)
+
+    def _on_idle(self) -> None:
+        if not self._alive.on:
+            return
+        try:
+            self.idle.emit()
+        except RuntimeError:  # The wrapper went while the last call was answering.
+            return
 
     def _on_published(self) -> None:
         """The source moved. Mirror the sort and the filter out, then tell the view."""

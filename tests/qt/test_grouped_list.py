@@ -273,3 +273,27 @@ def test_a_re_read_stands_behind_rows_that_keep_the_lists_height(qtbot):
     assert abs(listing.height() - before) <= listing._row_height // 2
     settle(listing, listing.control.binding)
     assert listing.view.isVisible() and abs(listing.height() - before) <= 2
+
+
+def test_a_first_page_that_fits_the_view_asks_for_the_next_on_its_own(context, qtbot):
+    """Upstream's sentinel fires whenever it is visible; a view with no range has it in view."""
+    source = create_entity_source(
+        EntitySourceOptions(
+            client=context.client, entity_type="Task", fields=list(FIELDS), mode="infinite", page_size=10
+        )
+    )
+    listing = _listing(context, qtbot, source=source, paging="scroll")
+    listing.resize(900, 1600)
+    listing.show()
+    settle(listing, listing.control.binding, rounds=8)
+    bar = listing.view.verticalScrollBar()
+    assert len(listing.control.rows) > 10
+    assert bar.maximum() > bar.minimum() or not listing.control.snapshot().has_more
+
+
+def test_the_read_that_raised_is_reported_as_error():
+    """`docs/porting-conventions.md`: a noun event keeps its name, so `onError` is `error`."""
+    from sg_widgets_qt.widgets.grouped_list import GroupedList
+
+    assert hasattr(GroupedList, "error")
+    assert not hasattr(GroupedList, "failed")

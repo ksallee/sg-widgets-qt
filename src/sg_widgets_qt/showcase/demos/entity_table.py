@@ -80,7 +80,7 @@ class EntityTableDemo(QtWidgets.QWidget):
         self._ready = False
         # The mock's rows are one project's already; a real site's are not.
         scope = (
-            condition("project", "is", {"type": "Project", "id": context.project_id})
+            group("and", [condition("project", "is", {"type": "Project", "id": context.project_id})])
             if context.live
             else None
         )
@@ -237,7 +237,7 @@ class EntityTableDemo(QtWidgets.QWidget):
     def _failed(self, error: BaseException) -> None:
         if lay.alive(self):
             self._ready = True
-            self.table.failed.emit(error)
+            self.table.error.emit(error)
 
     def _on_picking(self, on: bool) -> None:
         self._picker.setVisible(bool(on))

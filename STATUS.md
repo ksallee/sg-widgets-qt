@@ -4,13 +4,13 @@ What is ported from `~/dev/sg-widgets`, what is partial, what is left. Generated
 `python tools/status.py` from `sync/manifest.json`; `python tools/sync_status.py` says what drifted
 upstream since. Only the Not ported section is written by hand.
 
-Last synced upstream commit: `356391d7354a`.
+Last synced upstream commit: `882c450c0574`.
 
 | kind | complete | partial | skipped |
 |---|---|---|---|
 | Core | 27 | 3 | 3 |
 | Theme, workers, icons and primitives | 20 | 3 | 0 |
-| Widgets | 51 | 1 | 0 |
+| Widgets | 52 | 0 | 0 |
 | Demos and the showcase | 9 | 2 | 1 |
 | Docs pages | 55 | 0 | 0 |
 
@@ -29,7 +29,7 @@ Last synced upstream commit: `356391d7354a`.
 | filter | complete | `filter.ts`, `filter.test.ts` |  |
 | filter-ux | complete | `filter-ux.ts`, `filter-ux.test.ts` | facetLists is synchronous: the reads run in order and the Qt layer puts them on a worker. NO_EMPTY_VALUE and NO_SCHEMA stand in for undefined where None already means something else. A facet's entity value is an EntityRef, read from EntityRow.values. |
 | list-chrome | partial | `list-chrome.ts`, `list-chrome.test.ts` | markOverflow, watchOverflow and the two CSS variable names are not ported: DOM plumbing around overflow_edges. The Qt layer reads scroll_top, scroll_height and client_height off its view and repaints the edge fades. |
-| mock | complete | `mock.ts`, `mock.test.ts` | Every method is ported. The mulberry32 PRNG is ported bit for bit, so seed 1 reproduces the upstream ids, codes, statuses and dates exactly. A row is EntityRow(type, id, values), one flat map with relationships as {type, id, name} dicts and dotted fields under their literal key, so the tests read row.values where upstream reads attributes and relationships. latency_ms is a time.sleep and mutable state is guarded by one threading.RLock. |
+| mock | complete | `mock.ts`, `mock.test.ts`, `hierarchy.test.ts` | Every method is ported. The mulberry32 PRNG is ported bit for bit, so seed 1 reproduces the upstream ids, codes, statuses and dates exactly. A row is EntityRow(type, id, values), one flat map with relationships as {type, id, name} dicts and dotted fields under their literal key, so the tests read row.values where upstream reads attributes and relationships. latency_ms is a time.sleep and mutable state is guarded by one threading.RLock. |
 | paging | complete | `paging.ts`, `paging.test.ts` |  |
 | picker | complete | `picker.ts`, `picker.test.ts` | Synchronous and without timers: begin/fetch_page/deliver split the read so the Qt layer can debounce and run fetch_page on a thread, and a stale ticket is dropped. flatten_row reads the one flat EntityRow.values. |
 | picker-keys | partial | `picker-keys.ts`, `picker-keys.test.ts` | focusChip, scrollHighlightedIntoView and watchHighlight are not ported: DOM plumbing with no decision. The Qt layer gives the caret to the chip an intent names and keeps the view scrolled to the highlighted row. |
@@ -42,7 +42,7 @@ Last synced upstream commit: `356391d7354a`.
 | row | complete | `row.ts`, `row.test.ts` | RowAnatomy is a dataclass; 'row_secondary' takes any row with an id and a values map, as RowValues. |
 | schema | complete | `schema.ts`, `status.test.ts` | Upstream has no schema.test.ts: the schema tests live in the schema blocks of status.test.ts. |
 | schema-service | complete | `schema-service.ts`, `schema-service.test.ts` | Synchronous; a resolve_path failure raises ValueError with the upstream message. Tests read tests/core/fake_client.py in place of MockClient. |
-| search | complete | `search.ts`, `search.test.ts` | Timing is the Qt layer's: SEARCH_DEBOUNCE_MS is a constant here and sg_widgets_qt.workers.Debounce owns the timer; PressGate reads an injectable clock. hydrate reads the flat EntityRow.values instead of attributes and relationships. |
+| search | complete | `search.ts`, `search.test.ts`, `hierarchy.test.ts` | Timing is the Qt layer's: SEARCH_DEBOUNCE_MS is a constant here and sg_widgets_qt.workers.Debounce owns the timer; PressGate reads an injectable clock. hydrate reads the flat EntityRow.values instead of attributes and relationships. |
 | session-auth | skipped | `session-auth.ts`, `session-auth.test.ts` | Browser-only: a proxy over the REST API or the App Session Launcher flow; see STATUS.md |
 | shotgun-client | complete | `client.ts`, `client.test.ts` |  |
 | sortable | partial | `sortable.ts`, `sortable.test.ts` | The model, the announcements and the hit testing are ported. createSortableController, measureSortable, playSortableFlip and the two data attributes are not: pointer events, transforms, ResizeObserver and reduced motion, none of them tested upstream. The Qt layer runs the gesture on its item view and feeds SortableRect and SortablePoint in view coordinates. |
@@ -98,7 +98,7 @@ Last synced upstream commit: `356391d7354a`.
 | entity-grid | complete | `entity-grid.tsx`, `entity-grid.ts` | The tile is drawn by a delegate through EntityCard's own tile face. The card slot is that delegate, or an override of tile_of. |
 | entity-multi-picker | complete | `entity-multi-picker.tsx`, `entity-multi-picker.svelte`, `Demo.tsx`, `entity-multi-picker.mdx`, `entity-multi-picker.ts` |  |
 | entity-picker | complete | `entity-picker.tsx`, `entity-picker.svelte`, `Demo.tsx`, `entity-picker.mdx`, `entity-picker.ts` |  |
-| entity-table | complete | `entity-table.tsx`, `entity-table.ts` | Pin left is a second view of the same model over the body's left edge; the drawn order and the pinned paths are the table's own and never write back through `columns_changed`. The row, cell and groupHeader slots are the delegate. |
+| entity-table | complete | `entity-table.tsx`, `entity-table.ts` | Pin left is a second view of the same model over the body's left edge, with a rule and a shadow at its trailing edge; the drawn order and the pinned paths are the table's own and never write back through columns_changed, as upstream holds them in the table. A re-read draws as many blank rows as the rows that stood there, where upstream always draws eight. The row, cell and groupHeader slots are the delegate. |
 | entity-tree | complete | `entity-tree.tsx`, `entity-tree.ts` | A QTreeView over the rows the engine says are visible, drawn by picker_row's delegate with the chevron in front. The row slot is that delegate. |
 | entity-type-multi-picker | complete | `entity-type-multi-picker.tsx`, `entity-type-multi-picker.svelte`, `Demo.tsx`, `entity-type-multi-picker.mdx`, `entity-type-multi-picker.ts` |  |
 | entity-type-picker | complete | `entity-type-picker.tsx`, `entity-type-picker.svelte`, `Demo.tsx`, `entity-type-picker.mdx`, `entity-type-picker.ts` |  |

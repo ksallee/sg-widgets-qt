@@ -32,10 +32,13 @@ python -m sg_widgets_qt.showcase
 ```
 
 It holds one page per widget, with a demo, the props, signals, slots and keyboard tables, and the
-prose. The demos run on `MockClient`, so it needs no site. The toolbar's source select offers Live
-when `.env.local` sits beside the checkout and holds `FPT_API_SITE_URL`, `FPT_API_SCRIPT_NAME` and
-`FPT_API_API_KEY`. Live mode reads the site those three name and writes nothing. The file is read for
-those keys alone, and nothing prints their values.
+prose. The pages ship inside the package, so the showcase needs no checkout. The demos run on
+`MockClient`, so it needs no site.
+
+The toolbar's source select offers Live when `.env.local` holds `FPT_API_SITE_URL`,
+`FPT_API_SCRIPT_NAME` and `FPT_API_API_KEY`. That file is the working directory's, or the first one
+above it; `SG_WIDGETS_QT_ENV_FILE` names another. Live mode reads the site those three name and
+writes nothing. The file is read for those keys alone, and nothing prints their values.
 
 Work on the package itself starts from a checkout.
 

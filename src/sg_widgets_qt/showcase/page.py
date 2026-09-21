@@ -15,7 +15,8 @@ from qtpy import QtCore, QtGui, QtWidgets
 from ..primitives.table import TableSurface
 from ..theme import Theme, theme_of, watch_theme
 from . import chrome, markdown
-from .context import DemoContext, repo_root
+from .context import DemoContext
+from .paths import docs_dir
 from .prefs import Prefs
 from .stage import DemoStage, demo_module_name
 
@@ -66,11 +67,6 @@ TABLE_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
 SECTIONS = ("widgets", "core", "start")
 
 
-def docs_dir() -> Path:
-    """The `docs/` of this checkout."""
-    return repo_root() / "docs"
-
-
 def page_path(name: str, root: Path | None = None) -> Path | None:
     """The markdown file of a page, by its name or its `section/name`."""
     base = root if root is not None else docs_dir()
@@ -111,8 +107,26 @@ class _Prose(QtWidgets.QTextBrowser):
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed
         )
         self.viewport().setAutoFillBackground(True)
-        watch_theme(self, self.restyle)
+        self._owed = False
+        watch_theme(self, self._on_theme)
         self.restyle(theme_of(self))
+
+    def _on_theme(self, theme: Theme) -> None:
+        """Dress the document, or leave it for the next show where nobody is reading it.
+
+        Laying a document out again is the most a page pays for a switch of theme, and a page the
+        reader left behind pays it for nothing.
+        """
+        if self.isVisible():
+            self.restyle(theme)
+            return
+        self._owed = True
+
+    def showEvent(self, event: QtGui.QShowEvent) -> None:  # noqa: N802
+        super().showEvent(event)
+        if self._owed:
+            self._owed = False
+            self.restyle(theme_of(self))
 
     def restyle(self, theme: Theme) -> None:
         """Dress the document from the theme and lay it out again."""

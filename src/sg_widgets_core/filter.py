@@ -9,7 +9,7 @@ client needs. Nesting is safe to 265 levels (probe 030); no one will get there.
 from __future__ import annotations
 
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Literal, Optional, TypedDict, Union
 
 from .field_types import VALUE_SHAPE, Operator
@@ -60,14 +60,14 @@ class FilterCondition:
     #: Dotted path such as `entity.Shot.code`.
     path: str
     operator: Operator
-    value: ConditionValue = None
+    value: ConditionValue
     kind: Literal["condition"] = "condition"
 
 
 @dataclass
 class FilterGroup:
-    logical_operator: LogicalOperator = "and"
-    conditions: list[FilterNode] = field(default_factory=list)
+    logical_operator: LogicalOperator
+    conditions: list[FilterNode]
     kind: Literal["group"] = "group"
 
 

@@ -68,8 +68,9 @@ TASK_FIELDS: tuple[str, ...] = ("content", "sg_status_list", "project", "entity"
 #: How many assigned tasks one read asks for.
 TASK_PAGE = 50
 
-#: The chip step inside a control, one rung under the leaf ladder.
-CHIP_STEP: dict[str, str] = {"sm": "xs", "md": "sm", "lg": "md"}
+#: The chip step inside a control, one rung under the leaf ladder; lg keeps md's, so a 36px
+#: trigger has room round it.
+CHIP_STEP: dict[str, str] = {"sm": "xs", "md": "sm", "lg": "sm"}
 
 #: The popover's width, and how tall the first two sections stand before they scroll.
 POPOVER_WIDTH = 384
@@ -289,10 +290,12 @@ class ContextTrigger(ThemedWidget):
         lead = 8 if step == "sm" else 8
         trail = 8 if step == "sm" else 12
         # `PICKER_BOX` of `picker-classes.ts`: what the chip and the control's own border leave
-        # under the ladder, halved — 3 at sm and md, 1 at lg — and nothing while it is empty.
-        pad_y = 0 if not self._refs else (1 if step == "lg" else 3)
+        # under the ladder, halved. That is 3 at sm and md, and 5 at lg, which keeps md's 24px
+        # chip, and nothing while it is empty.
+        inset = 5 if step == "lg" else 3
+        pad_y = 0 if not self._refs else inset
         self._row.setContentsMargins(
-            lead if not self._refs else 3, pad_y, trail + CONTROL_GLYPH[step] + 6, pad_y
+            lead if not self._refs else inset, pad_y, trail + CONTROL_GLYPH[step] + 6, pad_y
         )
 
     @property

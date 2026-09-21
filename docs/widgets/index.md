@@ -10,8 +10,8 @@ Every one of those choices carries to the other examples on the page and to the 
 `QSettings` carries them to the next run.
 
 Demos run on `MockClient` until the source select is set to Live. Live is offered when `.env.local`
-sits beside the checkout and holds the three keys the [install page](../start/install.md) names. Live
-mode reads the site and writes nothing.
+holds the three keys the [install page](../start/install.md) names. Live mode reads the site and
+writes nothing.
 
 A widget is imported from its own module:
 

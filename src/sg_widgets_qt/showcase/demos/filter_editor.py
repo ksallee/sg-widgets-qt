@@ -13,11 +13,11 @@ import json
 
 from qtpy import QtWidgets
 
-from sg_widgets_core.filter import EntityRef, FilterGroup, condition, group, to_api3_hash
+from sg_widgets_core.filter import FilterGroup, condition, group, to_api3_hash
 
 from ...widgets.filter_editor import FilterEditor
 from ..context import DemoContext
-from . import _layout
+from . import _layout, _rows
 from ._results import VersionResults, WireView
 
 __all__ = ["build"]
@@ -83,23 +83,23 @@ def initial(live: bool) -> FilterGroup:
                     condition(
                         "entity.Shot.sg_sequence",
                         "is",
-                        EntityRef(type="Sequence", id=100, name="sh010"),
+                        _rows.ref("Sequence", 100),
                     ),
                     condition(
-                        "user", "is_not", EntityRef(type="HumanUser", id=20, name="Ada Lovelace")
+                        "user", "is_not", _rows.ref("HumanUser", 20)
                     ),
                     condition(
                         "entity",
                         "in",
                         [
-                            EntityRef(type="Shot", id=862, name="sh010_0010"),
-                            EntityRef(type="Asset", id=1226, name="charAda"),
+                            _rows.ref("Shot", 862),
+                            _rows.ref("Asset", 1226),
                         ],
                     ),
                     condition(
                         "entity.Shot.assets",
                         "not_in",
-                        [EntityRef(type="Asset", id=1228, name="propLantern")],
+                        [_rows.ref("Asset", 1228)],
                     ),
                     condition("entity", "type_is", "Shot"),
                     condition("entity", "type_is_not", "Asset"),

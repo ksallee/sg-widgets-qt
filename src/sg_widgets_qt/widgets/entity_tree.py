@@ -53,7 +53,7 @@ from sg_widgets_core.tree import (
 
 from .. import icons
 from ..images import ImageLoader, image_loader
-from ..primitives.base import CONTROL_HEIGHT, THUMB_SIZE
+from ..primitives.base import CONTROL_HEIGHT, THUMB_SIZE, event_point
 from ..primitives.input import Input
 from ..primitives.list_view import GUTTER
 from ..primitives.roles import Roles
@@ -167,10 +167,6 @@ class _TreeBinding(QObject):
     def run(self, name: str, *args: Any) -> None:
         """Call one of the engine's methods off the GUI thread, after the ones before it."""
         self._runner.submit(getattr(self.engine, name), *args)
-
-    def wait(self, timeout_ms: int = 5000) -> bool:
-        """Block until every call is answered, then deliver what they published. For a test."""
-        return self._runner.wait(timeout_ms)
 
     def close(self) -> None:
         """Stop following the engine and drop what is in flight."""
@@ -393,7 +389,7 @@ class _TreeView(QtWidgets.QTreeView):
         return
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         index = self.indexAt(point)
         if index.isValid():
             self._tree.on_row_pressed(index, point, bool(event.modifiers() & _BRANCH_MODIFIERS))

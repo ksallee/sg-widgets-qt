@@ -16,6 +16,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 
 from ..icons import paint_icon
 from ..theme import mix, with_alpha
+from .accessible import AccessibleControl
 from .base import (
     CONTROL_HEIGHT,
     DURATION,
@@ -39,6 +40,14 @@ CHECKBOX_SLOT = 24
 #: Between the control and its label, rule 2.
 LABEL_GAP = 8
 LABEL_SIZE = 14
+
+#: `dark:bg-input/30` of `checkbox.tsx`: the wash an unticked box wears on a dark page. The
+#: `input` token carries its own alpha, so the fraction is of that, as it is for a field.
+REST_WASH_DARK = 0.3
+
+#: The wash the pointer lays over it, which the upstream checkbox has no class for and the
+#: Qt port gives every control: `muted` at a share of itself.
+HOVER_WASH = 0.6
 
 #: The two steps of `switch.tsx`: the track, then the thumb that slides inside it.
 #: `data-[size=default]` is 32 by 18.4 with a `size-4` thumb, `data-[size=sm]` 24 by 14 with a
@@ -64,7 +73,7 @@ TOGGLE_GLYPH = 16
 TOGGLE_GROUP_SPACING = 8
 
 
-class Checkbox(ThemedWidget):
+class Checkbox(AccessibleControl, ThemedWidget):
     """A 16px rounded square in `input`, filled `primary` with a tick when it is on."""
 
     toggled = QtCore.Signal(bool)
@@ -85,6 +94,19 @@ class Checkbox(ThemedWidget):
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.name_after_label()
+
+    # --- accessibility ---
+
+    accessible_role = "checkbox"
+
+    def accessible_states(self) -> dict[str, bool]:
+        return {
+            "checkable": True,
+            "checked": self._state == 2,
+            "checkStateMixed": self._state == 1,
+            "pressed": self.pressed,
+        }
 
     # --- props ---
 
@@ -94,6 +116,7 @@ class Checkbox(ThemedWidget):
 
     def set_text(self, value: str) -> None:
         self._text = value
+        self.name_after_label()
         self.updateGeometry()
         self.update()
 
@@ -165,11 +188,19 @@ class Checkbox(ThemedWidget):
         radius = float(theme.radius_px("sm"))
         amount = self._fill.value
 
-        surface = mix(
-            mix(theme.background, theme.muted, 0.6 * self._hover_wash.value), theme.primary, amount
+        # `checkbox.tsx` carries no ground of its own on a light page and `dark:bg-input/30` on
+        # a dark one, then `data-checked:bg-primary` over it. Each is laid on the surface the
+        # box stands on rather than blended into `background`, so a checkbox in a dark popover
+        # or card is that surface lifted and not a hole of the page's own colour.
+        washes = (
+            with_alpha(theme.input, REST_WASH_DARK) if theme.dark else None,
+            with_alpha(theme.muted, HOVER_WASH * self._hover_wash.value),
+            with_alpha(theme.primary, amount),
         )
-        border = mix(theme.input, theme.primary, amount)
-        fill_round_rect(painter, box, radius, surface, border)
+        for wash in washes:
+            if wash is not None and wash.alpha():
+                fill_round_rect(painter, box, radius, wash)
+        fill_round_rect(painter, box, radius, border=mix(theme.input, theme.primary, amount))
 
         if amount > 0.0:
             glyph = QtCore.QRect(0, 0, CHECKBOX_SIZE - 3, CHECKBOX_SIZE - 3)
@@ -223,7 +254,7 @@ class Checkbox(ThemedWidget):
         super().keyPressEvent(event)
 
 
-class Switch(ThemedWidget):
+class Switch(AccessibleControl, ThemedWidget):
     """A track in `input` off and `primary` on, with a thumb that slides over 150ms.
 
     Two steps, as `switch.tsx` has: 32 by 18 with a 16 thumb, and 24 by 14 with a 12 one.
@@ -244,6 +275,14 @@ class Switch(ThemedWidget):
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+    # --- accessibility ---
+
+    #: A switch has no role of its own in Qt: it reports the check box it behaves as.
+    accessible_role = "checkbox"
+
+    def accessible_states(self) -> dict[str, bool]:
+        return {"checkable": True, "checked": self._checked, "pressed": self.pressed}
 
     @property
     def size(self) -> str:
@@ -333,7 +372,7 @@ class Switch(ThemedWidget):
         super().keyPressEvent(event)
 
 
-class Toggle(ThemedWidget):
+class Toggle(AccessibleControl, ThemedWidget):
     """A button that stays down: ghost until it is on, `accent` once it is.
 
     `variant='outline'` is `toggleVariants`' second look: a `border-input` box of its own, which
@@ -363,6 +402,15 @@ class Toggle(ThemedWidget):
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.name_after_label()
+
+    # --- accessibility ---
+
+    #: Upstream's `aria-pressed` button: a button that stays down is a checkable one here.
+    accessible_role = "button"
+
+    def accessible_states(self) -> dict[str, bool]:
+        return {"checkable": True, "checked": self._checked, "pressed": self.pressed}
 
     # --- props ---
 
@@ -372,6 +420,7 @@ class Toggle(ThemedWidget):
 
     def set_text(self, value: str) -> None:
         self._text = value
+        self.name_after_label()
         self.updateGeometry()
         self.update()
 
@@ -529,6 +578,7 @@ class ToggleGroup(ThemedWidget):
         self._variant = variant if variant in TOGGLE_VARIANT_VALUES else "default"
         self._toggles: list[Toggle] = []
         self._values: list[str] = []
+        self._names: dict[str, str] = {}
         self.set_size_step(size if size in CONTROL_HEIGHT else "md")
 
         row = QtWidgets.QHBoxLayout(self)
@@ -559,10 +609,22 @@ class ToggleGroup(ThemedWidget):
                 label, icon=icon, size=self.size_step, variant=self._variant, parent=self
             )
             toggle.toggled.connect(self._on_toggled)
+            if value in self._names:
+                toggle.setAccessibleName(self._names[value])
             self._row.addWidget(toggle)
             self._toggles.append(toggle)
             self._values.append(value)
         self.updateGeometry()
+
+    def set_accessible_names(self, names: dict[str, str]) -> None:
+        """Name each toggle by its value, for a row of glyphs that reads as nothing.
+
+        The names outlive a new `items`, so a group rebuilt from its values keeps them.
+        """
+        self._names = dict(names)
+        for value, toggle in zip(self._values, self._toggles):
+            if value in self._names:
+                toggle.setAccessibleName(self._names[value])
 
     @staticmethod
     def _split(item: object) -> tuple[str, str, str | None]:

@@ -56,7 +56,7 @@ def test_a_tile_reads_the_row_through_the_shared_face(context, qtbot):
     settle(grid, grid.control.binding)
     row = grid.control.rows[0]
     tile = grid.tile_of(row)
-    assert tile.name
+    assert tile.name == row.values["code"]
     assert tile.entity_type == "Version"
     assert tile.status_code
     # A Version whose media is ready is the one tile that carries the play mark.
@@ -65,6 +65,20 @@ def test_a_tile_reads_the_row_through_the_shared_face(context, qtbot):
     # The grid lays fixed widths out, and the gap is the density's.
     assert grid.view.gridSize().width() == CARD_TILE_WIDTH["md"] + ENTITY_GRID_GAP["default"]
     assert grid.view.gridSize().height() == card_tile_size("md").height() + ENTITY_GRID_GAP["default"]
+
+
+def test_a_tile_reads_the_status_field_the_schema_named(context, qtbot):
+    # Project keeps its status in `sg_status`, not `sg_status_list`, so the field is the one
+    # `status_field_for` names and never the first status-looking key a row carries.
+    source = create_entity_source(
+        EntitySourceOptions(
+            client=context.client, entity_type="Project", fields=["name", "sg_status"], page_size=6
+        )
+    )
+    grid = _grid(context, qtbot, source=source)
+    row = grid.control.rows[0]
+    row.values["sg_status_list"] = "ip"
+    assert grid.tile_of(row).status_code == row.values["sg_status"]
 
 
 def test_the_size_moves_the_tile_and_the_column_it_sits_in(context, qtbot):
@@ -271,3 +285,17 @@ def test_a_re_read_stands_behind_tiles_that_keep_the_grids_height(qtbot):
     assert abs(grid.height() - before) <= 2
     settle(grid, grid.control.binding)
     assert grid.view.isVisible() and abs(grid.height() - before) <= 2
+
+
+def test_a_first_page_that_fits_the_view_asks_for_the_next_on_its_own(context, qtbot):
+    """Upstream's sentinel fires whenever it is visible; a view with no range has it in view."""
+    source = create_entity_source(
+        EntitySourceOptions(
+            client=context.client, entity_type="Version", fields=list(FIELDS), page_size=4
+        )
+    )
+    grid = _grid(context, qtbot, source=source, paging="scroll")
+    settle(grid, grid.control.binding, rounds=12)
+    bar = grid.view.verticalScrollBar()
+    assert len(grid.control.rows) > 4
+    assert bar.maximum() > bar.minimum() or not grid.control.snapshot().has_more

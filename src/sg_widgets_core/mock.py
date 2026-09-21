@@ -15,7 +15,6 @@ a worker thread while another writes.
 from __future__ import annotations
 
 import json
-import math
 import re
 import threading
 import time
@@ -62,7 +61,8 @@ from .field_types import (
     is_numeric_type,
     operators_for,
 )
-from .filter import EntityRef, TextSearchFilter, WireCondition, WireGroup, to_filter_array
+from .filter import EntityRef, TextSearchFilter, WireCondition, WireGroup, _is_number, to_filter_array
+from .render import THUMBNAIL_PENDING_PATH, _js_round
 from .schema import FieldSchema, display_name_of, field_schema_override
 from .status import HtmlIcon, ImageIcon, ImageMapIcon, StatusIcon, StatusRecord
 
@@ -602,6 +602,9 @@ def _thumb(slug: str, w: int = 96, h: int = 54) -> str:
 #: The web root of the mock site, which is where a transcoding placeholder lives.
 MOCK_SITE_URL = "https://mock.example.studio"
 
+#: What a media field answers while the transcode runs (013_upload_media, field_types/image).
+THUMBNAIL_PENDING_URL = MOCK_SITE_URL + THUMBNAIL_PENDING_PATH + "thumbnail_pending.png"
+
 _UNRESERVED = "".join(chr(c) for c in range(128) if chr(c).isalnum()) + "-_.!~*'()"
 
 
@@ -727,11 +730,6 @@ ASSET_SEEDS = [
 
 def _pick(rng: Callable[[], float], items: Sequence[Any]) -> Any:
     return items[int(rng() * len(items))]
-
-
-def _js_round(value: float) -> int:
-    """`Math.round`: halves go up, never to even."""
-    return math.floor(value + 0.5)
 
 
 def _build_fixtures(seed: int, counts: MockCounts | None = None) -> _Fixtures:
@@ -2091,7 +2089,7 @@ class MockClient:
                     # A media field is not readable yet: it answers an absolute placeholder
                     # on the site root under `/images/status/transient/` until the transcode
                     # lands (013_upload_media, field_types/image).
-                    target.values[link_field] = f"{MOCK_SITE_URL}/images/status/transient/thumbnail_pending.png"
+                    target.values[link_field] = THUMBNAIL_PENDING_URL
                 else:
                     target.values[link_field] = str(attachment.values["this_file"]["url"])
             upload_type = "Thumbnail" if file.field == "image" else "Attachment"
@@ -2648,10 +2646,6 @@ def _compare(a: Any, b: Any) -> float | None:
     x_s = _js_string(a)
     y_s = _js_string(b)
     return -1 if x_s < y_s else 1 if x_s > y_s else 0
-
-
-def _is_number(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
 def _sort_compare(a: Any, b: Any) -> float:

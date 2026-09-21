@@ -45,6 +45,8 @@ __all__ = [
     "ThemedMixin",
     "ThemedWidget",
     "elide",
+    "event_global_point",
+    "event_point",
     "keep_themed",
     "text_width",
     "fill_round_rect",
@@ -158,6 +160,27 @@ PainterOrMetrics = Union[QtGui.QPainter, QtGui.QFontMetrics]
 
 #: What `keep_themed` and `watch_theme` hand a widget when a theme reaches it.
 ThemeCallback = Callable[[Theme], None]
+
+
+def event_point(event: QtCore.QEvent) -> QtCore.QPoint:
+    """Where a pointer event landed in the widget that got it, on Qt 5 and Qt 6.
+
+    Qt 6 answers `position()` as a `QPointF`; Qt 5 has `pos()` alone.
+    """
+    getter = getattr(event, "position", None)
+    if getter is not None:
+        return getter().toPoint()
+    getter = getattr(event, "pos", None)
+    return getter() if getter is not None else QtCore.QPoint()
+
+
+def event_global_point(event: QtCore.QEvent) -> QtCore.QPoint:
+    """Where a pointer event landed on the screen, on Qt 5 and Qt 6."""
+    getter = getattr(event, "globalPosition", None)
+    if getter is not None:
+        return getter().toPoint()
+    getter = getattr(event, "globalPos", None)
+    return getter() if getter is not None else QtCore.QPoint()
 
 
 def elide(source: PainterOrMetrics, text: str, width: float) -> str:

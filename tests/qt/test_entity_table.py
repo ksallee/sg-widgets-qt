@@ -664,3 +664,21 @@ def test_a_cold_read_draws_the_eight_blank_rows_upstream_draws(context, qtbot):
     QtWidgets.QApplication.processEvents()
     assert table._skeleton.rows == 8
     settle(table, table.control.binding)
+
+
+def test_a_first_page_that_fits_the_view_asks_for_the_next_on_its_own(context, qtbot):
+    """Upstream's sentinel fires whenever it is visible; a view with no range has it in view."""
+    source = source_for(context, mode="infinite", page_size=5)
+    table = _table(context, qtbot, source=source, paging="scroll")
+    settle(table, table.control.binding, rounds=12)
+    bar = table.view.verticalScrollBar()
+    assert len(table.control.rows) > 5
+    assert bar.maximum() > bar.minimum() or not table.control.snapshot().has_more
+
+
+def test_the_read_that_raised_is_reported_as_error():
+    """`docs/porting-conventions.md`: a noun event keeps its name, so `onError` is `error`."""
+    from sg_widgets_qt.widgets.entity_table import EntityTable
+
+    assert hasattr(EntityTable, "error")
+    assert not hasattr(EntityTable, "failed")

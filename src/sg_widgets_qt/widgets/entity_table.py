@@ -58,7 +58,7 @@ from sg_widgets_core.state import NO_ROWS_LABEL, StateLabels, error_text, state_
 from sg_widgets_core.status import StatusRecord
 
 from .. import icons
-from ..primitives.base import SHADOW_INK, elide
+from ..primitives.base import SHADOW_INK, elide, event_point
 from ..primitives.button import Button
 from ..primitives.roles import Roles
 from ..primitives.scroll_latch import WheelLatch
@@ -298,7 +298,7 @@ class _Header(HeaderDelegate):
         return "" if not path or path == label else path
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         column = self.logicalIndexAt(point)
         rect = QRect(
             self.sectionViewportPosition(column), 0, self.sectionSize(column), self.height()
@@ -321,7 +321,7 @@ class _Header(HeaderDelegate):
             return
         if not event.buttons() & Qt.MouseButton.LeftButton:
             return
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         if self._drag < 0:
             if (point - self._press).manhattanLength() < DRAG_THRESHOLD:
                 return
@@ -520,7 +520,9 @@ class _Body(TableSurface):
     def __init__(self, table: EntityTable, density: str = "default") -> None:
         self._table = table
         super().__init__(table, density=density)
-        self._latch = WheelLatch(self, more=lambda: self._table.control.snapshot().has_more)
+        self._latch = WheelLatch(
+            self, loading=lambda: self._table.control.snapshot().status in ("loading", "loadingMore")
+        )
         self.setObjectName("entity-table-scroll")
         self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -556,14 +558,14 @@ class _Body(TableSurface):
         self._header = header
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         index = self.indexAt(point)
         if index.isValid() and self._table.on_cell_pressed(index):
             return
         super().mousePressEvent(event)
 
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         index = self.indexAt(point)
         if index.isValid():
             self._table.on_cell_activated(index)
@@ -674,7 +676,7 @@ class EntityTable(QtWidgets.QWidget):
     #: A row was opened: a double-click or Enter on a cell that does not edit.
     row_activated = Signal(object)
     #: A read, a write or a count raised. Carries the exception.
-    failed = Signal(object)
+    error = Signal(object)
 
     def __init__(
         self,
@@ -848,12 +850,18 @@ class EntityTable(QtWidgets.QWidget):
         self.control.selection_changed.connect(self._on_selection)
         self.control.sort_changed.connect(self._on_sort_moved)
         self.control.filters_changed.connect(self.filters_changed.emit)
-        self.control.failed.connect(self.failed.emit)
+        self.control.failed.connect(self.error.emit)
         self.model.modelReset.connect(self._apply_spans)
         bar_ = self.view.verticalScrollBar()
         if bar_ is not None:
             bar_.valueChanged.connect(self._on_scrolled)
+            bar_.rangeChanged.connect(self._on_range)
             bar_.valueChanged.connect(self._follow_body)
+        self._fill_timer = QtCore.QTimer(self)
+        self._fill_timer.setSingleShot(True)
+        self._fill_timer.timeout.connect(self._ask_if_unfilled)
+        self.control.changed.connect(lambda: self._fill_timer.start(0))
+        self.control.binding.idle.connect(lambda: self._fill_timer.start(0))
         across = self.view.horizontalScrollBar()
         if across is not None:
             across.valueChanged.connect(self.layout_frozen)
@@ -1613,6 +1621,21 @@ class EntityTable(QtWidgets.QWidget):
         last = self.view.indexAt(self.view.viewport().rect().bottomLeft())
         line = last.row() if last.isValid() else self.model.rowCount() - 1
         self.control.on_last_visible(self.model.last_row_of_line(line))
+
+    def _on_range(self, _low: int, _high: int) -> None:
+        self._fill_timer.start(0)
+
+    def _ask_if_unfilled(self) -> None:
+        """Rows that do not fill the view leave its end in sight, so it asks as a scroll would.
+
+        Upstream's sentinel fires whenever it is visible, scrolled to or not. The check runs a
+        turn after the rows landed or the range moved, once the view has laid them out.
+        """
+        bar = self.view.verticalScrollBar()
+        if bar is None or not self.model.rows or not self.view.isVisible():
+            return
+        if bar.maximum() <= bar.minimum():
+            self._on_scrolled(0)
 
     # --- the editor -----------------------------------------------------------------------
 

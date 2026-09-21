@@ -219,7 +219,7 @@ class GroupedListDemo(QtWidgets.QWidget):
     def _failed(self, error: BaseException) -> None:
         if lay.alive(self):
             self._ready = True
-            self.listing.failed.emit(error)
+            self.listing.error.emit(error)
 
 
 def _placeholder(path: str) -> Any:

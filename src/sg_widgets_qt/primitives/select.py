@@ -16,6 +16,7 @@ from qtpy.QtCore import QRect, QSize, Qt, Signal
 
 from ..icons import paint_icon
 from ..theme import with_alpha
+from .accessible import AccessibleControl
 from .base import CONTROL_GLYPH, CONTROL_HEIGHT, CONTROL_PAD, DURATION, ThemedWidget, elide
 from .dropdown_menu import MenuEntry, MenuList, MenuPanel
 from .popover import Popover
@@ -28,8 +29,18 @@ SELECT_TRAILING_PAD = 8
 #: The gap between the label and the chevron.
 SELECT_GAP = 6
 
+#: `dark:bg-input/30` and `dark:hover:bg-input/50` of `select.tsx`: the wash the trigger wears
+#: on a dark page at rest and under the pointer. The `input` token carries its own alpha, so the
+#: fraction is of that, as it is for a field.
+REST_WASH_DARK = 0.3
+HOVER_WASH_DARK = 0.5
 
-class Select(ThemedWidget):
+#: The trigger carries no ground at all on a light page, where `bg-transparent` leaves the card,
+#: the popover or the page under it showing through; the pointer washes it with `muted/30`.
+HOVER_WASH = 0.3
+
+
+class Select(AccessibleControl, ThemedWidget):
     """A control that opens a list and keeps one value.
 
     `items` is `[(value, label), ...]`; `set_groups` takes `[(heading, items), ...]` instead.
@@ -73,6 +84,28 @@ class Select(ThemedWidget):
         self._popover.closed.connect(self._on_closed)
         self._list.activated.connect(self._on_activated)
         self._rebuild()
+        self.name_after_label()
+
+    # --- accessibility ------------------------------------------------------------------
+
+    accessible_role = "combobox"
+
+    def accessible_label(self) -> str:
+        return self.label
+
+    def accessible_value(self) -> str:
+        return self.label
+
+    def accessible_states(self) -> dict[str, bool]:
+        return {
+            "expandable": not self._readonly,
+            "expanded": self._popover.is_open,
+            "collapsed": not self._popover.is_open,
+            "hasPopup": not self._readonly,
+            "readOnly": self._readonly,
+            "invalid": self._invalid,
+            "pressed": self.pressed,
+        }
 
     # --- props --------------------------------------------------------------------------
 
@@ -85,11 +118,13 @@ class Select(ThemedWidget):
         """Replace the list with one ungrouped run of rows."""
         self._groups = [(None, list(items))]
         self._rebuild()
+        self.name_after_label()
 
     def set_groups(self, groups: list[tuple[str, list[tuple[Any, str]]]]) -> None:
         """Replace the list with runs of rows under headings."""
         self._groups = [(heading, list(pairs)) for heading, pairs in groups]
         self._rebuild()
+        self.name_after_label()
 
     @property
     def value(self) -> Any:
@@ -102,6 +137,7 @@ class Select(ThemedWidget):
             return
         self._value = value
         self._rebuild()
+        self.name_after_label()
         self.update()
 
     @property
@@ -112,6 +148,7 @@ class Select(ThemedWidget):
     def set_placeholder(self, text: str) -> None:
         """Change the empty reading."""
         self._placeholder = text
+        self.name_after_label()
         self.update()
 
     @property
@@ -281,7 +318,14 @@ class Select(ThemedWidget):
         # at md, level with the controls beside it.
         box = QRect(0, 0, self.width(), self.height())
         border = theme.color("destructive") if self._invalid else theme.color("input")
-        fill = with_alpha(theme.color("muted"), 0.3 * self._hover.value)
+        # `bg-transparent dark:bg-input/30 dark:hover:bg-input/50`: a wash laid on the surface
+        # the trigger stands on, never a ground of its own, so a select inside a card or a
+        # popover shows that surface through it and a dark page lifts it.
+        if theme.dark:
+            share = REST_WASH_DARK + (HOVER_WASH_DARK - REST_WASH_DARK) * self._hover.value
+            fill = with_alpha(theme.color("input"), share)
+        else:
+            fill = with_alpha(theme.color("muted"), HOVER_WASH * self._hover.value)
 
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(fill)

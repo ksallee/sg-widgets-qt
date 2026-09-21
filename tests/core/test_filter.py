@@ -1,8 +1,12 @@
 """Port of `packages/core/test/filter.test.ts`."""
 from __future__ import annotations
 
+import pytest
+
 from sg_widgets_core.filter import (
     EntityRef,
+    FilterCondition,
+    FilterGroup,
     condition,
     empty_filter,
     from_wire,
@@ -75,3 +79,14 @@ class TestReferencedPaths:
             group("or", [condition("entity.Shot.code", "is", "b"), condition("code", "is", "c")]),
         ])
         assert referenced_paths(tree) == ["code", "entity.Shot.code"]
+
+
+class TestTheNodeShapes:
+    def test_spell_out_a_value_and_a_groups_operator_and_conditions(self) -> None:
+        # Upstream requires all three, so `condition` and `group` are the only shorthands.
+        with pytest.raises(TypeError):
+            FilterCondition(path="code", operator="is")  # type: ignore[call-arg]
+        with pytest.raises(TypeError):
+            FilterGroup()  # type: ignore[call-arg]
+        assert condition("code", "is", "v1") == FilterCondition(path="code", operator="is", value="v1")
+        assert group("and") == FilterGroup(logical_operator="and", conditions=[])

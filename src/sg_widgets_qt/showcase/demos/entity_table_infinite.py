@@ -100,7 +100,7 @@ class EntityTableInfiniteDemo(QtWidgets.QWidget):
     def _failed(self, error: BaseException) -> None:
         if lay.alive(self):
             self._ready = True
-            self.table.failed.emit(error)
+            self.table.error.emit(error)
 
 
 def _resolve(context: DemoContext) -> tuple[Any, Any]:

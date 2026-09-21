@@ -20,6 +20,7 @@ from .render import (
     COLOR_SENTINEL,
     DurationOptions,
     TimecodeOptions,
+    _as_finite_number,
     format_duration,
     format_timecode,
     locale_marks,
@@ -476,7 +477,7 @@ def number_draft(value: Any, data_type: str, shape: NumberShape | None = None) -
     s = shape if shape is not None else NumberShape()
     if value is None or value == "":
         return ""
-    n = _as_number(value)
+    n = _as_finite_number(value)
     if data_type in ("float", "currency"):
         if n is None:
             return str(value)
@@ -492,18 +493,6 @@ def number_draft(value: Any, data_type: str, shape: NumberShape | None = None) -
     if n is None:
         return str(value)
     return format_number_input(n, NumberInputFormat(locale=s.locale))
-
-
-def _as_number(value: Any) -> float | None:
-    if isinstance(value, bool):
-        return 1.0 if value else 0.0
-    if isinstance(value, (int, float)):
-        return float(value)
-    try:
-        n = float(str(value).strip())
-    except (TypeError, ValueError):
-        return None
-    return n if math.isfinite(n) else None
 
 
 def number_digits(raw: str, data_type: str, shape: NumberShape | None = None) -> str:
@@ -543,7 +532,7 @@ def stored_number(value: float | str | None) -> float | None:
     """The stored value as the number the steppers and the spinbutton role work on."""
     if value is None or (isinstance(value, str) and value == ""):
         return None
-    return _as_number(value)
+    return _as_finite_number(value)
 
 
 # --- dates -------------------------------------------------------------------

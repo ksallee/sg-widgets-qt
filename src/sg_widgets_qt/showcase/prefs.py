@@ -13,6 +13,8 @@ and here the toolbar sets it for every demo at once.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from qtpy import QtCore, QtWidgets
 
 from ..theme import PALETTES, RADII, Theme, apply_theme, theme_for
@@ -210,6 +212,14 @@ class Prefs(QtCore.QObject):
             reduced_motion=self.reduced_motion,
         )
 
-    def apply(self, root: QtWidgets.QWidget) -> None:
-        """Put the theme this view builds on one root widget."""
-        apply_theme(root, self.theme_object())
+    def apply(
+        self,
+        root: QtWidgets.QWidget,
+        on: Sequence[QtWidgets.QWidget] | None = None,
+    ) -> None:
+        """Put the theme this view builds on one root widget.
+
+        `on` names the widgets the stylesheet lands on instead of the root, for a root holding
+        more than the reader is looking at.
+        """
+        apply_theme(root, self.theme_object(), on=on)

@@ -37,6 +37,8 @@ from sg_widgets_core.sortable import (
     sortable_stride,
 )
 
+from ..primitives.base import event_global_point
+
 
 def _alive(widget: QtWidgets.QWidget) -> bool:
     """False once Qt has deleted the widget under the Python wrapper this object still holds."""
@@ -52,6 +54,7 @@ __all__ = [
     "LIFT_OPACITY",
     "LIFT_SCALE",
     "SLIDE_MS",
+    "SortableDrag",
     "SortableMotion",
     "SortableRows",
     "paint_drop_line",
@@ -267,6 +270,133 @@ def slide_targets(count: int, carried: int, landing: int, stride: float) -> dict
     return out
 
 
+class SortableDrag(QtCore.QObject):
+    """The pointer half of a sortable column: the threshold, the carry and where a drop lands.
+
+    The owner measures its rows, because one column draws them as widgets and another paints
+    them in a view, and the owner decides what a drop commits. Everything between the press and
+    that decision is here: the four pixels a press travels before it is a drag, the row the
+    pointer carries, the rows it passes giving way by one row, and the landing core answers.
+    """
+
+    #: The pointer picked the row at this index up.
+    picked_up = Signal(int)
+    #: Where a drop would land moved, or -1 once nothing is carried.
+    drop_changed = Signal(int)
+
+    def __init__(
+        self,
+        motion: SortableMotion,
+        rects: Callable[[], Sequence[SortableRect]],
+        centred: bool = False,
+        parent: QtCore.QObject | None = None,
+    ) -> None:
+        super().__init__(parent if parent is not None else motion)
+        self._motion = motion
+        self._rects_of = rects
+        #: True where the lifted row centres on the pointer rather than keeping the grab offset.
+        self._centred = bool(centred)
+        self._press_at: QtCore.QPoint | None = None
+        self._press_index = -1
+        self._dragging = False
+        self._drop = -1
+        #: The rows as they were measured at pickup. The drag draws them elsewhere, so the
+        #: landing is read off the measure rather than off where they stand now.
+        self._rects: list[SortableRect] = []
+
+    # --- what it holds --------------------------------------------------------------------
+
+    @property
+    def dragging(self) -> bool:
+        """True while a row is under the pointer."""
+        return self._dragging
+
+    @property
+    def carried(self) -> int:
+        """The index of the row being dragged, or -1."""
+        return self._press_index if self._dragging else -1
+
+    @property
+    def drop_index(self) -> int:
+        """Where a drop would land, or -1 while nothing is carried."""
+        return self._drop
+
+    @property
+    def rects(self) -> list[SortableRect]:
+        """The rows as they were measured at pickup."""
+        return list(self._rects)
+
+    # --- the gesture ----------------------------------------------------------------------
+
+    def press(self, point: QtCore.QPoint, index: int) -> None:
+        """A press on the row at `index`, in the coordinates the rows are measured in."""
+        self._press_at = QtCore.QPoint(point)
+        self._press_index = int(index)
+
+    def move_to(self, point: QtCore.QPoint) -> bool:
+        """Carry the row to the pointer. True once the press has become a drag."""
+        if self._press_at is None:
+            return False
+        if not self._dragging:
+            if abs(point.y() - self._press_at.y()) < DRAG_THRESHOLD:
+                return False
+            rects = list(self._rects_of())
+            if not 0 <= self._press_index < len(rects):
+                return False
+            self._rects = rects
+            self._dragging = True
+            self.picked_up.emit(self._press_index)
+            # The row leaves the column and follows the pointer; the order stands still until
+            # the drop, and the rows it passes are drawn one row out of its way.
+            self._motion.lift(self._press_index)
+        self._motion.carry_to(self._carry_for(point))
+        self._set_drop(self._landing(point))
+        return True
+
+    def end(self) -> tuple:
+        """Let the row go: the index it left and the index it landed on, or `(-1, -1)`."""
+        carried = self._press_index if self._dragging else -1
+        landing = self._drop if self._dragging else -1
+        self._dragging = False
+        self._press_at = None
+        self._press_index = -1
+        self._set_drop(-1)
+        self._rects = []
+        return carried, landing
+
+    def _carry_for(self, point: QtCore.QPoint) -> float:
+        if not self._centred:
+            at = self._press_at
+            return float(point.y() - at.y()) if at is not None else 0.0
+        box = self._rects[self._press_index]
+        return float(point.y()) - (box.top + box.bottom) / 2.0
+
+    def _landing(self, point: QtCore.QPoint) -> int:
+        if not 0 <= self._press_index < len(self._rects):
+            return -1
+        return sortable_drop_index(
+            self._rects,
+            self._press_index,
+            SortablePoint(x=float(point.x()), y=float(point.y())),
+        )
+
+    def _stride(self) -> float:
+        """How far one row is from the next, which is how far a row the drag passes gives way."""
+        if not 0 <= self._press_index < len(self._rects):
+            return 0.0
+        return sortable_stride(self._rects, self._press_index)
+
+    def _set_drop(self, index: int) -> None:
+        if index == self._drop:
+            return
+        self._drop = index
+        if self._dragging:
+            self._motion.slide(
+                slide_targets(len(self._rects), self._press_index, index, self._stride())
+            )
+        self.drop_changed.emit(index)
+
+
 class SortableRows(QtCore.QObject):
     """The drag and the arrow keys of one column of rows.
 
@@ -294,19 +424,16 @@ class SortableRows(QtCore.QObject):
         self._ids: list[str] = []
         self._widgets: list[QtWidgets.QWidget] = []
         self._grips: dict[QtWidgets.QWidget, int] = {}
-        self._press_at: QtCore.QPoint | None = None
-        self._press_index = -1
-        self._dragging = False
-        self._drop = -1
         self._enabled = True
         #: Where each row is drawn while a gesture runs, and the row the pointer carries.
         self._motion = SortableMotion(container, parent=self)
         self._motion.changed.connect(self._place)
+        #: The press, the threshold, the carry and the landing, shared with the column picker.
+        self._drag = SortableDrag(self._motion, self._rects, parent=self)
+        self._drag.picked_up.connect(self._on_picked_up)
+        self._drag.drop_changed.connect(self._on_drop_changed)
         #: Where the layout put each row when the gesture began, which the offsets are from.
         self._bases: list[int] = []
-        #: The rows as they were measured at pickup. The drag draws them elsewhere, so the
-        #: landing is read off the measure rather than off where they stand now.
-        self._start_rects: list[SortableRect] = []
         #: Where each id stood before the last `set_rows`, for the slide onto its new slot.
         self._was: dict[str, int] = {}
 
@@ -325,17 +452,17 @@ class SortableRows(QtCore.QObject):
     @property
     def dragging(self) -> bool:
         """True while a row is under the pointer."""
-        return self._dragging
+        return self._drag.dragging
 
     @property
     def carried(self) -> int:
         """The index of the row being dragged, or -1."""
-        return self._press_index if self._dragging else -1
+        return self._drag.carried
 
     @property
     def drop_index(self) -> int:
         """Where a drop would land, or -1 while nothing is carried."""
-        return self._drop
+        return self._drag.drop_index
 
     @property
     def motion(self) -> SortableMotion:
@@ -395,7 +522,7 @@ class SortableRows(QtCore.QObject):
     def _flip_from_last(self) -> None:
         """Slide every row that moved from where it stood onto where the layout now puts it."""
         was, self._was = self._was, {}
-        if not was or self._dragging:
+        if not was or self._drag.dragging:
             return
         offsets: dict = {}
         for index, (one, widget) in enumerate(zip(self._ids, self._widgets)):
@@ -407,13 +534,6 @@ class SortableRows(QtCore.QObject):
             self._bases = []
             return
         self._motion.flip(offsets)
-
-    def _stride(self) -> float:
-        """How far one row is from the next, which is how far a row the drag passes gives way."""
-        rects = self._start_rects if self._start_rects else self._rects()
-        if not 0 <= self._press_index < len(rects):
-            return 0.0
-        return sortable_stride(rects, self._press_index)
 
     def model(self) -> SortableModel:
         """A frozen view of the order, with the labels a live region announces."""
@@ -441,43 +561,30 @@ class SortableRows(QtCore.QObject):
             return self._on_key(event, index)
         return False
 
-    @staticmethod
-    def _global_of(event: QtCore.QEvent) -> QtCore.QPoint:
-        if hasattr(event, "globalPosition"):
-            return event.globalPosition().toPoint()  # type: ignore[attr-defined]
-        return event.globalPos()  # type: ignore[attr-defined]
-
     def _on_press(self, event: QtCore.QEvent, index: int) -> bool:
         if getattr(event, "button", lambda: None)() != Qt.MouseButton.LeftButton:
             return False
-        self._press_at = self._container.mapFromGlobal(self._global_of(event))
-        self._press_index = index
+        self._drag.press(self._container.mapFromGlobal(event_global_point(event)), index)
         return False
 
     def _on_move(self, event: QtCore.QEvent) -> bool:
-        if self._press_at is None:
-            return False
-        point = self._container.mapFromGlobal(self._global_of(event))
-        if not self._dragging:
-            if abs(point.y() - self._press_at.y()) < DRAG_THRESHOLD:
-                return False
-            self._dragging = True
-            self._bases = [widget.pos().y() for widget in self._widgets if _alive(widget)]
-            self._start_rects = self._rects()
-            self._motion.lift(self._press_index)
-            self.announced.emit(self.model().picked_up(self._id_at(self._press_index)))
-        # The lifted row follows the pointer, and the rows it passes give way by one row.
-        self._motion.carry_to(float(point.y() - self._press_at.y()))
-        self._set_drop(self._landing(point))
-        return True
+        return self._drag.move_to(self._container.mapFromGlobal(event_global_point(event)))
 
     def _on_release(self) -> bool:
-        if not self._dragging:
-            self._press_at = None
-            self._press_index = -1
+        if not self._drag.dragging:
+            self._drag.end()
             return False
         self._end(commit=True)
         return True
+
+    def _on_picked_up(self, index: int) -> None:
+        """The slots the offsets are measured from, and the line the live region reads."""
+        self._bases = [widget.pos().y() for widget in self._widgets if _alive(widget)]
+        self.announced.emit(self.model().picked_up(self._id_at(index)))
+
+    def _on_drop_changed(self, index: int) -> None:
+        self.drop_changed.emit(index)
+        self._container.update()
 
     def _rects(self) -> list[SortableRect]:
         out: list[SortableRect] = []
@@ -493,43 +600,17 @@ class SortableRows(QtCore.QObject):
             )
         return out
 
-    def _landing(self, point: QtCore.QPoint) -> int:
-        rects = self._start_rects if self._dragging else self._rects()
-        if not 0 <= self._press_index < len(rects):
-            return -1
-        return sortable_drop_index(
-            rects, self._press_index, SortablePoint(x=float(point.x()), y=float(point.y()))
-        )
-
     def _id_at(self, index: int) -> str:
         return self._ids[index] if 0 <= index < len(self._ids) else ""
 
-    def _set_drop(self, index: int) -> None:
-        if index == self._drop:
-            return
-        self._drop = index
-        if self._dragging:
-            self._motion.slide(
-                slide_targets(len(self._widgets), self._press_index, index, self._stride())
-            )
-        self.drop_changed.emit(index)
-        self._container.update()
-
     def _end(self, commit: bool) -> None:
-        landing = self._drop
-        carried = self._press_index
-        was = self._dragging
-        self._dragging = False
-        self._press_at = None
-        self._press_index = -1
-        self._set_drop(-1)
-        self._start_rects = []
-        if was:
-            # The row is put down where the pointer left it and settles into its slot; a
-            # commit lays the column out again, and `set_rows` slides the rows from there.
-            self._motion.settle()
+        was = self._drag.dragging
+        carried, landing = self._drag.end()
         if not was:
             return
+        # The row is put down where the pointer left it and settles into its slot; a commit
+        # lays the column out again, and `set_rows` slides the rows from there.
+        self._motion.settle()
         if commit and landing >= 0 and landing != carried:
             self.announced.emit(self.model().moved_to(self._id_at(carried), landing))
             self.moved.emit(carried, landing)

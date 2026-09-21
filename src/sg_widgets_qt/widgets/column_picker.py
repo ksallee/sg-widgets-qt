@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from qtpy import QtCore, QtGui, QtWidgets
+from qtpy import QT5, QtCore, QtGui, QtWidgets
 from qtpy.QtCore import QModelIndex, Qt, Signal
 
 from sg_widgets_core.pickers import (
@@ -35,20 +35,24 @@ from sg_widgets_core.sortable import (
     SortablePoint,
     SortableRect,
     SortableScrollOptions,
-    sortable_drop_index,
     sortable_scroll_step,
-    sortable_stride,
 )
 from sg_widgets_core.state import NO_MATCH_LABEL, NOTHING_CHOSEN_LABEL, StateLabels, state_line
 
 from .. import icons
-from ..primitives.base import CONTROL_HEIGHT, THUMB_SIZE, ThemedWidget, painter_for
+from ..primitives.base import (
+    CONTROL_HEIGHT,
+    THUMB_SIZE,
+    ThemedWidget,
+    event_point,
+    painter_for,
+)
 from ..primitives.command import Command
 from ..primitives.list_view import LIST_PAD, ListSurface
 from ..primitives.roles import Roles
 from ..primitives.row_delegate import GAP, LEAD_GLYPH, ROW_PAD_X, RowDelegate
 from ..primitives.skeleton import Skeleton
-from ..theme import theme_of
+from ..theme import host_theme, theme_of
 from ..workers import Ticket, default_pool
 from ._sortable_rows import (
     DRAG_THRESHOLD as SORT_DRAG_THRESHOLD,  # noqa: F401
@@ -58,8 +62,8 @@ from ._sortable_rows import (
     LIFT_SCALE,
     LIFT_SHADOW,
     LIFT_SHADOW_ALPHA,
+    SortableDrag,
     SortableMotion,
-    slide_targets,
 )
 from .field_picker import (
     CRUMB_SEPARATOR,
@@ -119,8 +123,8 @@ def _remove_painter(size: str = "md") -> Callable[..., None]:
 
     def paint(painter: QtGui.QPainter, rect: QtCore.QRect, option: Any) -> None:
         widget = getattr(option, "widget", None)
-        theme = theme_of(widget) if widget is not None else None
-        ink = theme.color("muted_foreground") if theme is not None else QtGui.QColor(128, 128, 128)
+        theme = theme_of(widget) if widget is not None else host_theme()
+        ink = theme.color("muted_foreground")
         side = LEAD_GLYPH.get(size, LEAD_GLYPH["md"])
         box = QtCore.QRect(rect.right() + 1 - side, rect.center().y() - side // 2, side, side)
         painter.setOpacity(0.7)
@@ -293,10 +297,6 @@ class ChosenColumns(ListSurface):
         self._editable = True
         self._carrying: str | None = None
         self._before: list[str] = []
-        self._press_at: QtCore.QPoint | None = None
-        self._press_row = -1
-        self._dragging = False
-        self._rects: list[SortableRect] = []
         self._scroll = QtCore.QTimer(self)
         self._scroll.setInterval(16)
         self._scroll.timeout.connect(self._auto_scroll)
@@ -305,9 +305,10 @@ class ChosenColumns(ListSurface):
         self._motion = SortableMotion(self, parent=self)
         self._motion.changed.connect(self.viewport().update)
         delegate.set_motion(self._motion)
-        #: Where the drag started from and where it hangs, which the drop commits.
-        self._from_row = -1
-        self._to_row = -1
+        #: The press, the threshold, the carry and the landing, shared with the widget column.
+        #: The lifted row centres on the pointer here, as the upstream list's does.
+        self._drag = SortableDrag(self._motion, self._row_rects, centred=True, parent=self)
+        self._drag.picked_up.connect(self._on_picked_up)
         self.setObjectName("column-picker-list")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
@@ -378,7 +379,7 @@ class ChosenColumns(ListSurface):
         # Where the rows stand before the change, so the one that moved slides onto its new
         # slot and its neighbours slide into the gap: `playSortableFlip`, both measures taken
         # around the one change. A drop has its own measure and takes it before this runs.
-        was = {} if self._dragging else self._row_tops()
+        was = {} if self._drag.dragging else self._row_tops()
         self._rows.set_paths(order)
         if was:
             self._slide_from(was)
@@ -389,7 +390,7 @@ class ChosenColumns(ListSurface):
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:  # noqa: N802, C901
         key = event.key()
-        if self._dragging:
+        if self._drag.dragging:
             if key == Qt.Key.Key_Escape:
                 self._end_drag(cancel=True)
                 event.accept()
@@ -451,11 +452,8 @@ class ChosenColumns(ListSurface):
         """The leading slot the grip sits in, which is where a drag starts."""
         return ROW_PAD_X + THUMB_SIZE[self.row_delegate().size] + GAP
 
-    def _point_of(self, event: QtGui.QMouseEvent) -> QtCore.QPoint:
-        return event.pos() if hasattr(event, "pos") else event.position().toPoint()
-
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = self._point_of(event)
+        point = event_point(event)
         index = self.indexAt(point)
         if self._editable and event.button() == Qt.MouseButton.LeftButton and index.isValid():
             rect = self.visualRect(index)
@@ -464,8 +462,7 @@ class ChosenColumns(ListSurface):
                 event.accept()
                 return
             if point.x() - rect.left() <= self._grip_width():
-                self._press_at = QtCore.QPoint(point)
-                self._press_row = index.row()
+                self._drag.press(point, index.row())
                 self.set_highlight(index.row())
                 # Upstream listens for Escape on the window; the list takes the keyboard here
                 # so the key reaches `keyPressEvent` while the pointer holds a row.
@@ -475,70 +472,52 @@ class ChosenColumns(ListSurface):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = self._point_of(event)
+        point = event_point(event)
         self._pointer = QtCore.QPoint(point)
-        if self._press_at is not None and not self._dragging:
-            if abs(point.y() - self._press_at.y()) >= DRAG_THRESHOLD:
-                self._begin_drag()
-        if self._dragging:
-            self._drag_to(point)
+        # The order itself moves once, on release, which is what upstream's `endDrag` does
+        # (`packages/core/src/sortable.ts:492-508`), so a caller writing the order away sees
+        # one change per gesture and none at all from a cancel.
+        if self._drag.move_to(point):
             event.accept()
             return
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        if self._dragging:
+        if self._drag.dragging:
             self._end_drag(cancel=False)
             event.accept()
             return
-        self._press_at = None
-        self._press_row = -1
+        self._drag.end()
         super().mouseReleaseEvent(event)
 
-    def _begin_drag(self) -> None:
-        paths = self._rows.paths
-        if not 0 <= self._press_row < len(paths):
-            return
-        self._dragging = True
-        self._carrying = paths[self._press_row]
-        self._before = list(paths)
-        self._from_row = self._press_row
-        self._to_row = self._press_row
-        # The row leaves the column and follows the pointer; the order stands still until the
-        # drop, and the rows it passes are drawn one row out of its way.
-        self._motion.lift(self._press_row)
-        self._rects = [
-            SortableRect(
-                top=float(self.visualRect(self.model().index(i, 0)).top()),
-                bottom=float(self.visualRect(self.model().index(i, 0)).bottom()),
-                left=float(self.visualRect(self.model().index(i, 0)).left()),
-                right=float(self.visualRect(self.model().index(i, 0)).right()),
+    def _row_rects(self) -> list[SortableRect]:
+        """Every row as it is drawn now, which is the measure the landing is read off."""
+        model = self.model()
+        out: list[SortableRect] = []
+        for row in range(len(self._rows.paths)):
+            box = self.visualRect(model.index(row, 0))
+            out.append(
+                SortableRect(
+                    top=float(box.top()),
+                    bottom=float(box.bottom()),
+                    left=float(box.left()),
+                    right=float(box.right()),
+                )
             )
-            for i in range(len(paths))
-        ]
+        return out
+
+    def _on_picked_up(self, index: int) -> None:
+        """The row the pointer took, the order to put back on a cancel, and the edge scroll."""
+        paths = self._rows.paths
+        if not 0 <= index < len(paths):
+            return
+        self._carrying = paths[index]
+        self._before = list(paths)
         self._announce(self.sortable().picked_up(self._carrying))
         self._scroll.start()
 
-    def _drag_to(self, point: QtCore.QPoint) -> None:
-        if self._carrying is None or not 0 <= self._from_row < len(self._rects):
-            return
-        landing = sortable_drop_index(
-            self._rects, self._from_row, SortablePoint(x=float(point.x()), y=float(point.y()))
-        )
-        # The lifted row follows the pointer, and the rows it passes give way by one row over
-        # 200ms. The order itself moves once, on release, which is what upstream's `endDrag`
-        # does (`packages/core/src/sortable.ts:492-508`), so a caller writing the order away
-        # sees one change per gesture and none at all from a cancel.
-        carried = self._rects[self._from_row]
-        self._motion.carry_to(float(point.y()) - (carried.top + carried.bottom) / 2.0)
-        if landing != self._to_row:
-            self._to_row = landing
-            self._motion.slide(
-                slide_targets(len(self._rects), self._from_row, landing, self._stride())
-            )
-
     def _auto_scroll(self) -> None:
-        if not self._dragging:
+        if not self._drag.dragging:
             return
         bar = self.verticalScrollBar()
         bounds = SortableRect(
@@ -598,10 +577,6 @@ class ChosenColumns(ListSurface):
         RowDelegate.paint(delegate, painter, lifted, index)
         painter.end()
 
-    def _stride(self) -> float:
-        """How far one row is from the next, which is how far a row the drag passes gives way."""
-        return sortable_stride(self._rects, max(0, self._from_row))
-
     def _row_tops(self) -> dict:
         """Where each path is drawn now, its offset counted: the measure a slide runs from."""
         return {
@@ -620,11 +595,14 @@ class ChosenColumns(ListSurface):
 
     def _end_drag(self, cancel: bool) -> None:
         carried = self._carrying
+        from_row, landing = self._drag.carried, self._drag.drop_index
         was = self._row_tops()
-        if not cancel and 0 <= self._from_row and self._to_row != self._from_row:
+        if not cancel and from_row >= 0 and landing >= 0 and landing != from_row:
             # The one change of the gesture, and the rows settle onto it from where the drag
-            # left them.
-            self._apply(move_field_path(self._before, self._from_row, self._to_row), quiet=True)
+            # left them. The gesture is still running here, so `_apply` leaves the measure to
+            # this one rather than taking its own.
+            self._apply(move_field_path(self._before, from_row, landing), quiet=True)
+        self._drag.end()
         order = self._rows.paths
         moved = not cancel and order != self._before
         self._motion.lift(-1)
@@ -640,13 +618,7 @@ class ChosenColumns(ListSurface):
         if moved:
             self.reordered.emit(list(order))
         self._scroll.stop()
-        self._dragging = False
         self._carrying = None
-        self._press_at = None
-        self._press_row = -1
-        self._from_row = -1
-        self._to_row = -1
-        self._rects = []
 
 
 
@@ -1330,6 +1302,31 @@ class ColumnPicker(QtWidgets.QWidget):
             self._column.addWidget(self._count)
         self._chosen.set_readonly(self._readonly)
         self._chosen.set_editable(self._editable())
+        self._order_tabs()
+
+    def _order_tabs(self) -> None:
+        """Walk the two panes the way they are read, not the order they were built in.
+
+        The chosen list is built before the pane beside it, so the chain construction leaves
+        runs backwards: the chosen columns first, then the controls that fill them. The list
+        layout needs none of this, its picker being built before its list.
+
+        Qt 5 is left alone. A pane there lands in a focus chain of its own as it is stacked and
+        unstacked, the Tab key never reaches its controls, and an order set here is undone by
+        the next layout pass and takes the chosen list out of the chain with it.
+        """
+        if self._layout_kind != "dual" or QT5:
+            return
+        run = [
+            self._crumbs.back_button,
+            self._crumbs.reset_button,
+            self._command.input(),
+            self._chosen,
+        ]
+        # A link through a widget that takes no focus is refused and drops the rest of the run
+        # with it, so only the controls the Tab key stops on are named here.
+        for before, after in zip(run, run[1:]):
+            QtWidgets.QWidget.setTabOrder(before, after)
 
     # --- the chosen columns ------------------------------------------------------------------
 
@@ -1511,7 +1508,7 @@ class ColumnPicker(QtWidgets.QWidget):
         if event.button() != Qt.MouseButton.LeftButton:
             return False
         surface = self._command.list_surface()
-        point = event.pos() if hasattr(event, "pos") else event.position().toPoint()
+        point = event_point(event)
         index = surface.indexAt(point)
         if not index.isValid():
             return False

@@ -7,9 +7,10 @@ Renders rows from an entity source as EntityCard tiles: the thumbnail fills the 
 status sits on it, and one metadata line runs under the name.
 
 `paging` says how the set is walked, and the source follows it: `scroll` loads the next page when
-the scroller reaches the last loaded tile, `more` puts a load-more row under the tiles, and `pages`
-draws the pagination footer. The grid defaults to `scroll`. A wall of pictures is browsed rather
-than read, and the tile a reader wants is found by looking, not by page number.
+the scroller reaches the last loaded tile or when the tiles loaded do not fill the view, `more` puts
+a load-more row under the tiles, and `pages` draws the pagination footer. The grid defaults to
+`scroll`. A wall of pictures is browsed rather than read, and the tile a reader wants is found by
+looking, not by page number.
 
 `more` and `scroll` append: the tiles already loaded stay and the new page lands under them. A page
 that fails leaves its tiles and puts one error line under them with a retry.

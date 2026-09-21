@@ -25,6 +25,7 @@ from .base import (
     EASE_IN,
     EASE_OUT,
     ThemedWidget,
+    event_global_point,
     fill_round_rect,
     keep_themed,
     paint_shadow,
@@ -208,17 +209,6 @@ def paint_surface(
     )
 
 
-def _event_global_pos(event: QtCore.QEvent) -> QPoint | None:
-    """The global position of a mouse event, on either Qt generation."""
-    getter = getattr(event, "globalPosition", None)
-    if getter is not None:
-        return getter().toPoint()
-    getter = getattr(event, "globalPos", None)
-    if getter is not None:
-        return getter()
-    return None
-
-
 class Popover(ThemedWidget):
     """A frameless translucent window placed against an anchor, which never takes focus.
 
@@ -259,7 +249,7 @@ class Popover(ThemedWidget):
         # A popover is its own top-level, so the walk up to a theme stops at the window and misses
         # the stage under it. It wears the anchor's theme instead, and follows it.
         self._wear_anchor_theme()
-        watch_theme(anchor, lambda _theme: self._wear_anchor_theme())
+        watch_theme(anchor, lambda _theme: self._follow_anchor_theme())
         self._frame = QtGui.QPixmap()
         self._guard: Callable[[QPoint], bool] | None = None
         self._anchor_rect: Callable[[], QRect] | None = None
@@ -429,6 +419,16 @@ class Popover(ThemedWidget):
         # a section inside it, a view's viewport, a scroll area's scrolled widget all stand on the
         # surface the reader sees rather than on the page's background behind it.
         apply_theme(self, theme, surface="popover")
+
+    def _follow_anchor_theme(self) -> None:
+        """Follow a theme that lands while the surface is up; a closed one waits for its open.
+
+        Dressing a hidden top-level costs the same polish of its whole tree as a visible one, and
+        a page holds a popover per control. `open` wears the anchor's theme every time, so a
+        surface a reader sees is never the theme before last.
+        """
+        if self.isVisible():
+            self._wear_anchor_theme()
 
     def open(self) -> None:
         """Place the surface, show it without taking focus, and fade it in."""
@@ -638,7 +638,7 @@ class Popover(ThemedWidget):
     def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:
         kind = event.type()
         if kind == QEvent.Type.MouseButtonPress and self._open:
-            pos = _event_global_pos(event)
+            pos = event_global_point(event)
             if pos is not None and not self._claims(pos):
                 self._dismiss()
         elif obj in self._watched and self._open:

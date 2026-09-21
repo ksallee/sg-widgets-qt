@@ -12,6 +12,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 from qtpy.QtCore import Qt
 from qtpy.QtTest import QTest
 
+from sg_widgets_qt.primitives.scroll_latch import GESTURE_PAUSE_MS
 from sg_widgets_qt.showcase.context import demo_context
 from sg_widgets_qt.showcase.demos.collection_control import CollectionControlDemo
 from sg_widgets_qt.showcase.demos.entity_grid import SIZES, EntityGridDemo
@@ -101,11 +102,15 @@ def test_a_read_landing_does_not_drop_what_the_reader_took(queue):
 
 
 def test_the_queue_keeps_the_wheel_at_its_bottom_edge(queue):
-    """A gesture that reached the end of the rows does not scroll the page under them."""
+    """The gesture that reached the end of the rows stays on the queue; a new one reaches the page.
+
+    Rows the site still holds are not a reason to hold the page still: a queue in `more` paging
+    waits for a press, and a wheel that began at its edge belongs to the page under it.
+    """
     queue.set_paging("more")
     settle(queue, queue.control.binding)
     bar = queue.view.verticalScrollBar()
-    bar.setValue(bar.maximum())
+    bar.setValue(bar.maximum() - 1)
     QtWidgets.QApplication.processEvents()
 
     def one() -> bool:
@@ -123,9 +128,12 @@ def test_the_queue_keeps_the_wheel_at_its_bottom_edge(queue):
         QtWidgets.QApplication.sendEvent(queue.view.viewport(), event)
         return event.isAccepted()
 
-    one()
+    one()  # scrolls the last pixel, so the gesture is the queue's
+    assert bar.value() == bar.maximum()
     assert one(), "the gesture that reached the edge stays on the queue"
     assert one()
+    QTest.qWait(GESTURE_PAUSE_MS + 50)
+    assert not one(), "a gesture that begins at the edge reaches the page"
 
 
 def test_a_press_on_a_grid_size_toggle_picks_that_size_and_does_not_loop(grid_demo):
@@ -190,3 +198,19 @@ def test_the_wire_block_reads_in_dark(qtbot):
         1 for x in range(shot.width()) for y in range(shot.height()) if shot.pixelColor(x, y).lightness() > 180
     )
     assert light > 50, "the text is drawn light on the dark ground"
+
+
+def test_the_table_demo_scopes_a_live_site_with_a_group_the_filter_bar_takes(qtbot):
+    """The bar's `base_filter` is a group or a wire group; a bare condition cannot be counted on."""
+    from sg_widgets_core.filter import FilterGroup
+    from sg_widgets_core.picker import as_filter_group
+    from sg_widgets_qt.showcase.context import DemoContext
+    from sg_widgets_qt.showcase.demos.entity_table import EntityTableDemo
+
+    context = DemoContext(demo_context().context, live=True, project_id=7)
+    demo = EntityTableDemo(context)
+    qtbot.addWidget(demo)
+    scope = as_filter_group(demo._scope)
+    assert isinstance(scope, FilterGroup)
+    assert [c.path for c in scope.conditions] == ["project"]
+    settle(demo, *_bindings(demo))

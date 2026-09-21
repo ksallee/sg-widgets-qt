@@ -143,3 +143,36 @@ def test_reduced_motion_takes_the_offsets_at_once(qtbot):
     spin(qtbot, 20)
     assert not sortable.motion.running, "reduced motion animated the slide"
     assert sortable.offset_of(1) < 0, "the row the drag passed never gave way"
+
+
+def test_the_drag_holds_the_press_until_it_has_travelled(qtbot):
+    """Four pixels, then the row is carried and the landing follows the pointer."""
+    from sg_widgets_core.sortable import SortableRect
+    from sg_widgets_qt.widgets._sortable_rows import SortableDrag, SortableMotion
+
+    host = QWidget()
+    qtbot.addWidget(host)
+    rows = [SortableRect(top=float(n * 32), bottom=float(n * 32 + 31), left=0.0, right=200.0) for n in range(3)]
+    drag = SortableDrag(SortableMotion(host), lambda: rows)
+    landings: list[int] = []
+    drag.drop_changed.connect(landings.append)
+
+    drag.press(QPoint(10, 80), 2)
+    assert drag.move_to(QPoint(10, 82)) is False, "two pixels is not a drag"
+    assert drag.dragging is False
+    assert drag.move_to(QPoint(10, 10)) is True
+    assert drag.dragging is True
+    assert drag.carried == 2
+    assert drag.drop_index == 0
+    assert drag.end() == (2, 0)
+    assert drag.dragging is False
+    assert drag.carried == -1
+    assert landings[-1] == -1
+
+
+def test_one_gesture_serves_the_widget_column_and_the_drawn_list():
+    """The column picker's list and a column of widgets share the drag, not a copy of it."""
+    from sg_widgets_qt.widgets.column_picker import ChosenColumns
+
+    for owner in (SortableRows, ChosenColumns):
+        assert "SortableDrag" in owner.__init__.__code__.co_names, f"{owner.__name__} rolls its own"

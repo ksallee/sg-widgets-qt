@@ -95,10 +95,17 @@ class MatchText(ThemedWidget):
         """The label as alternating plain and matched stretches, from core."""
         return match_runs(self._text, self._query)
 
+    def run_font(self, matched: bool) -> QtGui.QFont:
+        """The face a run is drawn in: DemiBold where the query matched, the body weight elsewhere.
+
+        The mark is the weight the painter is given. A family with no DemiBold face of its own
+        lands both runs on the same pixels, and the label asks for the heavier one either way.
+        """
+        weight = QtGui.QFont.Weight.DemiBold if matched else QtGui.QFont.Weight.Normal
+        return self.theme.font(MATCH_TEXT_SIZE[self.size_step], weight)
+
     def _fonts(self) -> tuple[QtGui.QFont, QtGui.QFont]:
-        step = MATCH_TEXT_SIZE[self.size_step]
-        theme = self.theme
-        return theme.font(step), theme.font(step, QtGui.QFont.Weight.DemiBold)
+        return self.run_font(False), self.run_font(True)
 
     def _natural_width(self) -> int:
         base, bold = self._fonts()

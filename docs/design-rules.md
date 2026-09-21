@@ -32,6 +32,11 @@ copied. The docs page names what was read.
   `QApplication.setStyleSheet`. A host's own stylesheet survives. `surface` names the token that
   root stands on: a floating window passes `popover`, so every ground and ink the stylesheet
   names is the surface the reader is looking at.
+- A stylesheet makes Qt polish every widget under the root it lands on, on screen or not, and
+  that polish is what a switch of theme costs. A root that holds more than one screenful, as the
+  showcase window holds every page built and a popover per control, names the widgets the sheet
+  lands on with `apply_theme(root, theme, on=[...])`; the rest wear theirs through
+  `dress(widget, theme)` when they are next shown, and a hidden top-level wears its own on open.
 - The stylesheet is what carries the tokens to the widgets Qt draws, never a `QPalette` handed
   down from the root: a stylesheet anywhere above a widget makes Qt rebuild that widget's palette
   from the *application's* every time it polishes it, which is on the first show and on every
@@ -40,6 +45,11 @@ copied. The docs page names what was read.
   at each of those moments and at every reparent. `watch_theme` alone is not enough for anything
   built lazily: it only hears a theme that lands while the widget is already under the root it
   lands on, and a popup built on its first open never is.
+- A control carries no ground of its own. A field, a textarea, a select trigger and a checkbox are
+  `bg-transparent` upstream and wear `bg-input/30` on a dark page, so the surface under them is
+  what the reader sees through them and a dark page lifts them off itself. Filling `background`
+  instead paints the page's own colour over a card's or a popover's, and the control reads as a
+  hole cut in the surface around it. `tests/qt/test_dark_grounds.py` measures it.
 - `host_theme()` derives tokens from the host `QPalette`, so a widget dropped into Maya, Houdini or
   Nuke wears the host's greys and its accent.
 - Light and dark, and the palettes the showcase offers, are values of the same tokens, read from
@@ -85,10 +95,11 @@ copied. The docs page names what was read.
 - Controls come in `sm`, `md` (default), `lg`: heights 28, 32, 36. Icons inside controls are 16 for
   sm and md, 20 for lg. Thumbnails in list rows are 24 (sm), 32 (md), 40 (lg); cards and detail
   panes use 64 and 96. Avatars follow the first three.
-- A chip or a badge sits one step under the control it is in: 20 high in sm, 24 in md, 32 in lg,
-  medium weight, with a 12, 14 or 16 glyph. The edge beside a glyph takes a step less inset than a
-  bare text edge (20: 6 bare, 4 beside a glyph), and the edge beside a cross matches the room above
-  the cross. The glyph sits 4 from the label at the two small steps and 6 above; the cross a step
+- A chip or a badge sits one step under the control it is in: 20 high in sm and 24 in md. An lg
+  picker keeps md's 24 chip, since a 32 chip would leave 1 above and below its 36 control. A chip
+  reads at medium weight, with a 12 or 14 glyph. The edge beside a glyph takes a step less inset
+  than a bare text edge (20: 6 bare, 4 beside a glyph), and the edge beside a cross matches the room
+  above the cross. The glyph sits 4 from the label at the two small steps and 6 above; the cross a step
   closer. The cross grows with the chip, 12 at the smallest to 18 at the largest.
 - A picker control insets its leading edge to match the room above and below the chip it holds. An
   empty control gives that inset back (md: 8 left, 0 vertical) so it reads as a plain input. The

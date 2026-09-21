@@ -92,7 +92,7 @@ class PrefsToolbar(QtWidgets.QWidget):
         made.setObjectName(key + "-select")
         if key == "source" and not self._live_enabled:
             made.setEnabled(False)
-            made.setToolTip("Live needs the three keys in .env.local at the repo root.")
+            made.setToolTip("Live needs the three keys in .env.local, in this directory or above it.")
         return made
 
     def _follow(self) -> None:

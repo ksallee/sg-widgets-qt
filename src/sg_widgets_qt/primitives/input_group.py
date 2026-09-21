@@ -13,11 +13,13 @@ from qtpy.QtWidgets import QHBoxLayout, QLineEdit, QSizePolicy, QWidget
 
 from .. import icons
 from ..theme import theme_of, watch_theme, with_alpha
+from .accessible import AccessibleControl
 from .base import (
     CONTROL_GLYPH,
     CONTROL_HEIGHT,
     DURATION,
     ThemedWidget,
+    event_point,
     fill_round_rect,
     keep_themed,
 )
@@ -138,7 +140,7 @@ class InputGroupIcon(ThemedWidget):
         painter.end()
 
 
-class IconButton(ThemedWidget):
+class IconButton(AccessibleControl, ThemedWidget):
     """A ghost button holding one glyph: the clear, the open, a stepper, a month step.
 
     It is the `ghost` variant of `button.tsx`: `muted` behind `foreground` on hover, half that
@@ -169,6 +171,15 @@ class IconButton(ThemedWidget):
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         if tooltip:
             self.setToolTip(tooltip)
+        self.name_after_label()
+
+    # --- accessibility ---
+
+    accessible_role = "button"
+
+    def accessible_label(self) -> str:
+        """A glyph alone says nothing, so the words of its tooltip stand for it."""
+        return self.toolTip()
 
     def set_name(self, value: str) -> None:
         self._name = value
@@ -213,7 +224,7 @@ class IconButton(ThemedWidget):
     def mouseReleaseEvent(self, event: QEvent) -> None:  # noqa: N802
         was = self.pressed
         self.set_pressed(False)
-        if was and self.rect().contains(_point(event)):
+        if was and self.rect().contains(event_point(event)):
             self.clicked.emit()
 
     def keyPressEvent(self, event: QEvent) -> None:  # noqa: N802
@@ -365,6 +376,3 @@ class InputGroup(ThemedWidget):
         painter.end()
 
 
-def _point(event: QEvent) -> object:
-    """A mouse event's position, on either binding."""
-    return event.position().toPoint() if hasattr(event, "position") else event.pos()

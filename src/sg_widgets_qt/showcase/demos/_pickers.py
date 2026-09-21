@@ -9,13 +9,29 @@ sections, 8 inside one.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from qtpy import QtCore, QtWidgets
 
-from .. import chrome
+from sg_widgets_core.picker import placeholder_name
 
-__all__ = ["CAPTION_SIZE", "boxed", "column", "field", "readout", "section"]
+from .. import chrome
+from ..context import MOCK_LATENCY_MS, DemoContext, demo_context
+
+__all__ = [
+    "CAPTION_SIZE",
+    "boxed",
+    "column",
+    "fail_next_of",
+    "field",
+    "names_pending",
+    "own_context",
+    "poll_ready",
+    "readout",
+    "refs_of",
+    "section",
+]
 
 #: Between stacked sections, and inside one (rule 2).
 SECTION_GAP = 16
@@ -125,3 +141,43 @@ def poll_ready(demo: QtWidgets.QWidget, pending: Any, limit_ms: int = 4000) -> Q
     if not demo.demo_ready:
         timer.start()
     return timer
+
+
+def refs_of(picker: Any) -> list:
+    """The references a picker holds, whether its value is one or several."""
+    value = getattr(picker, "value", None)
+    if value is None:
+        return []
+    return list(value) if isinstance(value, list) else [value]
+
+
+def names_pending(pickers: Sequence[Any]) -> bool:
+    """True while a picker still shows the placeholder for a value it was handed bare.
+
+    A picker handed a bare reference reads it on a worker, so the first paint of the page would
+    otherwise catch `Asset 1226` rather than the row it resolves to.
+    """
+    for picker in pickers:
+        for ref, label in zip(refs_of(picker), picker.control.labels):
+            if not label or label == placeholder_name(ref):
+                return True
+    return False
+
+
+def own_context(context: DemoContext) -> DemoContext:
+    """A context of one example's own, so an armed failure stays in it."""
+    if context.live:
+        return context
+    return demo_context(project_id=context.project_id, latency_ms=MOCK_LATENCY_MS)
+
+
+def fail_next_of(client: Any):
+    """The mock's `fail_next`, through whatever caches and counters wrap it."""
+    seen = 0
+    while client is not None and seen < 8:
+        arm = getattr(client, "fail_next", None)
+        if callable(arm):
+            return arm
+        client = getattr(client, "_client", None)
+        seen += 1
+    return None
