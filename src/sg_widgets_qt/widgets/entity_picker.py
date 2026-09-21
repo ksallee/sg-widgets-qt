@@ -35,9 +35,9 @@ from sg_widgets_core.row import path_of, row_thumbnail
 from sg_widgets_core.state import NO_MATCH_LABEL
 
 from ..images import image_loader
-from ..primitives.badge import Chip
 from ..primitives.row_delegate import RowDelegate
 from ..workers import DEFAULT_DEBOUNCE_MS, JobPool, QueryRunner
+from .entity_chip import EntityChip
 from .picker_control import PICKER_CHIP, PICKER_SIZE_VALUES, PickerControl
 from .picker_row import PickerRowModel
 
@@ -59,13 +59,6 @@ def search_pool() -> JobPool:
     if _SEARCH_POOL is None:
         _SEARCH_POOL = JobPool(SEARCH_THREADS)
     return _SEARCH_POOL
-
-#: The chip a picker falls back to while `entity_chip.py` has not landed.
-try:  # pragma: no cover - the entity chip is the other half of the display wave.
-    from .entity_chip import EntityChip as _EntityChip
-except Exception:  # pragma: no cover
-    _EntityChip = None
-
 
 class _Bus(QtCore.QObject):
     """Carries a state or a failure from the read's thread onto this one.
@@ -640,20 +633,17 @@ class EntitySearchPicker(QtWidgets.QWidget):
         step = PICKER_CHIP[self._size]
         removable = self.MULTIPLE and not self._control.readonly and not self._control.disabled
         url = row_thumbnail(row.values, self._rows.anatomy())
-        if _EntityChip is not None:
-            # An empty href leaves the chip inert, so a press on it reaches the control and
-            # toggles the list, which is clause 1 of the contract.
-            chip: QtWidgets.QWidget = _EntityChip(
-                entity=EntityRef(type=row.type, id=row.id, name=row.name),
-                href="",
-                context=self._context,
-                site_url=self._site_url or "",
-                size=step,
-                removable=removable,
-                parent=self._control,
-            )
-        else:
-            chip = Chip(row.name, size=step, removable=removable, parent=self._control)
+        # An empty href leaves the chip inert, so a press on it reaches the control and
+        # toggles the list, which is clause 1 of the contract.
+        chip: QtWidgets.QWidget = EntityChip(
+            entity=EntityRef(type=row.type, id=row.id, name=row.name),
+            href="",
+            context=self._context,
+            site_url=self._site_url or "",
+            size=step,
+            removable=removable,
+            parent=self._control,
+        )
         # The picture is read here rather than by the chip, so a chip the selection replaced
         # while its read was in flight is dropped rather than written to.
         if url:

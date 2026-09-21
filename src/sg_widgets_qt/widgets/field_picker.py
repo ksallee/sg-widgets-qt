@@ -41,7 +41,13 @@ from sg_widgets_core.schema import FieldSchema
 from sg_widgets_core.search import match_runs
 from sg_widgets_core.state import NO_MATCH_LABEL
 
-from ..primitives.base import CONTROL_HEIGHT, ThemedWidget, elide, painter_for
+from ..primitives.base import (
+    CONTROL_HEIGHT,
+    ThemedWidget,
+    elide,
+    event_point,
+    painter_for,
+)
 from ..primitives.button import Button
 from ..primitives.list_view import LIST_PAD
 from ..primitives.roles import Roles
@@ -1439,7 +1445,7 @@ class FieldPicker(QtWidgets.QWidget):
         if event.button() != Qt.MouseButton.LeftButton:
             return False
         surface = self._control.list_surface()
-        point = event.pos() if hasattr(event, "pos") else event.position().toPoint()
+        point = event_point(event)
         index = surface.indexAt(point)
         if not index.isValid():
             return False

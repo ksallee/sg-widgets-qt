@@ -29,6 +29,7 @@ from sg_widgets_core.status import Rgb, parse_bg_color
 from ..primitives.base import (
     CONTROL_HEIGHT,
     ThemedWidget,
+    event_point,
     fill_round_rect,
 )
 from ..primitives.input import Input
@@ -292,18 +293,18 @@ class ColorPicker(ThemedWidget):
         if event.button() != Qt.MouseButton.LeftButton or not self.isEnabled():
             event.ignore()
             return
-        point = _point(event)
+        point = event_point(event)
         self._dragging = "strip" if point.y() >= self._strip_rect().top() else "square"
         self._take(self._dragging, point)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         if self._dragging:
-            self._take(self._dragging, _point(event))
+            self._take(self._dragging, event_point(event))
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         if not self._dragging:
             return
-        self._take(self._dragging, _point(event))
+        self._take(self._dragging, event_point(event))
         self._dragging = ""
         self.picked.emit(_triple(self.color))
 
@@ -338,8 +339,6 @@ def _clamp(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
 
 
-def _point(event: QtGui.QMouseEvent) -> QPoint:
-    return event.position().toPoint() if hasattr(event, "position") else event.pos()
 
 
 class ColorEditor(ValueEditor):

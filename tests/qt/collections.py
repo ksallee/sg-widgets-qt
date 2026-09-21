@@ -25,10 +25,14 @@ __all__ = [
     "VERSION_FIELDS",
     "FailingClient",
     "columns_for",
+    "drain",
     "mock_context",
     "settle",
     "source_for",
 ]
+
+#: How long `drain` sleeps on the pool between turns of the event loop.
+DRAIN_STEP_MS = 20
 
 #: A site to address rows on, so a status sprite and a linked row have somewhere to point.
 SITE = "https://demo.example.com"
@@ -68,6 +72,20 @@ def columns_for(
     return resolve_columns(context.schema, entity_type, list(paths))
 
 
+def drain(runner: Any, timeout_ms: int = 5000) -> bool:
+    """Turn the loop until a `SerialRunner` has answered every call it holds.
+
+    A test drives the queue from the thread that draws, which a widget never does: it would
+    block the reader it is drawing for.
+    """
+    end = time.monotonic() + timeout_ms / 1000.0
+    while runner.running and time.monotonic() < end:
+        runner.pool.wait(DRAIN_STEP_MS)
+        QtWidgets.QApplication.processEvents()
+    QtWidgets.QApplication.processEvents()
+    return not runner.running
+
+
 def settle(widget: QtWidgets.QWidget, *bindings: Any, rounds: int = 4) -> None:
     """Wait for every read in flight and deliver what it published.
 
@@ -77,7 +95,7 @@ def settle(widget: QtWidgets.QWidget, *bindings: Any, rounds: int = 4) -> None:
     """
     for _ in range(rounds):
         for binding in bindings:
-            binding.wait(5000)
+            drain(binding.runner)
         for _ in range(4):
             QtWidgets.QApplication.processEvents()
             time.sleep(0.001)

@@ -15,6 +15,7 @@ from qtpy.QtGui import QPainter
 from qtpy.QtWidgets import QAbstractScrollArea, QApplication, QScrollBar, QWidget
 
 from ..theme import theme_of, watch_theme, with_alpha
+from .base import event_point
 
 __all__ = [
     "EDGE_MARGIN",
@@ -245,7 +246,7 @@ class OverlayScrollBar(QWidget):
 
 def _along(event: object, orientation: Qt.Orientation) -> int:
     """The press position along the bar's own axis, on either binding."""
-    point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+    point = event_point(event)
     return point.y() if orientation == Qt.Orientation.Vertical else point.x()
 
 
@@ -316,7 +317,7 @@ class _Overlay(QObject):
         return False
 
     def _on_pointer(self, event: QEvent) -> None:
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         where = self.area.viewport().mapTo(self.area, point)
         for bar in (self.vertical, self.horizontal):
             bar.set_hovered(bar.isVisible() and bar.geometry().contains(where))

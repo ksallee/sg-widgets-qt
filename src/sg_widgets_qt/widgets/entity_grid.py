@@ -43,10 +43,11 @@ from sg_widgets_core.context import SgContext, preferences_of
 from sg_widgets_core.filter import EntityRef
 from sg_widgets_core.render import field_text, image_state, is_empty_value
 from sg_widgets_core.row import FieldSpec, path_of
-from sg_widgets_core.schema import display_name_of, status_field_for
+from sg_widgets_core.schema import display_name_of, status_field_for, status_field_name_for
 from sg_widgets_core.state import NO_ROWS_LABEL, StateLabels
 from sg_widgets_core.status import StatusRecord
 
+from ..primitives.base import event_point
 from ..primitives.roles import Roles
 from ..primitives.scroll_latch import WheelLatch
 from ..primitives.scrollbar import install_overlay_scrollbars
@@ -88,9 +89,6 @@ SKELETON_TILES = 8
 
 #: Height of the scrolling body, upstream's `32rem` in pixels.
 DEFAULT_MAX_HEIGHT = 512
-
-#: The field names a row's status is read from, the two the API uses.
-STATUS_FIELDS: tuple[str, ...] = ("sg_status_list", "sg_status")
 
 
 class _TileDelegate(QtWidgets.QStyledItemDelegate):
@@ -181,7 +179,7 @@ class _GridView(QtWidgets.QListView):
             return
         super().wheelEvent(event)
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         index = self.indexAt(point)
         if index.isValid():
             self.setCurrentIndex(index)
@@ -191,7 +189,7 @@ class _GridView(QtWidgets.QListView):
 
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         # One press already opened the tile; a second must not open it twice.
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         if self.indexAt(point).isValid():
             return
         super().mouseDoubleClickEvent(event)
@@ -616,12 +614,12 @@ class EntityGrid(QtWidgets.QWidget):
         if self._thumbnail is not False:
             raw = cell_value(row, str(self._thumbnail))
             picture = raw if isinstance(raw, str) and raw else None
-        status = ""
-        for field in STATUS_FIELDS:
-            value = row.values.get(field)
-            if isinstance(value, str) and value:
-                status = value
-                break
+        # The field the schema named, or the conventional one for the type: `sg_status` on a
+        # Project, `sg_status_list` everywhere else.
+        field = self._status_field
+        status_path = field.name if field is not None else status_field_name_for(row.type)
+        raw_status = row.values.get(status_path)
+        status = raw_status if isinstance(raw_status, str) else ""
         return CardTile(
             name=name,
             code=code,

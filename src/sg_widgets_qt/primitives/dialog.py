@@ -15,7 +15,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 from qtpy.QtCore import QEvent, QRect, QSize, Qt, Signal
 
 from ..theme import apply_theme, theme_of, watch_theme, with_alpha
-from .base import DURATION, EASE_IN, EASE_OUT, ThemedWidget
+from .base import DURATION, EASE_IN, EASE_OUT, ThemedWidget, event_global_point
 from .button import Button
 from .popover import SHADOW_MARGIN, paint_surface
 
@@ -42,15 +42,6 @@ SCRIM_OPACITY = 0.5
 DIALOG_INSET = 16
 
 _SCALE_FROM = 0.95
-
-
-def _press_global_pos(event: QtCore.QEvent) -> QtCore.QPoint | None:
-    """Where a mouse press landed, in screen coordinates, on Qt 5 and Qt 6."""
-    getter = getattr(event, "globalPosition", None)
-    if getter is not None:
-        return getter().toPoint()
-    getter = getattr(event, "globalPos", None)
-    return getter() if getter is not None else None
 
 
 class DialogScrim(ThemedWidget):
@@ -304,7 +295,7 @@ class Dialog(QtWidgets.QDialog):
         the filter is on the application, which is where `primitives/popover.py` watches too.
         """
         if event.type() == QEvent.Type.MouseButtonPress and self.isVisible():
-            pos = _press_global_pos(event)
+            pos = event_global_point(event)
             if pos is not None and not self._panel_geometry().contains(pos):
                 self.reject()
         return False

@@ -38,7 +38,7 @@ from sg_widgets_core.edit import (
 )
 from sg_widgets_core.schema import FieldSchema
 
-from ..primitives.base import CONTROL_HEIGHT, ThemedWidget
+from ..primitives.base import CONTROL_HEIGHT, ThemedWidget, event_point
 from ..primitives.button import Button
 from ..primitives.input_group import IconButton, InputGroup, InputGroupInput
 from ..theme import theme_of
@@ -200,12 +200,12 @@ class _ScrubArea(ThemedWidget):
             return
         self._dragging = True
         self._travelled = 0
-        self._last = _x_of(event)
+        self._last = event_point(event).x()
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         if not self._dragging:
             return
-        x = _x_of(event)
+        x = event_point(event).x()
         self._travelled += x - self._last
         self._last = x
         multiplier = SHIFT_STEPS if _shift(event.modifiers()) else 1
@@ -219,8 +219,6 @@ class _ScrubArea(ThemedWidget):
         self._travelled = 0
 
 
-def _x_of(event: QtGui.QMouseEvent) -> int:
-    return int(event.position().x()) if hasattr(event, "position") else int(event.x())
 
 
 class NumberEditor(ValueEditor):

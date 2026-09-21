@@ -17,12 +17,10 @@ later read replaced, and `begin_count` is what drops a count whose filter has mo
 """
 from __future__ import annotations
 
-import time
 from collections import deque
 from collections.abc import Sequence
 from typing import Any
 
-from qtpy import QtCore
 from qtpy.QtCore import QObject, Qt, Signal
 
 from sg_widgets_core.collection import (
@@ -44,9 +42,6 @@ __all__ = [
     "CollectionSource",
     "SerialRunner",
 ]
-
-#: How long a `wait` sleeps on the pool between turns of the event loop.
-WAIT_STEP_MS = 20
 
 #: How a collection walks a set. Core's `PagingMode`.
 COLLECTION_PAGING_VALUES: tuple[str, ...] = PAGING_MODE_VALUES
@@ -171,15 +166,6 @@ class SerialRunner:
         self._queue.clear()
         if self._live is not None:
             self._live.cancel()
-
-    def wait(self, timeout_ms: int = 5000) -> bool:
-        """Block until the queue is empty, delivering each answer. For a test and for teardown."""
-        end = time.monotonic() + timeout_ms / 1000.0
-        while self.running and time.monotonic() < end:
-            self._pool.wait(WAIT_STEP_MS)
-            QtCore.QCoreApplication.processEvents()
-        QtCore.QCoreApplication.processEvents()
-        return not self.running
 
     def _pump(self) -> None:
         if self._in_flight or not self._queue:
@@ -417,13 +403,6 @@ class CollectionSource(QObject):
     def reread_rows(self, ids: Sequence[int]) -> None:
         """Read these rows again with the source's own projection and swap them in place."""
         self._run(self._source.reread_rows, list(ids))
-
-    def wait(self, timeout_ms: int = 5000) -> bool:
-        """Block until every call is answered, then deliver what they published.
-
-        For a test and for teardown. Never on a GUI thread that has a reader waiting.
-        """
-        return self._runner.wait(timeout_ms)
 
     # --- internals ------------------------------------------------------------------------
 

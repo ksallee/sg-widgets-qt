@@ -669,22 +669,47 @@ def theme_of(widget: QtWidgets.QWidget) -> Theme:
     return host_theme()
 
 
-def watch_theme(widget: QtWidgets.QWidget, callback) -> None:
-    """Call `callback(theme)` whenever a theme lands on this widget or an ancestor of it."""
+class _ThemeWatcher(QtCore.QObject):
+    """One widget's theme callbacks, as a child of that widget.
 
-    def on_changed(root: QtWidgets.QWidget) -> None:
+    The bus reaches the callbacks through a method of this object, so Qt drops the connection
+    when the child goes with its widget. Nothing hangs off `destroyed`: a callback run from a
+    destructor is one a binding may refuse to call.
+    """
+
+    def __init__(self, widget: QtWidgets.QWidget, callback) -> None:
+        super().__init__(widget)
+        self._widget = widget
+        self._callbacks = [callback]
+
+    def add(self, callback) -> None:
+        self._callbacks.append(callback)
+
+    def on_changed(self, root: QtWidgets.QWidget) -> None:
         try:
-            near = root is widget or root.isAncestorOf(widget)
+            near = root is self._widget or root.isAncestorOf(self._widget)
         except RuntimeError:  # The widget went while the signal was in flight.
             return
-        if near:
-            callback(theme_of(widget))
+        if not near:
+            return
+        theme = theme_of(self._widget)
+        for callback in tuple(self._callbacks):
+            callback(theme)
 
-    def on_destroyed(*_: object) -> None:
-        try:
-            theme_bus.changed.disconnect(on_changed)
-        except (RuntimeError, TypeError):
-            pass
 
-    theme_bus.changed.connect(on_changed)
-    widget.destroyed.connect(on_destroyed)
+#: Every watcher the bus calls. A binding keeps only a weak reference to the object behind a
+#: bound method, so this list is what holds them.
+_watchers: list = []
+
+
+def watch_theme(widget: QtWidgets.QWidget, callback) -> None:
+    """Call `callback(theme)` whenever a theme lands on this widget or an ancestor of it."""
+    found = widget.findChild(
+        _ThemeWatcher, "", QtCore.Qt.FindChildOption.FindDirectChildrenOnly
+    )
+    if found is not None:
+        found.add(callback)
+        return
+    watcher = _ThemeWatcher(widget, callback)
+    _watchers.append(watcher)
+    theme_bus.changed.connect(watcher.on_changed)

@@ -508,3 +508,57 @@ def test_textarea_grows_with_its_text_and_holds_a_dragged_height(root):
     area.set_dragged_height(None)
     assert area.content_height() < 64 < grown
     assert area.sizeHint().height() == 64, "back on the floor once the hand-set height is let go"
+
+
+def test_the_textarea_scrolls_on_the_overlay_bars(root):
+    """Rule 0: every scroll area here wears the thin overlay bars, the textarea included."""
+    from sg_widgets_qt.primitives.scrollbar import overlay_scrollbars_of
+
+    area = place(root, Textarea(placeholder="A note"))
+    bars = overlay_scrollbars_of(area)
+    assert bars is not None, "the textarea is drawn by the host's own scrollbar"
+    assert area.verticalScrollBarPolicy() == QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    # A box held under its text is scrollable, and the overlay bar is what stands for it.
+    area.setPlainText("\n".join(f"line {i}" for i in range(40)))
+    area.set_dragged_height(80)
+    area.resize(area.width(), 80)
+    QtWidgets.QApplication.processEvents()
+    assert bars[0].scrollable()
+    assert bars[0].isVisible()
+
+
+class _Qt5Event:
+    """A press the way Qt 5 carries one: integer points and no `position`."""
+
+    def __init__(self, x: int, y: int) -> None:
+        self._point = QtCore.QPoint(x, y)
+
+    def pos(self) -> QtCore.QPoint:
+        return self._point
+
+    def globalPos(self) -> QtCore.QPoint:  # noqa: N802
+        return self._point + QtCore.QPoint(100, 100)
+
+
+class _Qt6Event:
+    """A press the way Qt 6 carries one: `position` and `globalPosition`, both float."""
+
+    def __init__(self, x: int, y: int) -> None:
+        self._point = QtCore.QPointF(x + 0.4, y + 0.4)
+
+    def position(self) -> QtCore.QPointF:
+        return self._point
+
+    def globalPosition(self) -> QtCore.QPointF:  # noqa: N802
+        return self._point + QtCore.QPointF(100, 100)
+
+
+def test_a_pointer_event_reads_the_same_on_both_qt_generations():
+    from sg_widgets_qt.primitives.base import event_global_point, event_point
+
+    for event in (_Qt5Event(12, 30), _Qt6Event(12, 30)):
+        assert event_point(event) == QtCore.QPoint(12, 30)
+        assert event_global_point(event) == QtCore.QPoint(112, 130)
+    # An event carrying neither reads as the origin rather than raising.
+    assert event_point(QtCore.QEvent(QtCore.QEvent.Type.None_)) == QtCore.QPoint()
+    assert event_global_point(QtCore.QEvent(QtCore.QEvent.Type.None_)) == QtCore.QPoint()

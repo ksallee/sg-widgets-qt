@@ -15,7 +15,7 @@ a typed value, a status or a thumbnail reaches the same cell.
 """
 from __future__ import annotations
 
-from qtpy.QtCore import QEvent, QModelIndex, QPoint, QRect, QSize, Qt, Signal
+from qtpy.QtCore import QEvent, QModelIndex, QRect, QSize, Qt, Signal
 from qtpy.QtGui import QFont, QFontMetrics, QPainter
 from qtpy.QtWidgets import (
     QAbstractItemView,
@@ -29,7 +29,7 @@ from qtpy.QtWidgets import (
 
 from .. import icons
 from ..theme import Theme, theme_of, watch_theme, with_alpha
-from .base import elide
+from .base import elide, event_point
 from .roles import Roles
 from .scrollbar import install_overlay_scrollbars
 
@@ -209,7 +209,7 @@ class HeaderDelegate(QHeaderView):
 
     def mouseMoveEvent(self, event: QEvent) -> None:  # noqa: N802
         super().mouseMoveEvent(event)
-        point = _point(event)
+        point = event_point(event)
         found = -1
         for column in range(self.count() - 1):
             edge = self.sectionViewportPosition(column) + self.sectionSize(column)
@@ -358,7 +358,7 @@ class TableSurface(QTableView):
 
     def mouseMoveEvent(self, event: QEvent) -> None:  # noqa: N802
         super().mouseMoveEvent(event)
-        index = self.indexAt(_point(event))
+        index = self.indexAt(event_point(event))
         row = index.row() if index.isValid() else -1
         if row != self._hovered:
             self._hovered = row
@@ -370,6 +370,3 @@ class TableSurface(QTableView):
         self.viewport().update()
 
 
-def _point(event: QEvent) -> QPoint:
-    """A mouse event's position, on either binding."""
-    return event.position().toPoint() if hasattr(event, "position") else event.pos()

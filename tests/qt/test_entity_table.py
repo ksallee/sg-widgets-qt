@@ -674,3 +674,11 @@ def test_a_first_page_that_fits_the_view_asks_for_the_next_on_its_own(context, q
     bar = table.view.verticalScrollBar()
     assert len(table.control.rows) > 5
     assert bar.maximum() > bar.minimum() or not table.control.snapshot().has_more
+
+
+def test_the_read_that_raised_is_reported_as_error():
+    """`docs/porting-conventions.md`: a noun event keeps its name, so `onError` is `error`."""
+    from sg_widgets_qt.widgets.entity_table import EntityTable
+
+    assert hasattr(EntityTable, "error")
+    assert not hasattr(EntityTable, "failed")

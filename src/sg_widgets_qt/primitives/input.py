@@ -21,10 +21,12 @@ from .base import (
     CONTROL_PAD,
     DURATION,
     ThemedMixin,
+    event_global_point,
     fill_round_rect,
     keep_themed,
     painter_for,
 )
+from .scrollbar import install_overlay_scrollbars
 
 __all__ = ["GLYPH_GAP", "TEXTAREA_MIN_HEIGHT", "Input", "Textarea", "apply_field_ink"]
 
@@ -316,8 +318,9 @@ class Textarea(_Field, QtWidgets.QPlainTextEdit):
         self.setReadOnly(readonly)
         self.viewport().setAutoFillBackground(False)
         self.document().setDocumentMargin(TEXTAREA_PAD_Y)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # The thin overlay pair, as every other scroll area here wears, rule 0: the bars turn
+        # both native policies off and draw themselves over the viewport.
+        install_overlay_scrollbars(self)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred
         )
@@ -410,7 +413,7 @@ class Textarea(_Field, QtWidgets.QPlainTextEdit):
             and self._grip_rect().contains(event.pos())
             and not self.isReadOnly()
         ):
-            self._drag_from = (int(event.globalPos().y()), self.height())
+            self._drag_from = (event_global_point(event).y(), self.height())
             event.accept()
             return
         super().mousePressEvent(event)
@@ -418,7 +421,7 @@ class Textarea(_Field, QtWidgets.QPlainTextEdit):
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
         if self._drag_from is not None:
             start_y, start_height = self._drag_from
-            self.set_dragged_height(start_height + int(event.globalPos().y()) - start_y)
+            self.set_dragged_height(start_height + event_global_point(event).y() - start_y)
             event.accept()
             return
         over = self._grip_rect().contains(event.pos()) and not self.isReadOnly()

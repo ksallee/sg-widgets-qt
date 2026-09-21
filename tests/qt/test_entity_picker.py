@@ -288,3 +288,12 @@ def test_the_caret_beside_a_chip_invites_the_next_query(qtbot):
     picker.set_value(None)
     spin(qtbot, 60)
     assert caret.placeholderText() == "Pick a shot"
+
+
+def test_a_chosen_row_wears_the_entity_chip():
+    """The chip is written: a picker draws it and has nothing to fall back to."""
+    from sg_widgets_qt.widgets import entity_picker
+    from sg_widgets_qt.widgets.entity_chip import EntityChip
+
+    assert entity_picker.EntityChip is EntityChip
+    assert not hasattr(entity_picker, "_EntityChip")

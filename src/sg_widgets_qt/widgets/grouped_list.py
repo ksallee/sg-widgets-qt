@@ -54,7 +54,7 @@ from sg_widgets_core.status import StatusRecord
 
 from .. import icons
 from ..images import ImageLoader, image_loader
-from ..primitives.base import THUMB_SIZE, elide
+from ..primitives.base import THUMB_SIZE, elide, event_point
 from ..primitives.list_view import GUTTER
 from ..primitives.roles import Roles
 from ..primitives.row_delegate import CODE_TEXT, ROW_PAD_X, ROW_PAD_Y, ROW_TEXT, RowDelegate
@@ -326,7 +326,7 @@ class _ListView(QtWidgets.QListView):
         self.viewport().update()
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # noqa: N802
-        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        point = event_point(event)
         pinned = self.pinned_heading()
         if pinned is not None and pinned[1].contains(point):
             self.setCurrentIndex(pinned[0])
@@ -359,7 +359,7 @@ class GroupedList(QtWidgets.QWidget):
     #: The source's filter moved. Carries the wire group, or None.
     filters_changed = Signal(object)
     #: A read or a count raised. Carries the exception.
-    failed = Signal(object)
+    error = Signal(object)
 
     def __init__(
         self,
@@ -497,7 +497,7 @@ class GroupedList(QtWidgets.QWidget):
         self.control.selection_changed.connect(self.selection_changed.emit)
         self.control.sort_changed.connect(self.sort_changed.emit)
         self.control.filters_changed.connect(self.filters_changed.emit)
-        self.control.failed.connect(self.failed.emit)
+        self.control.failed.connect(self.error.emit)
         bar = self.view.verticalScrollBar()
         if bar is not None:
             bar.valueChanged.connect(self._on_scrolled)

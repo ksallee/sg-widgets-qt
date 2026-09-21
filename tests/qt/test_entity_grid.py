@@ -56,7 +56,7 @@ def test_a_tile_reads_the_row_through_the_shared_face(context, qtbot):
     settle(grid, grid.control.binding)
     row = grid.control.rows[0]
     tile = grid.tile_of(row)
-    assert tile.name
+    assert tile.name == row.values["code"]
     assert tile.entity_type == "Version"
     assert tile.status_code
     # A Version whose media is ready is the one tile that carries the play mark.
@@ -65,6 +65,20 @@ def test_a_tile_reads_the_row_through_the_shared_face(context, qtbot):
     # The grid lays fixed widths out, and the gap is the density's.
     assert grid.view.gridSize().width() == CARD_TILE_WIDTH["md"] + ENTITY_GRID_GAP["default"]
     assert grid.view.gridSize().height() == card_tile_size("md").height() + ENTITY_GRID_GAP["default"]
+
+
+def test_a_tile_reads_the_status_field_the_schema_named(context, qtbot):
+    # Project keeps its status in `sg_status`, not `sg_status_list`, so the field is the one
+    # `status_field_for` names and never the first status-looking key a row carries.
+    source = create_entity_source(
+        EntitySourceOptions(
+            client=context.client, entity_type="Project", fields=["name", "sg_status"], page_size=6
+        )
+    )
+    grid = _grid(context, qtbot, source=source)
+    row = grid.control.rows[0]
+    row.values["sg_status_list"] = "ip"
+    assert grid.tile_of(row).status_code == row.values["sg_status"]
 
 
 def test_the_size_moves_the_tile_and_the_column_it_sits_in(context, qtbot):

@@ -580,3 +580,23 @@ def test_a_picker_taken_down_under_a_label_read_drops_the_answer(qtbot):
         QApplication.processEvents()
         qtbot.wait(10)
     assert True, "the labels landed on a picker that had gone"
+
+
+def test_the_cross_on_a_chosen_row_reads_a_token(qtbot):
+    """Rule 1: no literal colour in a widget, not even where no widget carries the theme."""
+    from qtpy import QtCore, QtGui, QtWidgets
+
+    from sg_widgets_qt.theme import host_theme
+    from sg_widgets_qt.widgets.column_picker import _remove_painter
+
+    shot = QtGui.QImage(24, 24, QtGui.QImage.Format.Format_ARGB32)
+    shot.fill(QtGui.QColor(255, 255, 255))
+    painter = QtGui.QPainter(shot)
+    # An option with no widget on it: the cross still reads the tokens, off the host theme.
+    _remove_painter("md")(painter, QtCore.QRect(0, 0, 24, 24), QtWidgets.QStyleOptionViewItem())
+    painter.end()
+    # The stroke stands at 70% over white, so the darkest pixel is the token at that share.
+    wanted = host_theme().color("muted_foreground")
+    at_full = 0.7 * wanted.lightness() + 0.3 * 255
+    darkest = min(shot.pixelColor(x, y).lightness() for y in range(24) for x in range(24))
+    assert abs(darkest - at_full) < 12, "the cross was drawn in something the theme never named"
