@@ -6,8 +6,8 @@ demo never talks to a site: `MockClient` answers from fixtures generated from a 
 path a widget's contract assumes. The latency is deliberately not zero: a widget's loading state is
 part of what a reviewer is here to look at.
 
-Live mode reads the site `.env.local` at the repo root names, through `ShotgunClient.from_env`, and
-is offered only when that file holds the three keys.
+Live mode reads the site `.env.local` names, through `ShotgunClient.from_env`, and is offered
+only when that file holds the three keys. `showcase.paths` says which file that is.
 
 `reads` counts the calls that reached the client, by method name, which is the `window.sgDemoReads`
 of upstream: a drive asserts what a page cost.
@@ -21,6 +21,8 @@ from typing import Any
 from sg_widgets_core.context import SgContext, SgContextOptions, create_sg_context
 from sg_widgets_core.mock import MOCK_NOW, MockClient
 
+from .paths import env_file
+
 __all__ = [
     "ENV_KEYS",
     "MOCK_PROJECT_ID",
@@ -29,7 +31,6 @@ __all__ = [
     "demo_context",
     "env_values",
     "live_available",
-    "repo_root",
 ]
 
 #: The project the mock fixtures are built around.
@@ -44,14 +45,9 @@ MOCK_SEED = 1
 MOCK_LATENCY_MS = 150
 
 
-def repo_root() -> Path:
-    """The checkout this package was imported from."""
-    return Path(__file__).resolve().parents[3]
-
-
 def env_values(path: Path | None = None) -> dict[str, str]:
     """`.env.local` as a mapping. Missing file, empty mapping. Values are never logged."""
-    target = path if path is not None else repo_root() / ".env.local"
+    target = path if path is not None else env_file()
     out: dict[str, str] = {}
     try:
         text = target.read_text(encoding="utf-8")

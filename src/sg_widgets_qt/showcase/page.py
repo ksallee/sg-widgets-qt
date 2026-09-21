@@ -15,7 +15,8 @@ from qtpy import QtCore, QtGui, QtWidgets
 from ..primitives.table import TableSurface
 from ..theme import Theme, theme_of, watch_theme
 from . import chrome, markdown
-from .context import DemoContext, repo_root
+from .context import DemoContext
+from .paths import docs_dir
 from .prefs import Prefs
 from .stage import DemoStage, demo_module_name
 
@@ -64,11 +65,6 @@ TABLE_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
 
 #: Where a page of each section lives.
 SECTIONS = ("widgets", "core", "start")
-
-
-def docs_dir() -> Path:
-    """The `docs/` of this checkout."""
-    return repo_root() / "docs"
 
 
 def page_path(name: str, root: Path | None = None) -> Path | None:
