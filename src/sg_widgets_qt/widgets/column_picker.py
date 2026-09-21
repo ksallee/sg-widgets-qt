@@ -54,7 +54,7 @@ from ..primitives.list_view import LIST_PAD, ListSurface
 from ..primitives.roles import Roles
 from ..primitives.row_delegate import GAP, LEAD_GLYPH, ROW_PAD_X, RowDelegate
 from ..primitives.skeleton import Skeleton
-from ..theme import theme_of
+from ..theme import host_theme, theme_of
 from ..workers import Ticket, default_pool
 from ._sortable_rows import (
     DRAG_THRESHOLD as SORT_DRAG_THRESHOLD,  # noqa: F401
@@ -125,8 +125,8 @@ def _remove_painter(size: str = "md") -> Callable[..., None]:
 
     def paint(painter: QtGui.QPainter, rect: QtCore.QRect, option: Any) -> None:
         widget = getattr(option, "widget", None)
-        theme = theme_of(widget) if widget is not None else None
-        ink = theme.color("muted_foreground") if theme is not None else QtGui.QColor(128, 128, 128)
+        theme = theme_of(widget) if widget is not None else host_theme()
+        ink = theme.color("muted_foreground")
         side = LEAD_GLYPH.get(size, LEAD_GLYPH["md"])
         box = QtCore.QRect(rect.right() + 1 - side, rect.center().y() - side // 2, side, side)
         painter.setOpacity(0.7)
