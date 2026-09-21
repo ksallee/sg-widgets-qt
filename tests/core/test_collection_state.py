@@ -8,6 +8,7 @@ from sg_widgets_core.collection import SortSpec
 from sg_widgets_core.collection_state import (
     CollapseState,
     SelectionState,
+    _stable,
     as_collapse_state,
     collapse_all,
     collapse_state_from,
@@ -119,6 +120,12 @@ class TestMirroringASource:
         assert same_filters(tree, wire) is True
         assert same_filters(None, None) is True
         assert same_filters(tree, None) is False
+
+    def test_keys_a_dict_and_a_dataclass_through_the_query_caches_key(self) -> None:
+        # One key function: sorted keys, no spaces, a dataclass spelled as its fields.
+        wire = {"logical_operator": "and", "conditions": [["code", "is", "v1"]]}
+        assert _stable(wire) == '{"conditions":[["code","is","v1"]],"logical_operator":"and"}'
+        assert _stable(SortSpec(path="code", descending=False)) == '{"descending":false,"path":"code"}'
 
     def test_turns_a_sort_pickers_keys_into_the_sources_sort_and_back(self) -> None:
         keys = [SortKey(field="code", direction="asc"), SortKey(field="created_at", direction="desc")]
