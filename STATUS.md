@@ -4,6 +4,9 @@ What is ported from `~/dev/sg-widgets`, what is partial, what is left. Generated
 `python tools/status.py` from `sync/manifest.json`; `python tools/sync_status.py` says what drifted
 upstream since. Only the Not ported section is written by hand.
 
+The counts are upstream sg-widgets items, by their port status. The README's status line counts
+what the wheel ships, so the two numbers differ.
+
 Last synced upstream commit: `882c450c0574`.
 
 | kind | complete | partial | skipped |
